@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<Html>     
+<Head>      
+<Title>     
+NOTE TAKER
+
+
+</Title>  
+</Head>  
+<Body>  
+   <h1>NOTE TAKER</h2>
+ 
+
+<form>
+
+<Body background="C:\Users\513815\Desktop\Notes\download.png">   
+
+
+<div class="notes">
+
+	<form id="notepad">
+
+
+
+  <label for="A"><b>NAME:</b></label><br>
+  <input type="text" id="A" name="A"><br>
+
+  <label for="B"><b>AR#:</b></label><br>
+  <input type="text" id="B" name="B" value=""><br>
+
+  <label for="C"><b>SYSTEM #:</b></label><br>
+  <input type="text" id="C" name="C" value=""><br>
+
+  <label for="D"><b>Verified:</b></label><br>
+  <input type="text" id="D" name="D" value="YES"><br>
+
+  <label for="E"><b>Panel Type:</b></label><br>
+  <input type="text" id="E" name="E" value=""><br>
+
+
+  <label for="F"><b>REASON:</b></label><br>
+  <input type="text" id="F" name="F" value=""><br>
+
+  <label for="G"><b>Resolution:</b></label><br>
+
+    <textarea id="G" style="width:700px; height: 150px;">
+
+    </textarea><br>
+
+ <label for="H"><b>Extension:</b></label><br>
+  <input type="text" id="H" name="H" value="Erick 1306228"><br>
+</div>
+
+
+</div>
+
+
+<button onclick="copyForm()">Copy text</button>
+
+<script>
+function copyForm() {
+    var A = document.getElementById("A").value;
+    var B = document.getElementById("B").value;
+    var C = document.getElementById("C").value;
+    var D = document.getElementById("D").value;
+    var E = document.getElementById("E").value;
+    var F = document.getElementById("F").value;
+    var G = document.getElementById("G").value;
+    var H = document.getElementById("H").value;
+
+    var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nVERIFIED: " + D + "\nPanel Type: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nEXTENSION: " + H  ; 
+    navigator.clipboard.writeText(output);
+}
+
+</script>
+
+
+<p><B>FOR SERVICE APPOINTMENT, 
+<a href="file:///C:/Users/513815/Desktop/Notes/TECH%20VISIT.HTML" target="_blank" rel="noopener noreferrer">RESI SCHEDULING</a>, OR 
+<a href="file:///C:/Users/513815/Desktop/Notes/DEALER%20SERVICE.HTML" target="_blank" rel="noopener noreferrer">DEALER SERVICE</a></p>
+
+</body>
+</html>
