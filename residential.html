@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<Html>     
+<Head>      
+<Title>     
+SERVICE VISIT INFO
+
+
+</Title>  
+</Head>  
+<Body>  
+   <h1>SERVICE VISIT INFO</h2>
+ 
+
+<form>
+
+<Body background="C:\Users\513815\Desktop\download.png">   
+
+
+<div class="notes">
+
+	<form id="notepad">
+
+
+
+  <label for="A"><b>SYSTEM #:</b></label><br>
+  <input type="text" id="A" name="A"><br>
+
+  <label for="B"><b>NAME/CONTACT#:</b></label><br>
+  <input type="text" id="B" name="B" value=""><br>
+
+  <label for="C"><b>Access/Gate/Lockbox:</b></label><br>
+  <input type="text" id="C" name="C" value=""><br>
+
+  <label for="D"><b>System Type:</b></label><br>
+  <input type="text" id="D" name="D" value=""><br>
+
+  <label for="E"><b>ISSUE:</b></label><br>
+  <textarea id="E" style="width:500px; height: 50px;">
+  </textarea><br>
+
+  <label for="F"><b>PARTS NEEDED:</b></label><br>
+  <input type="text" id="F" name="F" value=""><br>
+
+  <label for="G"><b>QUOTED RATE:</b></label><br>
+  <input type="text" id="G" name="G" value=""><br>
+
+
+
+</div>
+
+
+<button onclick="copyForm()">Copy text</button>
+
+<script>
+function copyForm() {
+    var A = document.getElementById("A").value;
+    var B = document.getElementById("B").value;
+    var C = document.getElementById("C").value;
+    var D = document.getElementById("D").value;
+    var E = document.getElementById("E").value;
+    var F = document.getElementById("F").value;
+    var G = document.getElementById("G").value;
+
+    var output = "SYSTEM #: " + A + "\nNAME/CONTACT#: " + B + "\nAccess/Gate/Lockbox: " + C + "\nSystem Type: " + D + "\nISSUE: " + E + "\nPARTS NEEDED: " + F + "\nQUOTED RATE: " + G; 
+    navigator.clipboard.writeText(output);
+}
+
+</script>
+</body>
+</html>
