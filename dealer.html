@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<Html>     
+<Head>      
+<Title>     
+DEALER SERVICE INFO
+
+
+</Title>  
+</Head>  
+<Body>  
+   <h1>DEALER SERVICE</h2>
+ 
+
+<form>
+
+<Body background="C:\Users\604270\Desktop\download.png">   
+
+
+<div class="notes">
+
+	<form id="notepad">
+
+
+
+  <label for="A"><b>ISSUE:</b></label><br>
+  <input type="text" id="A" name="A"><br>
+
+  <label for="B"><b>TROUBLESHOOTING STEPS:</b></label><br>
+  <textarea id="B" style="width:700px; height: 30px;">
+  </textarea><br>
+
+  <label for="C"><b>QUOTED RATE:</b></label><br>
+  <input type="text" id="C" name="C" value=""><br>
+
+  <label for="D"><b>PARTS, IF NEEDED:</b></label><br>
+  <input type="text" id="D" name="D"><br>
+
+  <label for="E"><b>NAME/CONTACT#:</b></label><br>
+  <input type="text" id="E" name="E" value=""><br>
+
+
+
+
+</div>
+
+
+<button onclick="copyForm()">Copy text</button>
+
+<script>
+function copyForm() {
+    var A = document.getElementById("A").value;
+    var B = document.getElementById("B").value;
+    var C = document.getElementById("C").value;
+    var D = document.getElementById("D").value;
+    var E = document.getElementById("E").value;
+    var output = "ISSUE: " + A + "\nTROUBLESHOOTING STEPS: " + B + "\nQUOTED RATE: " + C + "\nPARTS, IF NEEDED: " + D + "\nNAME/CONTACT#: " + E ; 
+    navigator.clipboard.writeText(output);
+}
+
+</script>
+</body>
+</html>
