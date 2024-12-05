@@ -66,23 +66,25 @@ NOTE TAKER
 
     </textarea><br>
 
-  <meta charset="UTF-8">
+   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+  <title>Page 2: Review Information</title>
   <script>
     window.onload = function() {
       // Retrieve the data from localStorage
-      const name = localStorage.getItem('agent');
-      const phone = localStorage.getItem('ext');
+      const name = localStorage.getItem('name');
+      const phone = localStorage.getItem('phone');
 
       // Populate the fields with the stored data
-      document.getElementById('agentDisplay').innerText = agent;
-      document.getElementById('extDisplay').innerText = ext;
+      document.getElementById('nameDisplay').innerText = name;
+      document.getElementById('phoneDisplay').innerText = phone;
     }
   </script>
+</head>
+<body>
   
-  <p><strong>AGENT:</strong> <span id="agentDisplay"></span>
-  <strong>EXT:</strong> <span id="extDisplay"></span></p>
+  <p><strong>AGENT:</strong> <span id="nameDisplay"></span></p>
+  <p><strong>EXT:</strong> <span id="phoneDisplay"></span></p>
 
 
 </div>
