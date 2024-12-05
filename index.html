@@ -59,8 +59,11 @@ NOTE TAKER
 
     </textarea><br>
 
- <label for="H"><b>EXT:</b></label><br>
-  <input type="text" id="H" name="H" value="Erick 1306228"><br>
+ <label for="H"><b>AGENT:</b></label><br>
+  <input type="text" id="H" name="H" value=""><br>
+
+ <label for="I"><b>EXT:</b></label><br>
+  <input type="text" id="I" name="I" value=""><br>		
 </div>
 
 
@@ -79,8 +82,9 @@ function copyForm() {
     var F = document.getElementById("F").value;
     var G = document.getElementById("G").value;
     var H = document.getElementById("H").value;
+    var I = document.getElementById("I").value;	
 
-    var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nPASSCODE VERIFIED: " + D + "\nPANEL TYPE: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nEXT: " + H  ; 
+    var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nPASSCODE VERIFIED: " + D + "\nPANEL TYPE: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nAGENT: " + H + "\nEXT: " + I ; 
     navigator.clipboard.writeText(output);
 }
 
