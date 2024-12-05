@@ -104,7 +104,7 @@ function copyForm() {
     var nameDisplay = document.getElementById("nameDisplay").value;
     var phoneDisplay = document.getElementById("phoneDisplay").value;	
 
-    var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nPASSCODE VERIFIED: " + D + "\nPANEL TYPE: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nAGENT: " + localStorage + "\nEXT: " + localStorage ; 
+    var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nPASSCODE VERIFIED: " + D + "\nPANEL TYPE: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nAGENT: " + localStorage.getItem('name') + "\nEXT: " + localStorage.getItem('phone') ; 
     navigator.clipboard.writeText(output);
 }
 
