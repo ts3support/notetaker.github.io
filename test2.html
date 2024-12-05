@@ -16,27 +16,9 @@ NOTE TAKER
 <Body background="https://ts3support.github.io/notetaker.github.io/download.png">
 
 
-<meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <script>
-    window.onload = function() {
-      // Retrieve the data from localStorage
-      const name = localStorage.getItem('H');
-      const phone = localStorage.getItem('I');
 
-      // Populate the fields with the stored data
-      document.getElementById('nameDisplay').innerText = AGENT;
-      document.getElementById('phoneDisplay').innerText = EXT;
-    }
-  </script>
-</head>
-<body>
-  <h2>Page 2: Your Information</h2>
-  <p><strong>AGENT:</strong> <span id="nameDisplay"></span></p>
-  <p><strong>EXT:</strong> <span id="phoneDisplay"></span></p>
 
-  <form action="page3.html" method="GET">
-    <input type="submit" value="Next">
+
 
 
 	
@@ -84,11 +66,24 @@ NOTE TAKER
 
     </textarea><br>
 
- <label for="H"><b>AGENT:</b></label><br>
-  <input type="text" id="H" name="H" value=""><br>
+<meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <script>
+    window.onload = function() {
+      // Retrieve the data from localStorage
+      const name = localStorage.getItem('H');
+      const phone = localStorage.getItem('I');
 
- <label for="I"><b>EXT:</b></label><br>
-  <input type="text" id="I" name="I" value=""><br>		
+      // Populate the fields with the stored data
+      document.getElementById('nameDisplay').innerText = AGENT;
+      document.getElementById('phoneDisplay').innerText = EXT;
+    }
+  </script>
+</head>
+<body>
+  <h2>Page 2: Your Information</h2>
+  <p><strong>AGENT:</strong> <span id="nameDisplay"></span></p>
+  <p><strong>EXT:</strong> <span id="phoneDisplay"></span></p>		
 </div>
 
 
