@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prefill Text from Clipboard</title>
+</head>
+<body>
+
+    <h1>Prefill Text from Clipboard</h1>
+
+    <button id="pasteButton">Paste Clipboard Text</button>
+
+    <textarea id="prefilledText" rows="10" cols="50" placeholder="Text will appear here"></textarea>
+
+    <script>
+        document.getElementById('pasteButton').addEventListener('click', async function() {
+            try {
+                // Use Clipboard API to read text from clipboard
+                const clipboardText = await navigator.clipboard.readText();
+                // Prefill the textarea with clipboard text
+                document.getElementById('prefilledText').value = clipboardText;
+            } catch (err) {
+                console.error('Failed to read clipboard contents: ', err);
+            }
+        });
+    </script>
+
+</body>
+</html>
