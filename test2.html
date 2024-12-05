@@ -72,17 +72,17 @@ NOTE TAKER
   <script>
     window.onload = function() {
       // Retrieve the data from localStorage
-      const name = localStorage.getItem('name');
-      const phone = localStorage.getItem('phone');
+      const name = localStorage.getItem('agent');
+      const phone = localStorage.getItem('ext');
 
       // Populate the fields with the stored data
-      document.getElementById('nameDisplay').innerText = name;
-      document.getElementById('phoneDisplay').innerText = phone;
+      document.getElementById('nameDisplay').innerText = agent;
+      document.getElementById('phoneDisplay').innerText = ext;
     }
   </script>
   
-  <p><strong>Name:</strong> <span id="nameDisplay"></span>
-  <strong>Phone Number:</strong> <span id="phoneDisplay"></span></p>
+  <p><strong>AGENT:</strong> <span id="agentDisplay"></span>
+  <strong>EXT:</strong> <span id="extDisplay"></span></p>
 
 
 </div>
