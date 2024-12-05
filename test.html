@@ -3,41 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prefill Form Example</title>
+    <title>Multi-page Form</title>
+    <script>
+        function saveData() {
+            // Get values from the form inputs
+            const name = document.getElementById("name").value;
+            const phone = document.getElementById("phone").value;
+
+            // Save the data to localStorage
+            localStorage.setItem("name", name);
+            localStorage.setItem("phone", phone);
+        }
+    </script>
 </head>
 <body>
-
-    <h2>Prefilled Form</h2>
-    <form action="/submit" method="POST">
-        <!-- Text input field (prefilled with a value) -->
+    <h1>Enter Your Information</h1>
+    <form action="page2.html" onsubmit="saveData()">
         <label for="name">Name:</label>
-        <input type="text" id="name" name="name" value="John Doe"><br><br>
-
-        <!-- Email input field (prefilled with a value) -->
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email" value="johndoe@example.com"><br><br>
-
-        <!-- Radio buttons (prefilled with one selected) -->
-        <label>Gender:</label><br>
-        <input type="radio" id="male" name="gender" value="male" checked>
-        <label for="male">Male</label><br>
-        <input type="radio" id="female" name="gender" value="female">
-        <label for="female">Female</label><br><br>
-
-        <!-- Checkbox (prefilled as checked) -->
-        <input type="checkbox" id="subscribe" name="subscribe" checked>
-        <label for="subscribe">Subscribe to newsletter</label><br><br>
-
-        <!-- Select dropdown (prefilled with a selected option) -->
-        <label for="country">Country:</label>
-        <select id="country" name="country">
-            <option value="USA" selected>United States</option>
-            <option value="Canada">Canada</option>
-            <option value="UK">United Kingdom</option>
-        </select><br><br>
-
-        <input type="submit" value="Submit">
+        <input type="text" id="name" required><br><br>
+        <label for="phone">Phone:</label>
+        <input type="tel" id="phone" required><br><br>
+        <button type="submit">Next</button>
     </form>
-
 </body>
 </html>
