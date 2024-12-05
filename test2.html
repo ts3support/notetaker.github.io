@@ -101,8 +101,8 @@ function copyForm() {
     var E = document.getElementById("E").value;
     var F = document.getElementById("F").value;
     var G = document.getElementById("G").value;
-    var H = document.getElementById("H").value;
-    var I = document.getElementById("I").value;	
+    var nameDisplay = document.getElementById("nameDisplay").value;
+    var phoneDisplay = document.getElementById("phoneDisplay").value;	
 
     var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nPASSCODE VERIFIED: " + D + "\nPANEL TYPE: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nAGENT: " + H + "\nEXT: " + I ; 
     navigator.clipboard.writeText(output);
