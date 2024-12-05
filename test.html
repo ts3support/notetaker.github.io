@@ -7,22 +7,22 @@
     <script>
         function saveData() {
             // Get values from the form inputs
-            const name = document.getElementById("name").value;
-            const phone = document.getElementById("phone").value;
+            const AGENT = document.getElementById("AGENT").value;
+            const EXT = document.getElementById("EXT).value;
 
             // Save the data to localStorage
-            localStorage.setItem("name", name);
-            localStorage.setItem("phone", phone);
+            localStorage.setItem("AGENT", AGENT);
+            localStorage.setItem("EXT", EXT);
         }
     </script>
 </head>
 <body>
     <h1>Enter Your Information</h1>
     <form action="https://ts3support.github.io/notetaker.github.io" onsubmit="saveData()">
-        <label for="name">Name:</label>
-        <input type="text" id="name" required><br><br>
-        <label for="phone">Phone:</label>
-        <input type="tel" id="phone" required><br><br>
+        <label for="AGENT">AGENT:</label>
+        <input type="text" id="AGENT" required><br><br>
+        <label for="EXT">EXT:</label>
+        <input type="EXT" id="EXT" required><br><br>
         <button type="submit">Next</button>
     </form>
 </body>
