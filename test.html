@@ -1,31 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    
-    <Body background="https://ts3support.github.io/notetaker.github.io/download.png">
-    <center>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-page Form</title>
+    <title>Note Taker</title>
     <script>
         function saveData() {
             // Get values from the form inputs
-            const agent = document.getElementById("agent").value;
-            const ext = document.getElementById("ext").value;
+            const name = document.getElementById("name").value;
+            const phone = document.getElementById("phone").value;
 
             // Save the data to localStorage
-            localStorage.setItem("agent", agent);
-            localStorage.setItem("ext", ext);
+            localStorage.setItem("name", name);
+            localStorage.setItem("phone", phone);
         }
     </script>
 </head>
 <body>
     <h1>Enter Your Information</h1>
-    <form action="https://ts3support.github.io/notetaker.github.io/test2.html" onsubmit="saveData()">
-        <label for="agent">AGENT:</label>
-        <input type="text" id="AGENT" required><br><br>
-        <label for="ext">EXT:</label>
-        <input type="tel" id="EXT" required><br><br>
+    <form action="page2.html" onsubmit="saveData()">
+        <label for="name">Name:</label>
+        <input type="text" id="name" required><br><br>
+        <label for="phone">Ext:</label>
+        <input type="tel" id="phone" required><br><br>
         <button type="submit">Next</button>
     </form>
 </body>
