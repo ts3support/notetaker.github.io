@@ -54,8 +54,8 @@ SERVICE VISIT INFO
   <label for="G"><b>QUOTED RATE:</b></label><br>
   <input type="text" id="G" name="G" value=""><br>
 
-  <label for="H"><b>TSEXEMPT:</b></label><br>
-  <input type="checkbox" id="G" name="G" value=""><br>		
+  <label for="H"><b>TSEXEMPT?:</b></label><br>
+  <input type="checkbox" id="H" name="H" value=""><br>		
 
 
 
@@ -73,8 +73,9 @@ function copyForm() {
     var E = document.getElementById("E").value;
     var F = document.getElementById("F").value;
     var G = document.getElementById("G").value;
+    var H = document.getElementById("H").value;	
 
-    var output = "SYSTEM #: " + A + "\nNAME/CONTACT#: " + B + "\nAccess/Gate/Lockbox: " + C + "\nSystem Type: " + D + "\nISSUE: " + E + "\nPARTS NEEDED: " + F + "\nQUOTED RATE: " + G; 
+    var output = "SYSTEM #: " + A + "\nNAME/CONTACT#: " + B + "\nAccess/Gate/Lockbox: " + C + "\nSystem Type: " + D + "\nISSUE: " + E + "\nPARTS NEEDED: " + F + "\nQUOTED RATE: " + G + "\nTSEXEMPT: " + H; 
     navigator.clipboard.writeText(output);
 }
 
