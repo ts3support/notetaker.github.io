@@ -31,21 +31,23 @@ ADDENDUMS
 	<form id="notepad">
 
 
-
-  <label for="A"><b>NAME:</b></label><br>
+  <label for="A"><b>AR:</b></label><br>
   <input type="text" id="A" name="A"><br>
+		
+  <label for="B"><b>NAME:</b></label><br>
+  <input type="text" id="B" name="B"><br>
 
-  <label for="B"><b>SYSTEM #:</b></label><br>
-  <input type="text" id="B" name="B" value=""><br>
+  <label for="C"><b>SYSTEM #:</b></label><br>
+  <input type="text" id="C" name="C" value=""><br>
 
-  <label for="C"><b>REQUEST:</b></label><br>
+  <label for="D"><b>REQUEST:</b></label><br>
 
-    <textarea id="C" style="width:300px; height: 30x;">
+    <textarea id="D" style="width:300px; height: 30x;">
 
     </textarea><br>
 
-  <label for="D"><b>EMAIL:</b></label><br>
-  <input type="text" id="D" name="D" value=""><br>
+  <label for="E"><b>EMAIL:</b></label><br>
+  <input type="text" id="E" name="E" value=""><br>
  
 </div>
 
@@ -58,8 +60,9 @@ function copyForm() {
     var B = document.getElementById("B").value;
     var C = document.getElementById("C").value;
     var D = document.getElementById("D").value;
+    var E = document.getElementById("E").value;	
 
-    var output = "NAME: " + A + "\nSYSTEM #: " + B + "\nREQUEST: " + C + "\nEMAIL: " + D  ; 
+    var output = "AR: " + A + "\nNAME: " + B + "\nSYSTEM #: " + C + "\nREQUEST: " + D+ "\nEMAIL: " + E  ; 
     navigator.clipboard.writeText(output);
 }
 
