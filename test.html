@@ -30,39 +30,36 @@ SERVICE VISIT INFO
 
 	<form id="notepad">
 
-
-
-  <label for="A"><b>SYSTEM #:</b></label><br>
-  <input type="text" id="A" name="A"><br>
-
-  <label for="B"><b>NAME/CONTACT#:</b></label><br>
-  <input type="text" id="B" name="B" value=""><br>
-
-  <label for="C"><b>Access/Gate/Lockbox:</b></label><br>
-  <input type="text" id="C" name="C" value=""><br>
-
-  <label for="D"><b>System Type:</b></label><br>
-  <input type="text" id="D" name="D" value=""><br>
-
-  <label for="E"><b>ISSUE:</b></label><br>
-  <textarea id="E" style="width:500px; height: 50px;">
+<TABLE>
+<tr>
+<td></td>  <label for="A"><b>SYSTEM #:</b></label>
+<td>  <input type="text" id="A" name="A" required value=""><br>
+<tr>
+  <td><label for="B"><b>NAME/CONTACT#:</b></label><br>
+  <td><input type="text" id="B" name="B" required value=""><br>
+<tr>
+  <td><label for="C"><b>Access/Gate/Lockbox:</b></label><br>
+  <td><input type="text" id="C" name="C" required value=""><br>
+<tr>
+  <td><label for="D"><b>System Type:</b></label><br>
+  <td><input type="text" id="D" name="D" required value=""><br>
+<tr>
+  <td><label for="E"><b>ISSUE: </b><I>Please notate if TSEXEMPT</i></b></label><br>
+  <td><textarea id="E" style="width:500px; height: 50px;">
   </textarea><br>
-
-  <label for="F"><b>PARTS NEEDED:</b></label><br>
-  <input type="text" id="F" name="F" value=""><br>
-
-  <label for="G"><b>QUOTED RATE:</b></label><br>
-  <input type="text" id="G" name="G" value=""><br>
-
-  <label for="H"><b>TSEXEMPT?:</b></label>
-  <input type="checkbox" id="H" name="H" value=""><br>		
+<tr>
+  <td><label for="F"><b>PARTS NEEDED:</b></label><br>
+  <td><input type="text" id="F" name="F" required value=""><br>
+<tr>
+  <td><label for="G"><b>QUOTED RATE:</b></label><br>
+  <td><input type="text" id="G" name="G" required value=""><br>
 
 
 
 </div>
 
 
-<button onclick="copyForm()"><b>SUBMIT</b></button></p>
+<p><button onclick="copyForm()"><b>SUBMIT</b></button></p>
 
 <script>
 function copyForm() {
@@ -73,9 +70,8 @@ function copyForm() {
     var E = document.getElementById("E").value;
     var F = document.getElementById("F").value;
     var G = document.getElementById("G").value;
-    var H = document.getElementById("H").value;	
 
-    var output = "SYSTEM #: " + A + "\nNAME/CONTACT#: " + B + "\nAccess/Gate/Lockbox: " + C + "\nSystem Type: " + D + "\nISSUE: " + E + "\nPARTS NEEDED: " + F + "\nQUOTED RATE: " + G + "\nTSEXEMPT: " + H; 
+    var output = "SYSTEM #: " + A + "\nNAME/CONTACT#: " + B + "\nAccess/Gate/Lockbox: " + C + "\nSystem Type: " + D + "\nISSUE: " + E + "\nPARTS NEEDED: " + F + "\nQUOTED RATE: " + G; 
     navigator.clipboard.writeText(output);
 }
 
