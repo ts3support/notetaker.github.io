@@ -25,10 +25,12 @@
             // Get values from the form inputs
             const name = document.getElementById("name").value;
             const phone = document.getElementById("phone").value;
+            const department = document.getElementById("department").value;
 
             // Save the data to localStorage
             localStorage.setItem("name", name);
             localStorage.setItem("phone", phone);
+            localStorage.setItem("dept", dept);
         }
     </script>
 </head>
@@ -42,9 +44,14 @@
         <td><label for="name">Name:</label>
         <td><input type="text" id="name" required><br>
         <tr>
+            
         <td><label for="phone">Ext:</label>
         <td><input type="tel" id="phone" required><br>
-        </td>
+
+        <tr>
+        <td><label for="department">Dept:</label>
+        <td><input type="name" id="dept" required><br>
+            
         <button type="submit">Next</button>
     </form>
 </body>
