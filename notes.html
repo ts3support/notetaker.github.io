@@ -95,7 +95,7 @@ NOTE TAKER
   
   <strong>AGENT:</strong> <span id="nameDisplay"></span>
   <strong>EXT:</strong> <span id="phoneDisplay"></span>
-
+  <strong>DEPT:</strong> <span id="deptDisplay"></span>
 
 </div>
 
@@ -113,8 +113,9 @@ function copyForm() {
     var G = document.getElementById("G").value;
     var nameDisplay = document.getElementById("nameDisplay").value;
     var phoneDisplay = document.getElementById("phoneDisplay").value;	
+    var deptDisplay = document.getElementById("deptDisplay").value;		
 
-    var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nPASSCODE VERIFIED: " + D + "\nPANEL TYPE: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nAGENT: " + localStorage.getItem('name') + "\nEXT: " + localStorage.getItem('phone') ; 
+    var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nPASSCODE VERIFIED: " + D + "\nPANEL TYPE: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nAGENT: " + localStorage.getItem('name') + "\nEXT: " + localStorage.getItem('phone')+ "\nDEPT: " + localStorage.getItem('dept') ; 
     navigator.clipboard.writeText(output);
 }
 
