@@ -84,6 +84,7 @@ NOTE TAKER
       // Retrieve the data from localStorage
       const name = localStorage.getItem('name');
       const phone = localStorage.getItem('phone');
+      const dept = localStorage.getItem('dept');	    
 
       // Populate the fields with the stored data
       document.getElementById('nameDisplay').innerText = name;
@@ -94,9 +95,9 @@ NOTE TAKER
 </head>
 <body>
   
-  AGENT:</strong> <span id="nameDisplay"></span>
-  EXT:</strong> <span id="phoneDisplay"></span>
-  DEPT:</strong> <span id="deptDisplay"></span>
+  AGENT: <span id="nameDisplay"></span>
+  EXT: <span id="phoneDisplay"></span>
+  DEPT: <span id="deptDisplay"></span>
 
 </div>
 
