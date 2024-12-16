@@ -1,1 +1,144 @@
+<!DOCTYPE html>
+<Html>     
+<Head>      
+<Title>     
+NOTE TAKER
 
+
+</Title>  
+</Head>  
+<Body>  
+   <h1>NOTE TAKER</h2>
+ 
+
+<form>
+
+    <style>
+        
+        body {
+            margin: 10;
+            height: 100%;
+            background-image: url('https://ts3support.github.io/notetaker.github.io/download.png');
+            background-size: cover;  
+            background-position: center center;
+            background-attachment: fixed;
+        }
+    </style>
+
+
+
+
+
+
+
+	
+	
+<div class="notes">
+
+	<form id="notepad">
+
+
+<table>
+
+<tr>
+<td>	<label for="A"><b>NAME:</b></label>
+<td>	 <label for="B"><b>AR#:</b></label>
+
+<tr>
+<td>	<input type="text" id="A" name="A">
+<td>	<input type="text" id="B" name="B" value="">
+
+
+<tr>
+<td>	<label for="C"><b>SYSTEM #:</b></label>
+<td>  	<label for="D"><b>PASSCODE VERIFIED:</b></label>
+
+<tr>		
+<td>	<input type="text" id="C" name="C" value="">
+<td>	<input type="text" id="D" name="D" required value="">
+
+<tr>
+<td>	<label for="E"><b>PANEL TYPE:</b></label>
+<td>	<label for="F"><b>REASON:</b></label>
+
+<tr>		
+<td>	<input type="text" id="E" name="E" value="">
+<td>	<input type="text" id="F" name="F" value="">
+</table>
+
+
+
+
+
+  <label for="G"><b>RESOLUTION:</b></label><br>
+
+    <textarea id="G" style="width:500px; height: 250px;">
+
+    </textarea><br>
+
+   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page 2: Review Information</title>
+  <script>
+    window.onload = function() {
+      // Retrieve the data from localStorage
+      const name = localStorage.getItem('name');
+      const phone = localStorage.getItem('phone');
+      const dept = localStorage.getItem('dept');	    
+
+      // Populate the fields with the stored data
+      document.getElementById('nameDisplay').innerText = name;
+      document.getElementById('phoneDisplay').innerText = phone;
+      document.getElementById('deptDisplay').innerText = dept;	    
+    }
+  </script>
+</head>
+<body>
+  
+  AGENT: <span id="nameDisplay"></span>
+  EXT: <span id="phoneDisplay"></span>
+  DEPT: <span id="deptDisplay"></span>
+
+</div>
+
+
+<center><p><button onclick="copyForm()"><b>SUBMIT</b></button></p>
+
+<script>
+function copyForm() {
+    var A = document.getElementById("A").value;
+    var B = document.getElementById("B").value;
+    var C = document.getElementById("C").value;
+    var D = document.getElementById("D").value;
+    var E = document.getElementById("E").value;
+    var F = document.getElementById("F").value;
+    var G = document.getElementById("G").value;
+    var nameDisplay = document.getElementById("nameDisplay").value;
+    var phoneDisplay = document.getElementById("phoneDisplay").value;	
+    var deptDisplay = document.getElementById("deptDisplay").value;		
+
+    var output = "NAME: " + A + "\nAR: " + B + "\nSYSTEM #: " + C + "\nPASSCODE VERIFIED: " + D + "\nPANEL TYPE: " + F + "\nREASON: " + F + "\nRESOLUTION: " + G + "\nAGENT: " + localStorage.getItem('name') + "\nEXT: " + localStorage.getItem('phone')+ "\nDEPT: " + localStorage.getItem('dept') ; 
+    navigator.clipboard.writeText(output);
+}
+
+</script>
+
+
+<p><b>TICKETS</a></p>
+<a href="javascript:window.open('https://ts3support.github.io/notetaker.github.io/test.html','mypopuptitle','width=700,height=500')">RESI SCHEDULING</a>   |   
+<a href="javascript:window.open('https://ts3support.github.io/notetaker.github.io/dealer.html','mypopuptitle','width=700,height=500')">DEALER SERVICE</a>   |   
+<a href="javascript:window.open('https://ts3support.github.io/notetaker.github.io/addendum.html','mypopuptitle','width=700,height=500')">ADDENDUM REQUEST</a></p>
+
+
+	<br><p><b>HELPFUL LINKS</a></p>
+	<table>
+		<tr>
+<td>	<a href="https://docs.google.com/forms/d/e/1FAIpQLSezVivFZA7PqkoQ21Mq7UOIar7wxeEF6OFb-UeNVqcU4MDtYQ/viewform" target="_blank" rel="noopener noreferrer">TS Opportunities</a>   |   
+<td>	<a href="https://docs.google.com/spreadsheets/d/1aQgYbEoq_5hmYFWouD9-tPp1znwz8DVfvjbNk6LDS0s/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer">TS SOP Guide</a>   |   
+<td>	<a href="https://docs.google.com/spreadsheets/d/13BOPzJM5U4tuyyZVUKBZrRO2rNuzDZ01SCjPDSPDGT0/edit?gid=308846849#gid=308846849" target="_blank" rel="noopener noreferrer">Common Parts List</a>   |   
+<td>	<a href="https://meet.google.com/ewr-ezys-mfz?authuser=0" target="_blank" rel="noopener noreferrer">TS CMS PIE</a>   |   
+<td>	<a href="https://docs.google.com/forms/d/e/1FAIpQLSeF1p4NvX-YrO7bSZO0n3SH5wyq-7_-KudDDU4iq4Y7L9Kmdw/viewform" target="_blank" rel="noopener noreferrer">Return Label Request</a>   |   	
+<td>	<a href="https://docs.google.com/document/d/1g0RKMsiVUsN74lkKpCiXBmVyED0Twi-xddZxqJmosGI/edit?tab=t.0" target="_blank" rel="noopener noreferrer">PowerG Device Prefixes</a>   |   		
+	
+</body>
+</html>
