@@ -31,6 +31,21 @@ SERVICE VISIT INFO
 	<form id="notepad">
 
 
+  <script>
+    window.onload = function() {
+      // Retrieve the data from localStorage
+      const system# = localStorage.getItem('system#');
+      const name = localStorage.getItem('name');
+      const system type = localStorage.getItem('system type');	    
+
+      // Populate the fields with the stored data
+      document.getElementById('system#Display').innerText = name;
+      document.getElementById('nameDisplay').innerText = phone;
+      document.getElementById('system typeDisplay').innerText = system type;	    
+    }
+  </script>
+
+
 
   <label for="A"><b>SYSTEM #:</b></label><br>
   <input type="text" id="A" name="A" required value=""><br>
