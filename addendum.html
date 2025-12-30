@@ -4,17 +4,13 @@
 <Title>     
 ADDENDUMS
 
-
 </Title>  
 </Head>  
 <Body>  
    <h1>ADDENDUM REQUEST</h2>
- 
 
 <form>
-
     <style>
-        
         body {
             margin: 0;
             height: 100%;
@@ -25,11 +21,8 @@ ADDENDUMS
         }
     </style>
 
-
 <div class="notes">
-
 	<form id="notepad">
-
 
   <label for="A"><b>AR:</b></label><br>
   <input type="text" id="A" name="A"><br>
@@ -40,17 +33,19 @@ ADDENDUMS
   <label for="C"><b>SYSTEM #:</b></label><br>
   <input type="text" id="C" name="C" value=""><br>
 
-  <label for="D"><b>REQUEST:</b></label><br>
+  <label for="D"><b>SF CASE #:</b></label><br>
+  <input type="text" id="D" name="D" value=""><br>
 
-    <textarea id="D" style="width:300px; height: 30x;">
+  <label for="E"><b>REQUEST:</b></label><br>
+
+    <textarea id="E" style="width:300px; height: 30x;">
 
     </textarea><br>
 
-  <label for="E"><b>EMAIL:</b></label><br>
-  <input type="text" id="E" name="E" value=""><br>
+  <label for="F"><b>EMAIL:</b></label><br>
+  <input type="text" id="F" name="F" value=""><br>
  
 </div>
-
 
 <p><button onclick="copyForm()"><b>SUBMIT</b></button></p>
 
@@ -61,13 +56,13 @@ function copyForm() {
     var C = document.getElementById("C").value;
     var D = document.getElementById("D").value;
     var E = document.getElementById("E").value;	
+    var F = document.getElementById("F").value;	
 
-    var output = "AR: " + A + "\nNAME: " + B + "\nSYSTEM #: " + C + "\nREQUEST: " + D+ "\nEMAIL: " + E  ; 
+var output = "AR: " + A + "\nNAME: " + B + "\nSYSTEM #: " + C + "\nSF CASE: " + D+ "\nREQUEST: " + E+ "\nEMAIL: " + F  ; 
     navigator.clipboard.writeText(output);
 }
 
 </script>
-
 	
 </body>
 </html>
