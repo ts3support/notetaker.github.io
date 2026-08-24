@@ -601,4 +601,40 @@
         await navigator.clipboard.writeText(output);
 
         status.style.color = '#188038';
-        status.textContent = 'Residential
+        status.textContent = 'Residential note copied to clipboard.';
+      } catch (error) {
+        copyOutput.style.display = 'block';
+        copyOutputLabel.style.display = 'block';
+
+        copyOutput.focus();
+        copyOutput.select();
+
+        status.style.color = '#1a73e8';
+        status.textContent =
+          'Automatic copy was blocked. The note is selected below—press Ctrl + C.';
+      }
+    }
+
+    function clearForm() {
+      previousFormData = captureFormData();
+
+      document.getElementById('resiForm').reset();
+      toggleResidentialSubmissionId();
+
+      const status = document.getElementById('status');
+      const copyOutput = document.getElementById('copyOutput');
+      const copyOutputLabel = document.getElementById('copyOutputLabel');
+
+      copyOutput.value = '';
+      copyOutput.style.display = 'none';
+      copyOutputLabel.style.display = 'none';
+
+      document.getElementById('undoClearButton').disabled = false;
+
+      status.style.color = '#188038';
+      status.textContent =
+        'Residential scheduling fields cleared. Select UNDO CLEAR to restore them.';
+    }
+  </script>
+</body>
+</html>
