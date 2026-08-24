@@ -365,12 +365,22 @@
 
         <div class="radio-group">
           <label>
-            <input type="radio" name="laborWaived" value="Yes">
+            <input
+              type="radio"
+              name="laborWaived"
+              value="Yes"
+              onchange="toggleResidentialSubmissionId()"
+            >
             Yes
           </label>
 
           <label>
-            <input type="radio" name="laborWaived" value="No">
+            <input
+              type="radio"
+              name="laborWaived"
+              value="No"
+              onchange="toggleResidentialSubmissionId()"
+            >
             No
           </label>
         </div>
@@ -477,6 +487,22 @@
       });
     }
 
+    function toggleResidentialSubmissionId() {
+      const laborWaived = getLaborWaived();
+      const submissionIdInput = document.getElementById('H');
+      const isRequired = laborWaived.toLowerCase() === 'yes';
+
+      submissionIdInput.required = isRequired;
+
+      if (isRequired) {
+        submissionIdInput.setCustomValidity('');
+      } else {
+        submissionIdInput.value = '';
+        submissionIdInput.required = false;
+        submissionIdInput.setCustomValidity('');
+      }
+    }
+
     function captureFormData() {
       return {
         systemNumber: getValue('A'),
@@ -517,10 +543,11 @@
       document.getElementById('G').value =
         previousFormData.quotedRate;
 
+      setLaborWaived(previousFormData.laborWaived);
+      toggleResidentialSubmissionId();
+
       document.getElementById('H').value =
         previousFormData.submissionId;
-
-      setLaborWaived(previousFormData.laborWaived);
 
       document.getElementById('undoClearButton').disabled = true;
 
@@ -531,7 +558,19 @@
 
     async function copyForm() {
       const laborWaived = getLaborWaived();
+      const submissionIdInput = document.getElementById('H');
       const includeSubmissionId = laborWaived.toLowerCase() === 'yes';
+
+      if (includeSubmissionId && !submissionIdInput.value.trim()) {
+        submissionIdInput.setCustomValidity(
+          'Submission ID is required when labor is waived.'
+        );
+        submissionIdInput.reportValidity();
+        submissionIdInput.focus();
+        return;
+      }
+
+      submissionIdInput.setCustomValidity('');
 
       const outputLines = [
         'SYSTEM #: ' + getValue('A'),
@@ -562,39 +601,4 @@
         await navigator.clipboard.writeText(output);
 
         status.style.color = '#188038';
-        status.textContent = 'Residential note copied to clipboard.';
-      } catch (error) {
-        copyOutput.style.display = 'block';
-        copyOutputLabel.style.display = 'block';
-
-        copyOutput.focus();
-        copyOutput.select();
-
-        status.style.color = '#1a73e8';
-        status.textContent =
-          'Automatic copy was blocked. The note is selected below—press Ctrl + C.';
-      }
-    }
-
-    function clearForm() {
-      previousFormData = captureFormData();
-
-      document.getElementById('resiForm').reset();
-
-      const status = document.getElementById('status');
-      const copyOutput = document.getElementById('copyOutput');
-      const copyOutputLabel = document.getElementById('copyOutputLabel');
-
-      copyOutput.value = '';
-      copyOutput.style.display = 'none';
-      copyOutputLabel.style.display = 'none';
-
-      document.getElementById('undoClearButton').disabled = false;
-
-      status.style.color = '#188038';
-      status.textContent =
-        'Residential scheduling fields cleared. Select UNDO CLEAR to restore them.';
-    }
-  </script>
-</body>
-</html>
+        status.textContent = 'Residential
