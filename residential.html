@@ -1,80 +1,600 @@
 <!DOCTYPE html>
-<Html>     
-<Head>      
-<Title>     
-SERVICE VISIT INFO
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Residential Scheduling</title>
 
+  <style>
+    :root {
+      --aaa-blue: #003b8f;
+      --aaa-blue-dark: #002d6a;
+      --aaa-red: #e2231a;
+      --aaa-page: #e7f6fc;
+      --aaa-text: #252a34;
+      --aaa-muted: #66727d;
+    }
 
-</Title>  
-</Head>  
-<Body>  
-   <h1>RESIDENTIAL</h2>
- 
+    * {
+      box-sizing: border-box;
+    }
 
-<form>
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--aaa-page);
+      color: var(--aaa-text);
+    }
 
-    <style>
-        
-        body {
-            margin: 0;
-            height: 100%;
-            background-image: url('https://ts3support.github.io/notetaker.github.io/download.png');
-            background-size: cover;  
-            background-position: center center;
-            background-attachment: fixed;
-        }
-    </style>
+    .aaa-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 25px;
+      padding: 12px 24px;
+      color: #ffffff;
+      background: var(--aaa-blue);
+      border-bottom: 5px solid var(--aaa-red);
+      box-shadow: 0 3px 12px rgba(0, 45, 106, 0.20);
+    }
 
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
 
-<div class="notes">
+    .aaa-logo-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 110px;
+      min-width: 110px;
+      height: 58px;
+      border: 2px solid rgba(255, 255, 255, 0.75);
+      border-radius: 6px;
+      color: #ffffff;
+      text-align: center;
+    }
 
-	<form id="notepad">
+    .aaa-logo-placeholder span {
+      font-size: 24px;
+      font-weight: bold;
+      line-height: 1;
+    }
 
+    .aaa-logo-placeholder small {
+      margin-top: 3px;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 0.06em;
+    }
 
+    .header-text h1 {
+      margin: 0;
+      color: #ffffff;
+      font-size: 26px;
+      line-height: 1;
+    }
 
-  <label for="A"><b>SYSTEM #:</b></label><br>
-  <input type="text" id="A" name="A" required value=""><br>
+    .header-text p {
+      margin: 5px 0 0;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 13px;
+    }
 
-  <label for="B"><b>NAME/CONTACT#:</b></label><br>
-  <input type="text" id="B" name="B" required value=""><br>
+    .header-status {
+      min-width: 185px;
+      padding: 10px 14px;
+      color: rgba(255, 255, 255, 0.86);
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 12px;
+      font-size: 12px;
+      text-align: right;
+    }
 
-  <label for="C"><b>Access/Gate/Lockbox:</b></label><br>
-  <input type="text" id="C" name="C" required value=""><br>
+    .header-status strong {
+      display: block;
+      margin-top: 3px;
+      color: #ffffff;
+      font-size: 15px;
+    }
 
-  <label for="D"><b>System Type:</b></label><br>
-  <input type="text" id="D" name="D" required value=""><br>
+    .page-content {
+      flex: 1;
+      padding: 14px;
+    }
 
-  <label for="E"><b>ISSUE: </b><I>Please notate if TSEXEMPT</i></b></label><br>
-  <textarea id="E" style="width:500px; height: 50px;">
-  </textarea><br>
+    .form-area {
+      width: 520px;
+      max-width: 100%;
+    }
 
-  <label for="F"><b>PARTS NEEDED:</b></label><br>
-  <input type="text" id="F" name="F" required value=""><br>
+    .field {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 8px;
+    }
 
-  <label for="G"><b>QUOTED RATE:</b></label><br>
-  <input type="text" id="G" name="G" required value=""><br>
+    label {
+      margin-bottom: 3px;
+      font-size: 14px;
+      font-weight: bold;
+    }
 
+    .note {
+      font-size: 12px;
+      font-weight: normal;
+      font-style: italic;
+    }
 
+    input[type="text"],
+    textarea {
+      width: 400px;
+      max-width: 100%;
+      padding: 6px;
+      border: 2px solid #777777;
+      border-radius: 4px;
+      background: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+    }
 
-</div>
+    input[type="text"] {
+      height: 30px;
+    }
 
+    textarea {
+      height: 60px;
+      resize: vertical;
+    }
 
-<p><button onclick="copyForm()"><b>SUBMIT</b></button></p>
+    .radio-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+    }
 
-<script>
-function copyForm() {
-    var A = document.getElementById("A").value;
-    var B = document.getElementById("B").value;
-    var C = document.getElementById("C").value;
-    var D = document.getElementById("D").value;
-    var E = document.getElementById("E").value;
-    var F = document.getElementById("F").value;
-    var G = document.getElementById("G").value;
+    .radio-group label {
+      margin: 0;
+      font-size: 14px;
+      font-weight: normal;
+    }
 
-    var output = "SYSTEM #: " + A + "\nNAME/CONTACT#: " + B + "\nAccess/Gate/Lockbox: " + C + "\nSystem Type: " + D + "\nISSUE: " + E + "\nPARTS NEEDED: " + F + "\nQUOTED RATE: " + G; 
-    navigator.clipboard.writeText(output);
-}
+    .radio-group input[type="radio"] {
+      margin-right: 4px;
+      cursor: pointer;
+    }
 
-</script>
+    .agent-info {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    button {
+      padding: 6px 10px;
+      border: 1px solid #333333;
+      border-radius: 4px;
+      background: #e9e9e9;
+      color: #000000;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #d5d5d5;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    #status {
+      min-height: 18px;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .copy-output-label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 3px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    #copyOutput {
+      width: 400px;
+      max-width: 100%;
+      height: 140px;
+      padding: 6px;
+      border: 2px solid #777777;
+      border-radius: 4px;
+      background: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      resize: vertical;
+    }
+
+    .page-footer {
+      padding: 18px 24px;
+      color: var(--aaa-muted);
+      background: var(--aaa-page);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .page-footer strong {
+      color: var(--aaa-blue);
+    }
+
+    @media (max-width: 560px) {
+      .aaa-header {
+        padding: 10px 14px;
+      }
+
+      .header-left {
+        gap: 10px;
+      }
+
+      .aaa-logo-placeholder {
+        width: 82px;
+        min-width: 82px;
+        height: 48px;
+      }
+
+      .aaa-logo-placeholder span {
+        font-size: 19px;
+      }
+
+      .aaa-logo-placeholder small {
+        font-size: 8px;
+      }
+
+      .header-text h1 {
+        font-size: 22px;
+      }
+
+      .header-text p {
+        font-size: 11px;
+      }
+
+      .header-status {
+        display: none;
+      }
+
+      .page-content {
+        padding: 10px;
+      }
+
+      input[type="text"],
+      textarea,
+      #copyOutput {
+        width: 100%;
+      }
+
+      .page-footer {
+        padding: 14px 10px;
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="aaa-header">
+    <div class="header-left">
+      <div class="aaa-logo-placeholder">
+        <span>AAA</span>
+        <small>SMART HOME</small>
+      </div>
+
+      <div class="header-text">
+        <h1>RESIDENTIAL SCHEDULING</h1>
+        <p>Residential Service Request</p>
+      </div>
+    </div>
+
+    <div class="header-status">
+      <span>Secure Agent Access</span>
+      <strong>Internal Use Only</strong>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <form id="resiForm" class="form-area" onsubmit="return false;">
+      <div class="field">
+        <label for="A">SYSTEM #:</label>
+        <input type="text" id="A" required>
+      </div>
+
+      <div class="field">
+        <label for="B">NAME/CONTACT#:</label>
+        <input type="text" id="B" required>
+      </div>
+
+      <div class="field">
+        <label for="C">ACCESS/GATE/LOCKBOX:</label>
+        <input type="text" id="C" required>
+      </div>
+
+      <div class="field">
+        <label for="D">SYSTEM TYPE:</label>
+        <input type="text" id="D" required>
+      </div>
+
+      <div class="field">
+        <label for="E">
+          ISSUE:
+          <span class="note">Please notate if TSEXEMPT</span>
+        </label>
+        <textarea id="E"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="F">PARTS NEEDED:</label>
+        <input type="text" id="F" required>
+      </div>
+
+      <div class="field">
+        <label for="G">QUOTED RATE:</label>
+        <input type="text" id="G" required>
+      </div>
+
+      <div class="field">
+        <label>LABOR WAIVED?</label>
+
+        <div class="radio-group">
+          <label>
+            <input type="radio" name="laborWaived" value="Yes">
+            Yes
+          </label>
+
+          <label>
+            <input type="radio" name="laborWaived" value="No">
+            No
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="H">SUBMISSION ID:</label>
+        <input type="text" id="H">
+      </div>
+
+      <div class="agent-info">
+        AGENT: <span id="nameDisplay"></span>
+        EXT: <span id="phoneDisplay"></span>
+        DEPT: <span id="deptDisplay"></span>
+      </div>
+
+      <div class="buttons">
+        <button type="button" onclick="copyForm()">COPY RESI NOTE</button>
+        <button type="button" onclick="clearForm()">CLEAR</button>
+
+        <button
+          type="button"
+          id="undoClearButton"
+          onclick="undoClear()"
+          disabled
+        >
+          UNDO CLEAR
+        </button>
+
+        <button type="button" onclick="window.close()">CLOSE</button>
+      </div>
+
+      <div id="status"></div>
+
+      <label
+        id="copyOutputLabel"
+        class="copy-output-label"
+        for="copyOutput"
+        style="display: none;"
+      >
+        GENERATED NOTE:
+      </label>
+
+      <textarea
+        id="copyOutput"
+        readonly
+        style="display: none;"
+        placeholder="Your generated Residential Scheduling note will appear here."
+      ></textarea>
+    </form>
+  </main>
+
+  <footer class="page-footer">
+    <strong>AAA Smart Home Security</strong>
+    • Residential Scheduling Tool
+    • Internal Use Only
+  </footer>
+
+  <script>
+    const agent = localStorage.getItem('name') || '';
+    const phone = localStorage.getItem('phone') || '';
+    const dept = localStorage.getItem('dept') || '';
+
+    let previousFormData = null;
+
+    document.getElementById('nameDisplay').textContent = agent;
+    document.getElementById('phoneDisplay').textContent = phone;
+    document.getElementById('deptDisplay').textContent = dept;
+
+    google.script.url.getLocation(function (location) {
+      const params = location.parameter;
+
+      const nameContact = [
+        params.noteName || '',
+        params.cbr || ''
+      ]
+        .filter(function (value) {
+          return value !== '';
+        })
+        .join(' / ');
+
+      document.getElementById('A').value = params.systemNumber || '';
+      document.getElementById('B').value = nameContact;
+      document.getElementById('D').value = params.systemType || '';
+    });
+
+    function getValue(id) {
+      return document.getElementById(id).value.trim();
+    }
+
+    function getLaborWaived() {
+      const selected = document.querySelector(
+        'input[name="laborWaived"]:checked'
+      );
+
+      return selected ? selected.value.trim() : '';
+    }
+
+    function setLaborWaived(value) {
+      document.querySelectorAll(
+        'input[name="laborWaived"]'
+      ).forEach(function (radio) {
+        radio.checked = radio.value === value;
+      });
+    }
+
+    function captureFormData() {
+      return {
+        systemNumber: getValue('A'),
+        nameContact: getValue('B'),
+        accessGateLockbox: getValue('C'),
+        systemType: getValue('D'),
+        issue: getValue('E'),
+        partsNeeded: getValue('F'),
+        quotedRate: getValue('G'),
+        laborWaived: getLaborWaived(),
+        submissionId: getValue('H')
+      };
+    }
+
+    function undoClear() {
+      if (!previousFormData) {
+        return;
+      }
+
+      document.getElementById('A').value =
+        previousFormData.systemNumber;
+
+      document.getElementById('B').value =
+        previousFormData.nameContact;
+
+      document.getElementById('C').value =
+        previousFormData.accessGateLockbox;
+
+      document.getElementById('D').value =
+        previousFormData.systemType;
+
+      document.getElementById('E').value =
+        previousFormData.issue;
+
+      document.getElementById('F').value =
+        previousFormData.partsNeeded;
+
+      document.getElementById('G').value =
+        previousFormData.quotedRate;
+
+      document.getElementById('H').value =
+        previousFormData.submissionId;
+
+      setLaborWaived(previousFormData.laborWaived);
+
+      document.getElementById('undoClearButton').disabled = true;
+
+      const status = document.getElementById('status');
+      status.style.color = '#188038';
+      status.textContent = 'Previous residential fields restored.';
+    }
+
+    async function copyForm() {
+      const laborWaived = getLaborWaived();
+      const includeSubmissionId = laborWaived.toLowerCase() === 'yes';
+
+      const outputLines = [
+        'SYSTEM #: ' + getValue('A'),
+        'NAME/CONTACT#: ' + getValue('B'),
+        'ACCESS/GATE/LOCKBOX: ' + getValue('C'),
+        'SYSTEM TYPE: ' + getValue('D'),
+        'ISSUE: ' + getValue('E'),
+        'PARTS NEEDED: ' + getValue('F'),
+        'QUOTED RATE: ' + getValue('G'),
+        'LABOR WAIVED?: ' + laborWaived
+      ];
+
+      if (includeSubmissionId) {
+        outputLines.push('SUBMISSION ID: ' + getValue('H'));
+      }
+
+      const output = outputLines.join('\n');
+
+      const status = document.getElementById('status');
+      const copyOutput = document.getElementById('copyOutput');
+      const copyOutputLabel = document.getElementById('copyOutputLabel');
+
+      copyOutput.value = output;
+      copyOutput.style.display = 'none';
+      copyOutputLabel.style.display = 'none';
+
+      try {
+        await navigator.clipboard.writeText(output);
+
+        status.style.color = '#188038';
+        status.textContent = 'Residential note copied to clipboard.';
+      } catch (error) {
+        copyOutput.style.display = 'block';
+        copyOutputLabel.style.display = 'block';
+
+        copyOutput.focus();
+        copyOutput.select();
+
+        status.style.color = '#1a73e8';
+        status.textContent =
+          'Automatic copy was blocked. The note is selected below—press Ctrl + C.';
+      }
+    }
+
+    function clearForm() {
+      previousFormData = captureFormData();
+
+      document.getElementById('resiForm').reset();
+
+      const status = document.getElementById('status');
+      const copyOutput = document.getElementById('copyOutput');
+      const copyOutputLabel = document.getElementById('copyOutputLabel');
+
+      copyOutput.value = '';
+      copyOutput.style.display = 'none';
+      copyOutputLabel.style.display = 'none';
+
+      document.getElementById('undoClearButton').disabled = false;
+
+      status.style.color = '#188038';
+      status.textContent =
+        'Residential scheduling fields cleared. Select UNDO CLEAR to restore them.';
+    }
+  </script>
 </body>
 </html>
