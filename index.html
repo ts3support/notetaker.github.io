@@ -1340,6 +1340,16 @@
       : 'SYSTEM #:';
 }
 
+  function updateSystemNumberLabel() {
+  const serviceType = getRadioValue('serviceType');
+  const label = document.getElementById('systemNumberLabel');
+
+  label.textContent =
+    serviceType === 'Video Only'
+      ? 'ADC ID:'
+      : 'SYSTEM #:';
+}
+  
     function getRadioValue(name) {
       const selected = document.querySelector(
         'input[name="' + name + '"]:checked'
