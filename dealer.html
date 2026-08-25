@@ -1465,7 +1465,7 @@ function toggleSubmissionIdField() {
         previousInboundFormData.ar;
 
       document.getElementById('H').value =
-        previousInboundFormData.phone #;
+        previousInboundFormData.phone;
 
       document.getElementById('C').value =
         previousInboundFormData.systemNumber;
@@ -1533,7 +1533,7 @@ function toggleSubmissionIdField() {
       const params = new URLSearchParams({
         page: 'residential',
         noteName: getValue('A'),
-        phone #: getValue('H'),
+        phone: getValue('H'),
         systemNumber: getValue('C'),
         systemType: getValue('E')
       });
@@ -1547,7 +1547,7 @@ function toggleSubmissionIdField() {
       const params = new URLSearchParams({
         page: 'dealer',
         noteName: getValue('A'),
-        phone #: getValue('H'),
+        phone: getValue('H'),
         reason: getValue('F')
       });
 
@@ -1573,7 +1573,7 @@ function toggleSubmissionIdField() {
       const params = new URLSearchParams({
         page: 'residential',
         noteName: getValue('outboundName'),
-        phone #: getValue('outboundPhone'),
+        phone: getValue('outboundPhone'),
         systemNumber: getValue('outboundSystemNumber'),
         systemType: getRadioValue('outboundServiceType')
       });
@@ -1587,7 +1587,7 @@ function toggleSubmissionIdField() {
       const params = new URLSearchParams({
         page: 'dealer',
         noteName: getValue('outboundName'),
-        phone #: getValue('outboundPhone'),
+        phone: getValue('outboundPhone'),
         reason: getValue('outboundReason')
       });
 
@@ -1662,7 +1662,7 @@ async function copyInboundForm() {
   const outputLines = [
     'NAME: ' + getValue('A'),
     'AR: ' + getValue('B'),
-    'Phone #: ' + getValue('H'),
+    'Phone: ' + getValue('H'),
     (
   getRadioValue('serviceType') === 'Video Only'
     ? 'ADC ID: '
