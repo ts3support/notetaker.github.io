@@ -132,9 +132,9 @@
     }
 
     .outbound-form {
-      width: 620px; /* Matches Inbound width */
+      width: 620px;
       max-width: 100%;
-    } 
+    }
 
     .grid {
       display: grid;
@@ -175,7 +175,7 @@
     .outbound-form input[type="text"],
     .outbound-form select {
       width: 250px;
-    }  
+    }
 
     .ar-phone #-group {
       display: grid;
@@ -244,14 +244,14 @@
       max-width: 100%;
       margin: 0 0 8px;
       border-collapse: collapse;
-      /* Removed table-layout: fixed so columns can shrink naturally */
-    } 
+      /* Allow columns to size naturally. */
+    }
 
     .radio-table td {
-      /* Removed width: 50% so they don't stretch */
-      padding: 0 25px 8px 0; /* Increased right padding for breathing room */
+      /* Let cell content determine column width. */
+      padding: 0 25px 8px 0; /* Space between columns. */
       vertical-align: top;
-    } 
+    }
 
     .radio-table td:last-child {
       padding-right: 0;
@@ -456,14 +456,14 @@
       border-radius: 6px;
       background-color: #f5f5f5;
     }
-    
+
     .template-section label {
       display: block;
       margin-bottom: 5px;
       font-size: 14px;
       font-weight: bold;
     }
-    
+
     .template-section select {
       width: 100%;
       max-width: 448px;
@@ -542,7 +542,7 @@
       border-radius: 6px;
       overflow: hidden;
       box-shadow: 0 2px 8px rgba(0, 45, 106, 0.18);
-      margin-top: -52px; 
+      margin-top: -52px;
     }
 
     .ticket-panel.is-open {
@@ -575,7 +575,7 @@
       flex: 1;
       width: 100%;
       height: 100%;
-      min-height: 500px; 
+      min-height: 500px;
       border: 0;
       background: #ffffff;
     }
@@ -643,8 +643,8 @@
       .grid {
         grid-template-columns: 1fr;
       }
-      
-      /* Stacks the tools row neatly on mobile */
+
+      /* Stack tools vertically on small screens. */
       .tools-row {
         flex-direction: column;
       }
@@ -676,6 +676,423 @@
         font-size: 11px;
       }
     }
+
+    /* Dialogs and static component styling */
+    .email-prompt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+    }
+
+    .email-prompt-box {
+      background-color: #fff;
+      padding: 20px 25px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      width: 320px;
+      font-family: Arial, sans-serif;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .email-prompt-title {
+      margin-top: 0;
+      color: #003b8f;
+    }
+
+    .email-prompt-label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    input.email-prompt-input {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .email-prompt-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 5px;
+    }
+
+    button.email-prompt-cancel,
+    button.email-prompt-cancel:hover {
+      padding: 8px 12px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background-color: #eee;
+      border-radius: 4px;
+    }
+
+    button.email-prompt-copy,
+    button.email-prompt-copy:hover {
+      padding: 8px 12px;
+      cursor: pointer;
+      background-color: #003b8f;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    a.layout-detail-1 {
+      margin-top: 8px;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: bold;
+      text-decoration: underline;
+      opacity: 0.95;
+      cursor: pointer;
+    }
+
+    div.layout-detail-2 {
+      gap: 14px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    div.layout-detail-3 {
+      margin-bottom: 0;
+    }
+
+    div.layout-detail-4 {
+      margin-bottom: 0;
+    }
+
+    div.layout-detail-5 {
+      flex-wrap: wrap;
+      gap: 8px 14px;
+    }
+
+    #templatePreviewInbound {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px dashed #ccc;
+      border-radius: 4px;
+      background: #fafafa;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      color: #333;
+    }
+
+    div.layout-detail-7 {
+      flex-wrap: wrap;
+      gap: 8px 14px;
+    }
+
+    div.layout-detail-8 {
+      flex-wrap: wrap;
+      gap: 8px 14px;
+    }
+
+    #templatePreviewOutbound {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px dashed #ccc;
+      border-radius: 4px;
+      background: #fafafa;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      color: #333;
+    }
+
+    #zipModal {
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.6);
+      z-index:999999;
+      align-items:center;
+      justify-content:center;
+      font-family: Arial, sans-serif;
+    }
+
+    div.layout-detail-11 {
+      background:#fff;
+      padding:25px;
+      border-radius:8px;
+      width:350px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+
+    h3.layout-detail-12 {
+      margin-top:0;
+      color: var(--aaa-blue);
+    }
+
+    p.layout-detail-13 {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    div.layout-detail-14 {
+      background-color: #fff4f4;
+      border: 1px solid #ffdce0;
+      border-left: 4px solid var(--aaa-red);
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+      text-align: left;
+    }
+
+    p.layout-detail-15 {
+      font-size: 12px;
+      color: var(--aaa-red);
+      margin: 0;
+      font-weight: bold;
+      line-height: 1.4;
+    }
+
+    #zipSearchInput {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 2px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+      text-align: center;
+    }
+
+    div.layout-detail-17 {
+      gap: 10px;
+      justify-content: center;
+    }
+
+    button.layout-detail-18,
+    button.layout-detail-18:hover {
+      padding: 10px 15px;
+      cursor: pointer;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 50%;
+    }
+
+    #zipSearchBtn,
+    #zipSearchBtn:hover {
+      padding: 10px 15px;
+      cursor: pointer;
+      background: var(--aaa-blue);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      width: 50%;
+    }
+
+    #zipSearchResult {
+      margin-top: 15px;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+    }
+
+    #feedbackModal {
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.6);
+      z-index:999999;
+      align-items:center;
+      justify-content:center;
+      font-family: Arial, sans-serif;
+    }
+
+    div.layout-detail-22 {
+      background:#fff;
+      padding:25px;
+      border-radius:8px;
+      width:420px;
+      max-width:90vw;
+      max-height:90vh;
+      overflow-y:auto;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      text-align: left;
+    }
+
+    div.layout-detail-23 {
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      border-bottom: 2px solid var(--aaa-blue);
+      padding-bottom: 8px;
+    }
+
+    h3.layout-detail-24 {
+      margin:0;
+      color: var(--aaa-blue);
+    }
+
+    button.layout-detail-25,
+    button.layout-detail-25:hover {
+      background: #ccc;
+      padding: 4px 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    p.layout-detail-26 {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 14px;
+    }
+
+    div.layout-detail-27 {
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    div.layout-detail-28 {
+      flex: 2;
+    }
+
+    label.layout-detail-29 {
+      font-size: 11px;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+
+    #fbAgent {
+      width: 100%;
+      padding: 6px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    div.layout-detail-31 {
+      flex: 1;
+    }
+
+    label.layout-detail-32 {
+      font-size: 11px;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+
+    #fbPhone {
+      width: 100%;
+      padding: 6px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    div.layout-detail-34 {
+      margin-bottom: 10px;
+    }
+
+    label.layout-detail-35 {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+
+    #fbCategory {
+      width: 100%;
+      padding: 7px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    div.layout-detail-37 {
+      margin-bottom: 10px;
+    }
+
+    label.layout-detail-38 {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+
+    #fbSection {
+      width: 100%;
+      padding: 7px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    div.layout-detail-40 {
+      margin-bottom: 14px;
+    }
+
+    label.layout-detail-41 {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+
+    #fbDetails {
+      width: 100%;
+      padding: 7px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: Arial, sans-serif;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    div.layout-detail-43 {
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    button.layout-detail-44,
+    button.layout-detail-44:hover {
+      padding: 8px 14px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    #fbSubmitBtn,
+    #fbSubmitBtn:hover {
+      padding: 8px 16px;
+      background: var(--aaa-blue);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #fbStatus {
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: bold;
+    }
   </style>
 </head>
 
@@ -693,17 +1110,17 @@
     <div class="header-status">
       <span>Secure Agent Access</span>
       <strong>Internal Use Only</strong>
-      <a href="javascript:void(0)" onclick="openFeedbackModal()" style="display: block; margin-top: 8px; color: #ffffff; font-size: 16px; font-weight: bold; text-decoration: underline; opacity: 0.95; cursor: pointer;">
+      <a class="layout-detail-1" href="javascript:void(0)" onclick="openFeedbackModal()" style="display: block;">
         💬 Submit Feedback
       </a>
     </div>
   </header>
 
   <main class="aaa-page-content">
-    
+
     <!-- Toggles: Inbound/Outbound and Residential/Commercial -->
-    <div style="display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap;">
-      <div class="mode-toggle" role="radiogroup" aria-label="Call type" style="margin-bottom: 0;">
+    <div class="layout-detail-2" style="display: flex;">
+      <div class="mode-toggle layout-detail-3" role="radiogroup" aria-label="Call type">
         <label class="mode-option">
           <input type="radio" name="callMode" value="inbound" checked onchange="switchCallMode()">
           Inbound
@@ -714,7 +1131,7 @@
         </label>
       </div>
 
-      <div class="mode-toggle" role="radiogroup" aria-label="Customer type" style="margin-bottom: 0;">
+      <div class="mode-toggle layout-detail-4" role="radiogroup" aria-label="Customer type">
         <label class="mode-option">
           <input type="radio" name="customerType" value="residential" checked onchange="switchCustomerType()">
           Residential
@@ -775,7 +1192,7 @@
 
             <div class="field" data-internal-id="service_type">
               <label>SERVICE TYPE:</label>
-              <div class="radio-options" style="flex-wrap: wrap; gap: 8px 14px;">
+              <div class="radio-options layout-detail-5">
                 <label>
                   <input type="radio" name="serviceType" value="Full System" onchange="togglePanelTypeVisibility()">
                   Full System
@@ -869,8 +1286,8 @@
                 <option value="">Loading templates...</option>
               </select>
               <!-- PREVIEW BOX -->
-              <div id="templatePreviewInbound" style="display: none; margin-bottom: 10px; padding: 10px; border: 1px dashed #ccc; border-radius: 4px; background: #fafafa; max-height: 200px; overflow-y: auto; font-size: 12px; color: #333;"></div>
-              
+              <div class="layout-detail-6" id="templatePreviewInbound" style="display: none;"></div>
+
               <button type="button" onclick="generateAndCopyEmail('inbound')">
                 COPY EMAIL TO CLIPBOARD
               </button>
@@ -891,7 +1308,7 @@
       <!-- OUTBOUND SECTION -->
       <section id="outboundWorkspace" style="display: none;">
         <form id="outboundForm" class="outbound-form" onsubmit="return false;">
-          
+
           <!-- GRID 1: Top Fields -->
           <div class="grid">
             <div class="field" data-internal-id="obc_to">
@@ -934,7 +1351,7 @@
               <td data-internal-id="voicemail_left">
                 <div id="voicemailLeftContainer">
                   <label>VOICEMAIL LEFT:</label>
-                  <div class="radio-options" style="flex-wrap: wrap; gap: 8px 14px;">
+                  <div class="radio-options layout-detail-7">
                     <label>
                       <input type="radio" name="outboundVoicemailLeft" value="Yes">
                       Yes
@@ -982,7 +1399,7 @@
               </td>
               <td data-internal-id="service_type">
                 <label>SERVICE TYPE:</label>
-                <div class="radio-options" style="flex-wrap: wrap; gap: 8px 14px;">
+                <div class="radio-options layout-detail-8">
                   <label>
                     <input type="radio" name="outboundServiceType" value="Full System" onchange="togglePanelTypeVisibility()">
                     Full System
@@ -1022,7 +1439,7 @@
               <label for="outboundAr">AR#:</label>
               <input type="text" id="outboundAr" name="outboundAr">
             </div>
-            
+
             <div class="field" data-internal-id="system_number">
               <label id="outboundSystemNumberLabel" for="outboundSystemNumber">SYSTEM # or ADC ID:</label>
               <input type="text" id="outboundSystemNumber" name="outboundSystemNumber">
@@ -1107,7 +1524,7 @@
                 <option value="">Loading templates...</option>
               </select>
               <!-- PREVIEW BOX -->
-              <div id="templatePreviewOutbound" style="display: none; margin-bottom: 10px; padding: 10px; border: 1px dashed #ccc; border-radius: 4px; background: #fafafa; max-height: 200px; overflow-y: auto; font-size: 12px; color: #333;"></div>
+              <div class="layout-detail-9" id="templatePreviewOutbound" style="display: none;"></div>
 
               <button type="button" onclick="generateAndCopyEmail('outbound')">
                 COPY EMAIL TO CLIPBOARD
@@ -1124,7 +1541,7 @@
           <textarea id="outboundCopyOutput" readonly style="display: none;" placeholder="Your generated outbound note will appear here only if automatic copying is blocked."></textarea>
         </form>
       </section>
-      <!-- END OUTBOUND SECTION -->  
+      <!-- END OUTBOUND SECTION -->
 
       <!-- TICKET PANEL -->
       <aside id="ticketPanel" class="ticket-panel">
@@ -1144,56 +1561,56 @@
   </footer>
 
   <!-- ZIP CODE SEARCH MODAL -->
-  <div id="zipModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999999; align-items:center; justify-content:center; font-family: Arial, sans-serif;">
-    <div style="background:#fff; padding:25px; border-radius:8px; width:350px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: center;">
-      <h3 style="margin-top:0; color: var(--aaa-blue);">📍 DS Zip Code Search</h3>
-      <p style="font-size: 13px; color: #555; margin-bottom: 10px;">Enter a zip code to check if it's in the Dealer Service area.</p>
-      
-      <!-- BOLD & HIGHLIGHTED DISCLAIMER -->
-      <div style="background-color: #fff4f4; border: 1px solid #ffdce0; border-left: 4px solid var(--aaa-red); padding: 10px; margin-bottom: 15px; border-radius: 4px; text-align: left;">
-        <p style="font-size: 12px; color: var(--aaa-red); margin: 0; font-weight: bold; line-height: 1.4;">
+  <div class="layout-detail-10" id="zipModal" style="display:none;">
+    <div class="layout-detail-11">
+      <h3 class="layout-detail-12">📍 DS Zip Code Search</h3>
+      <p class="layout-detail-13">Enter a zip code to check if it's in the Dealer Service area.</p>
+
+      <!-- Service-area disclaimer -->
+      <div class="layout-detail-14">
+        <p class="layout-detail-15">
           ⚠️ Please note: Service areas are subject to change. Always verify current technician availability with the Coordination team.
         </p>
       </div>
-      
-      <input type="text" id="zipSearchInput" placeholder="Enter Zip Code..." style="width: 100%; padding: 10px; margin-bottom: 15px; border: 2px solid #ccc; border-radius: 4px; font-size: 16px; text-align: center;">
-      
-      <div style="display: flex; gap: 10px; justify-content: center;">
-        <button type="button" onclick="closeZipSearch()" style="padding: 10px 15px; cursor: pointer; background: #eee; border: 1px solid #ccc; border-radius: 4px; width: 50%;">Cancel</button>
-        <button type="button" id="zipSearchBtn" onclick="performZipSearch()" style="padding: 10px 15px; cursor: pointer; background: var(--aaa-blue); color: white; border: none; border-radius: 4px; font-weight: bold; width: 50%;">Search</button>
+
+      <input class="layout-detail-16" type="text" id="zipSearchInput" placeholder="Enter Zip Code...">
+
+      <div class="layout-detail-17" style="display: flex;">
+        <button class="layout-detail-18" type="button" onclick="closeZipSearch()">Cancel</button>
+        <button class="layout-detail-19" type="button" id="zipSearchBtn" onclick="performZipSearch()">Search</button>
       </div>
-      
-      <div id="zipSearchResult" style="margin-top: 15px; font-size: 14px; font-weight: bold; padding: 10px; border-radius: 4px; display: none; white-space: pre-wrap;"></div>
+
+      <div class="layout-detail-20" id="zipSearchResult" style="display: none;"></div>
     </div>
   </div>
 
   <!-- FEEDBACK MODAL -->
-  <div id="feedbackModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999999; align-items:center; justify-content:center; font-family: Arial, sans-serif;">
-    <div style="background:#fff; padding:25px; border-radius:8px; width:420px; max-width:90vw; max-height:90vh; overflow-y:auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: left;">
-      
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid var(--aaa-blue); padding-bottom: 8px;">
-        <h3 style="margin:0; color: var(--aaa-blue);">💬 Submit Feedback</h3>
-        <button type="button" onclick="closeFeedbackModal()" style="background: #ccc; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">✕</button>
+  <div class="layout-detail-21" id="feedbackModal" style="display:none;">
+    <div class="layout-detail-22">
+
+      <div class="layout-detail-23" style="display: flex;">
+        <h3 class="layout-detail-24">💬 Submit Feedback</h3>
+        <button class="layout-detail-25" type="button" onclick="closeFeedbackModal()">✕</button>
       </div>
 
-      <p style="font-size: 12px; color: #555; margin-bottom: 14px;">
+      <p class="layout-detail-26">
         Report an issue, suggest a feature, or request template updates.
       </p>
 
-      <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-        <div style="flex: 2;">
-          <label style="display:block; font-size: 11px; font-weight: bold; margin-bottom: 3px;">AGENT</label>
-          <input type="text" id="fbAgent" readonly style="width: 100%; padding: 6px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+      <div class="layout-detail-27" style="display: flex;">
+        <div class="layout-detail-28">
+          <label class="layout-detail-29" style="display:block;">AGENT</label>
+          <input class="layout-detail-30" type="text" id="fbAgent" readonly>
         </div>
-        <div style="flex: 1;">
-          <label style="display:block; font-size: 11px; font-weight: bold; margin-bottom: 3px;">EXT</label>
-          <input type="text" id="fbPhone" readonly style="width: 100%; padding: 6px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+        <div class="layout-detail-31">
+          <label class="layout-detail-32" style="display:block;">EXT</label>
+          <input class="layout-detail-33" type="text" id="fbPhone" readonly>
         </div>
       </div>
 
-      <div style="margin-bottom: 10px;">
-        <label for="fbCategory" style="display:block; font-size: 12px; font-weight: bold; margin-bottom: 3px;">FEEDBACK TYPE:</label>
-        <select id="fbCategory" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+      <div class="layout-detail-34">
+        <label class="layout-detail-35" for="fbCategory" style="display:block;">FEEDBACK TYPE:</label>
+        <select class="layout-detail-36" id="fbCategory">
           <option value="Bug / Issue">🐛 Bug / Issue</option>
           <option value="Feature Request">💡 Feature Request</option>
           <option value="Template Update">📝 Email Template Update</option>
@@ -1202,9 +1619,9 @@
         </select>
       </div>
 
-      <div style="margin-bottom: 10px;">
-        <label for="fbSection" style="display:block; font-size: 12px; font-weight: bold; margin-bottom: 3px;">APPLICABLE SECTION:</label>
-        <select id="fbSection" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+      <div class="layout-detail-37">
+        <label class="layout-detail-38" for="fbSection" style="display:block;">APPLICABLE SECTION:</label>
+        <select class="layout-detail-39" id="fbSection">
           <option value="General / Not Sure">General / Not Sure</option>
           <option value="Inbound Note Taker">Inbound Note Taker</option>
           <option value="Outbound Note Taker">Outbound Note Taker</option>
@@ -1216,17 +1633,17 @@
         </select>
       </div>
 
-      <div style="margin-bottom: 14px;">
-        <label for="fbDetails" style="display:block; font-size: 12px; font-weight: bold; margin-bottom: 3px;">DESCRIPTION / SUGGESTION:</label>
-        <textarea id="fbDetails" rows="4" placeholder="Please provide specific details or describe what happened..." style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: Arial, sans-serif; resize: vertical; box-sizing: border-box;"></textarea>
+      <div class="layout-detail-40">
+        <label class="layout-detail-41" for="fbDetails" style="display:block;">DESCRIPTION / SUGGESTION:</label>
+        <textarea class="layout-detail-42" id="fbDetails" rows="4" placeholder="Please provide specific details or describe what happened..."></textarea>
       </div>
 
-      <div style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button type="button" onclick="closeFeedbackModal()" style="padding: 8px 14px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">Cancel</button>
-        <button type="button" id="fbSubmitBtn" onclick="sendFeedback()" style="padding: 8px 16px; background: var(--aaa-blue); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Send Feedback</button>
+      <div class="layout-detail-43" style="display: flex;">
+        <button class="layout-detail-44" type="button" onclick="closeFeedbackModal()">Cancel</button>
+        <button class="layout-detail-45" type="button" id="fbSubmitBtn" onclick="sendFeedback()">Send Feedback</button>
       </div>
-      
-      <div id="fbStatus" style="margin-top: 10px; font-size: 12px; font-weight: bold; display: none;"></div>
+
+      <div class="layout-detail-46" id="fbStatus" style="display: none;"></div>
     </div>
   </div>
 
@@ -1246,6 +1663,27 @@
     document.getElementById('outboundPhoneDisplay').textContent = phone;
     document.getElementById('outboundDeptDisplay').textContent = dept;
 
+    function buildTicketUrl(params) {
+      return '<?= appUrl ?>?' + params.toString();
+    }
+
+    function appendTemplateOption(name) {
+      ['templateSelectInbound', 'templateSelectOutbound'].forEach(function (id) {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        document.getElementById(id).appendChild(option);
+      });
+    }
+
+    function appendHelpfulLinkOption(select, link) {
+      const option = document.createElement('option');
+      option.value = link.url;
+      option.textContent = link.name.includes('VIEW ALL') ? link.name : '  ' + link.name;
+      if (link.popup) option.dataset.popup = link.popup;
+      select.appendChild(option);
+    }
+
     function getValue(id) {
       return document.getElementById(id).value.trim();
     }
@@ -1257,30 +1695,30 @@
 
     google.script.run.withSuccessHandler(function(schema) {
       formSchema = schema;
-      
+
       const processField = (mode, key, fieldData) => {
         const fieldEl = document.querySelector(`#${mode}Workspace [data-internal-id="${key}"]`);
         if (!fieldEl) return;
-        
+
         // 1. Update Label Text (Completely replaces default text & preserves tooltips)
         const labelEl = fieldEl.querySelector('label');
         if (labelEl) {
           const helpIcon = labelEl.querySelector('.field-help, .privacy-help');
           const tooltip = labelEl.querySelector('.field-tooltip, .privacy-tooltip');
-          
+
           let rawLabel = fieldData.label.trim();
           if (rawLabel.endsWith(':')) {
             rawLabel = rawLabel.slice(0, -1).trim();
           }
-          
+
           let formattedHtml = rawLabel;
           if (rawLabel.toLowerCase().includes('(required)')) {
             formattedHtml = rawLabel.replace(/\(required\)/gi, '<span style="color: var(--aaa-red); font-style: italic; font-weight: bold;">(required)</span>');
           }
           formattedHtml += ':';
-          
+
           labelEl.innerHTML = formattedHtml;
-          
+
           if (helpIcon) {
             labelEl.innerHTML += ' ';
             labelEl.appendChild(helpIcon);
@@ -1303,7 +1741,7 @@
             selectEl.innerHTML = optionsHtml;
           }
         }
-        
+
         // 3. Update Visibility
         const isVisible = fieldData.visible.toString().toUpperCase();
         if (isVisible === 'FALSE' || isVisible === 'NO') {
@@ -1311,7 +1749,7 @@
           fieldEl.classList.add('schema-hidden');
         } else {
           if (fieldEl.classList.contains('schema-hidden')) {
-            fieldEl.style.display = (fieldEl.tagName === 'TD') ? 'table-cell' : 'flex'; 
+            fieldEl.style.display = (fieldEl.tagName === 'TD') ? 'table-cell' : 'flex';
             fieldEl.classList.remove('schema-hidden');
           }
         }
@@ -1319,7 +1757,7 @@
 
       for (const key in schema.inbound) processField('inbound', key, schema.inbound[key]);
       for (const key in schema.outbound) processField('outbound', key, schema.outbound[key]);
-      
+
     }).getFormSchema();
 
     // Helper to grab dynamic label for clipboard output (strips out "(REQUIRED)")
@@ -1347,7 +1785,7 @@
       if (inboundPanelField && !inboundPanelField.classList.contains('schema-hidden')) {
         if (inboundServiceType === 'Video Only') {
           inboundPanelField.style.display = 'none';
-          document.getElementById('E').value = ''; 
+          document.getElementById('E').value = '';
         } else {
           inboundPanelField.style.display = 'flex';
         }
@@ -1358,7 +1796,7 @@
       if (outboundPanelField && !outboundPanelField.classList.contains('schema-hidden')) {
         if (outboundServiceType === 'Video Only') {
           outboundPanelField.style.display = 'none';
-          document.getElementById('outboundPanelType').value = ''; 
+          document.getElementById('outboundPanelType').value = '';
         } else {
           outboundPanelField.style.display = 'flex';
         }
@@ -1400,7 +1838,7 @@
       const lblOutbound = document.getElementById('lblAccountHolderOutbound');
       const inboundFire = document.getElementById('inboundFireOption');
       const outboundFire = document.getElementById('outboundFireOption');
-      
+
       if (type === 'commercial') {
         if (inboundAcctField && isFieldVisible('inbound', 'company_name')) inboundAcctField.style.display = 'flex';
         if (outboundAcctField && isFieldVisible('outbound', 'company_name')) outboundAcctField.style.display = 'flex';
@@ -1419,14 +1857,14 @@
         }
         if (inboundFire) inboundFire.style.display = 'none';
         if (outboundFire) outboundFire.style.display = 'none';
-        
+
         if (getRadioValue('serviceType') === 'Fire System') {
           setRadioValue('serviceType', '');
-          updateSystemNumberLabel(); 
+          updateSystemNumberLabel();
         }
         if (getRadioValue('outboundServiceType') === 'Fire System') {
           setRadioValue('outboundServiceType', '');
-          updateOutboundSystemNumberLabel(); 
+          updateOutboundSystemNumberLabel();
         }
       }
       togglePanelTypeVisibility();
@@ -1446,80 +1884,66 @@
       }
     }
 
-    function toggleScheduledServiceFields() {
-      const scheduledService = getRadioValue('scheduledService');
-      const serviceFeeWaivedField = document.getElementById('serviceFeeWaivedField');
-      const submissionIdField = document.getElementById('submissionIdField');
-
-      const showServiceFeeWaived = scheduledService === 'Yes' && isFieldVisible('inbound', 'fee_waived');
-
-      serviceFeeWaivedField.classList.toggle('is-visible', showServiceFeeWaived);
-
-      if (!showServiceFeeWaived) {
-        document.getElementById('inboundServiceFeeWaived').value = '';
-        document.getElementById('I').value = '';
-        submissionIdField.classList.remove('is-visible');
+    const schedulingFields = {
+      inbound: {
+        radio: 'scheduledService', feeField: 'serviceFeeWaivedField',
+        feeInput: 'inboundServiceFeeWaived', submissionField: 'submissionIdField',
+        submissionInput: 'I'
+      },
+      outbound: {
+        radio: 'outboundScheduledService', feeField: 'outboundServiceFeeWaivedField',
+        feeInput: 'outboundServiceFeeWaived', submissionField: 'outboundSubmissionIdField',
+        submissionInput: 'outboundSubmissionId'
       }
+    };
 
-      toggleSubmissionIdField();
+    function updateScheduledServiceFields(mode) {
+      const fields = schedulingFields[mode];
+      const scheduledService = getRadioValue(fields.radio);
+      const feeField = document.getElementById(fields.feeField);
+      const submissionField = document.getElementById(fields.submissionField);
+      const showFee = scheduledService === 'Yes' && isFieldVisible(mode, 'fee_waived');
+      feeField.classList.toggle('is-visible', showFee);
+      if (!showFee) {
+        document.getElementById(fields.feeInput).value = '';
+        document.getElementById(fields.submissionInput).value = '';
+        submissionField.classList.remove('is-visible');
+      }
+      updateSubmissionIdField(mode);
+    }
+
+    function updateSubmissionIdField(mode) {
+      const fields = schedulingFields[mode];
+      const scheduledService = getRadioValue(fields.radio);
+      const fee = document.getElementById(fields.feeInput).value;
+      const field = document.getElementById(fields.submissionField);
+      const input = document.getElementById(fields.submissionInput);
+      const show = scheduledService === 'Yes' &&
+        (fee === 'Yes' || fee === 'NHO' || fee === 'Sup/Incident') &&
+        isFieldVisible(mode, 'submission_id');
+      field.classList.toggle('is-visible', show);
+      input.required = show;
+      if (!show) {
+        input.value = '';
+        input.required = false;
+      }
+      input.setCustomValidity('');
+    }
+
+    function toggleScheduledServiceFields() {
+      updateScheduledServiceFields('inbound');
     }
 
     function toggleSubmissionIdField() {
-      const scheduledService = getRadioValue('scheduledService');
-      const serviceFeeWaived = document.getElementById('inboundServiceFeeWaived').value;
-      const submissionIdField = document.getElementById('submissionIdField');
-      const submissionIdInput = document.getElementById('I');
-
-      const showSubmissionId = scheduledService === 'Yes' && (serviceFeeWaived === 'Yes' || serviceFeeWaived === 'NHO' || serviceFeeWaived === 'Sup/Incident') && isFieldVisible('inbound', 'submission_id');
-
-      submissionIdField.classList.toggle('is-visible', showSubmissionId);
-      submissionIdInput.required = showSubmissionId;
-
-      if (showSubmissionId) {
-        submissionIdInput.setCustomValidity('');
-      } else {
-        submissionIdInput.value = '';
-        submissionIdInput.required = false;
-        submissionIdInput.setCustomValidity('');
-      }
+      updateSubmissionIdField('inbound');
     }
 
     function toggleScheduledServiceFieldsOutbound() {
-      const scheduledService = getRadioValue('outboundScheduledService');
-      const serviceFeeWaivedField = document.getElementById('outboundServiceFeeWaivedField');
-      const submissionIdField = document.getElementById('outboundSubmissionIdField');
-
-      const showServiceFeeWaived = scheduledService === 'Yes' && isFieldVisible('outbound', 'fee_waived');
-
-      serviceFeeWaivedField.classList.toggle('is-visible', showServiceFeeWaived);
-
-      if (!showServiceFeeWaived) {
-        document.getElementById('outboundServiceFeeWaived').value = '';
-        document.getElementById('outboundSubmissionId').value = '';
-        submissionIdField.classList.remove('is-visible');
-      }
-
-      toggleSubmissionIdFieldOutbound();
+      updateScheduledServiceFields('outbound');
     }
 
     function toggleSubmissionIdFieldOutbound() {
-      const scheduledService = getRadioValue('outboundScheduledService');
-      const serviceFeeWaived = document.getElementById('outboundServiceFeeWaived').value;
-      const submissionIdField = document.getElementById('outboundSubmissionIdField');
-      const submissionIdInput = document.getElementById('outboundSubmissionId');
-
-      const showSubmissionId = scheduledService === 'Yes' && (serviceFeeWaived === 'Yes' || serviceFeeWaived === 'NHO' || serviceFeeWaived === 'Sup/Incident') && isFieldVisible('outbound', 'submission_id');
-
-      submissionIdField.classList.toggle('is-visible', showSubmissionId);
-      submissionIdInput.required = showSubmissionId;
-
-      if (showSubmissionId) {
-        submissionIdInput.setCustomValidity('');
-      } else {
-        submissionIdInput.value = '';
-        submissionIdInput.required = false;
-        submissionIdInput.setCustomValidity('');
-      }
+      updateSubmissionIdField('outbound');
     }
 
     // --- UNDO INBOUND ---
@@ -1659,13 +2083,13 @@
     function openResidentialTicket() {
       const params = new URLSearchParams({
         page: 'residential',
-        noteName: getValue('A'),      // <-- Send only the name
-        phone: getValue('H'),         // <-- Phone is sent here
-        ar: getValue('B'),            // <-- AR#
-        systemNumber: getValue('C'),  // <-- System#
+        noteName: getValue('A'),      // Caller name.
+        phone: getValue('H'),         // Contact phone.
+        ar: getValue('B'),            // Account reference.
+        systemNumber: getValue('C'),  // System identifier.
         systemType: getValue('E')
       });
-      const url = '<?= appUrl ?>?' + params.toString();
+      const url = buildTicketUrl(params);
       openTicketPanel(url, 'RESIDENTIAL SCHEDULING');
     }
 
@@ -1677,7 +2101,7 @@
         phone: getValue('H'),
         reason: getValue('F')
       });
-      const url = '<?= appUrl ?>?' + params.toString();
+      const url = buildTicketUrl(params);
       openTicketPanel(url, 'DEALER SERVICE');
     }
 
@@ -1688,7 +2112,7 @@
         noteName: getValue('A'),
         systemNumber: getValue('C')
       });
-      const url = '<?= appUrl ?>?' + params.toString();
+      const url = buildTicketUrl(params);
       openTicketPanel(url, 'ADDENDUM REQUEST');
     }
 
@@ -1701,7 +2125,7 @@
         systemNumber: getValue('outboundSystemNumber'),
         systemType: getValue('outboundPanelType')
       });
-      const url = '<?= appUrl ?>?' + params.toString();
+      const url = buildTicketUrl(params);
       openTicketPanel(url, 'RESIDENTIAL SCHEDULING');
     }
 
@@ -1713,7 +2137,7 @@
         phone: getValue('outboundPhone'),
         reason: getValue('outboundReason')
       });
-      const url = '<?= appUrl ?>?' + params.toString();
+      const url = buildTicketUrl(params);
       openTicketPanel(url, 'DEALER SERVICE');
     }
 
@@ -1724,7 +2148,7 @@
         noteName: getValue('outboundName'),
         systemNumber: getValue('outboundSystemNumber')
       });
-      const url = '<?= appUrl ?>?' + params.toString();
+      const url = buildTicketUrl(params);
       openTicketPanel(url, 'ADDENDUM REQUEST');
     }
 
@@ -1747,7 +2171,7 @@
       // Intercept Zip Code Spreadsheet Link
       if (url.includes('1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw')) {
         openZipSearch();
-        select.value = ''; 
+        select.value = '';
         return;
       }
 
@@ -1776,23 +2200,23 @@
       const zipInput = document.getElementById('zipSearchInput').value.trim();
       const resultDiv = document.getElementById('zipSearchResult');
       const searchBtn = document.getElementById('zipSearchBtn');
-      
+
       if (!zipInput) {
         alert("Please enter a zip code.");
         return;
       }
-      
+
       searchBtn.textContent = "Searching...";
       searchBtn.disabled = true;
       resultDiv.style.display = 'none';
-      
+
       google.script.run.withSuccessHandler(function(response) {
         searchBtn.textContent = "Search";
         searchBtn.disabled = false;
-        
+
         resultDiv.style.display = 'block';
         resultDiv.textContent = response.message;
-        
+
         if (response.found) {
           resultDiv.style.backgroundColor = '#e6f4ea';
           resultDiv.style.color = '#137333';
@@ -1823,11 +2247,11 @@
       document.getElementById('fbAgent').value = agent || 'Agent';
       document.getElementById('fbPhone').value = phone || '-';
       document.getElementById('fbDetails').value = '';
-      
+
       const statusDiv = document.getElementById('fbStatus');
       statusDiv.style.display = 'none';
       statusDiv.textContent = '';
-      
+
       setTimeout(() => document.getElementById('fbDetails').focus(), 100);
     }
 
@@ -1862,13 +2286,13 @@
         .withSuccessHandler(function(response) {
           submitBtn.textContent = 'Send Feedback';
           submitBtn.disabled = false;
-          
+
           if (response.success) {
             statusDiv.style.color = '#188038';
             statusDiv.style.display = 'block';
             statusDiv.textContent = '✅ ' + response.message;
             document.getElementById('fbDetails').value = '';
-            
+
             setTimeout(() => {
               closeFeedbackModal();
             }, 1800);
@@ -1932,27 +2356,27 @@
 
       if (isFieldVisible('inbound', 'ar_number')) outputLines.push(getLabel('inbound', 'ar_number', 'AR') + ': ' + getValue('B'));
       if (isFieldVisible('inbound', 'phone_number')) outputLines.push(getLabel('inbound', 'phone_number', 'Phone') + ': ' + getValue('H'));
-      
+
       if (isFieldVisible('inbound', 'system_number')) {
         outputLines.push(getLabel('inbound', 'system_number', 'SYSTEM # or ADC ID') + ': ' + getValue('C'));
       }
-      
+
       if (isFieldVisible('inbound', 'verification')) outputLines.push(getLabel('inbound', 'verification', 'VERIFICATION') + ': ' + getValue('D'));
-      
+
       if (isFieldVisible('inbound', 'panel_type')) {
         const inboundPanelField = document.getElementById('inboundPanelTypeField');
         if (inboundPanelField && inboundPanelField.style.display !== 'none') {
           outputLines.push(getLabel('inbound', 'panel_type', 'PANEL TYPE') + ': ' + getValue('E'));
         }
       }
-      
+
       if (isFieldVisible('inbound', 'service_type')) outputLines.push(getLabel('inbound', 'service_type', 'SERVICE TYPE') + ': ' + getRadioValue('serviceType'));
       if (isFieldVisible('inbound', 'reason')) outputLines.push(getLabel('inbound', 'reason', 'REASON') + ': ' + getValue('F'));
-      
+
       outputLines.push('');
 
       if (isFieldVisible('inbound', 'resolution')) outputLines.push(getLabel('inbound', 'resolution', 'RESOLUTION') + ': ' + getValue('G'));
-      
+
       if (isFieldVisible('inbound', 'scheduled_service')) {
         outputLines.push(getLabel('inbound', 'scheduled_service', 'SCHEDULED SERVICE') + ': ' + scheduledService);
       }
@@ -1980,7 +2404,7 @@
       previousInboundFormData = captureInboundFormData();
 
       document.getElementById('notepad').reset();
-      clearFormDrafts('notepad'); 
+      clearFormDrafts('notepad');
 
       document.getElementById('serviceFeeWaivedField').classList.remove('is-visible');
       document.getElementById('submissionIdField').classList.remove('is-visible');
@@ -2002,7 +2426,7 @@
 
     async function copyOutboundForm() {
       const callAnswered = getRadioValue('outboundCallAnswered');
-      
+
       const verificationInput = document.getElementById('outboundVerification');
       if (isFieldVisible('outbound', 'verification') && callAnswered === 'Yes' && !verificationInput.value.trim()) {
         const dynamicLabel = getLabel('outbound', 'verification', 'Verification');
@@ -2041,34 +2465,34 @@
 
       if (isFieldVisible('outbound', 'obc_to')) addLine(outputLines, getLabel('outbound', 'obc_to', 'OBC TO'), getValue('outboundPhone'));
       if (isFieldVisible('outbound', 'caller_name')) addLine(outputLines, getLabel('outbound', 'caller_name', "CALLER'S NAME"), callerName);
-      
+
       if (customerType === 'commercial' && companyName && isFieldVisible('outbound', 'company_name')) {
         addLine(outputLines, accountHolderLabel, companyName);
       }
-      
+
       if (isFieldVisible('outbound', 'call_answered')) addLine(outputLines, getLabel('outbound', 'call_answered', 'CALL ANSWERED'), callAnswered);
-      
+
       if (isFieldVisible('outbound', 'voicemail_left') && callAnswered !== 'Yes') {
         addLine(outputLines, getLabel('outbound', 'voicemail_left', 'VOICEMAIL LEFT'), voicemailLeft);
       }
-      
+
       if (isFieldVisible('outbound', 'privacy_script')) addLine(outputLines, getLabel('outbound', 'privacy_script', 'PRIVACY SCRIPT'), privacyScript);
       if (isFieldVisible('outbound', 'service_type')) addLine(outputLines, getLabel('outbound', 'service_type', 'SERVICE TYPE'), serviceType);
-      
+
       if (isFieldVisible('outbound', 'panel_type')) {
         const outboundPanelField = document.getElementById('outboundPanelTypeField');
         if (outboundPanelField && outboundPanelField.style.display !== 'none') {
           addLine(outputLines, getLabel('outbound', 'panel_type', 'PANEL TYPE'), getValue('outboundPanelType'));
         }
       }
-      
+
       if (isFieldVisible('outbound', 'verification')) addLine(outputLines, getLabel('outbound', 'verification', 'VERIFICATION'), getValue('outboundVerification'));
       if (isFieldVisible('outbound', 'ar_number')) addLine(outputLines, getLabel('outbound', 'ar_number', 'AR'), getValue('outboundAr'));
-      
+
       if (isFieldVisible('outbound', 'system_number')) {
         addLine(outputLines, serviceType === 'Video Only' ? 'ADC ID' : getLabel('outbound', 'system_number', 'SYSTEM # or ADC ID:'), getValue('outboundSystemNumber'));
       }
-      
+
       if (isFieldVisible('outbound', 'reason')) {
         addLine(outputLines, getLabel('outbound', 'reason', 'REASON'), getValue('outboundReason'));
       }
@@ -2112,8 +2536,8 @@
       previousOutboundFormData = captureOutboundFormData();
 
       document.getElementById('outboundForm').reset();
-      clearFormDrafts('outboundForm'); 
-      
+      clearFormDrafts('outboundForm');
+
       document.getElementById('voicemailLeftContainer').style.display = 'block';
       document.getElementById('outboundServiceFeeWaivedField').classList.remove('is-visible');
       document.getElementById('outboundSubmissionIdField').classList.remove('is-visible');
@@ -2171,22 +2595,13 @@
       outboundSelect.innerHTML = '<option value="">Select a helpful link...</option>';
 
       links.forEach(function(link) {
-        const opt1 = document.createElement('option');
-        opt1.value = link.url;
-        opt1.textContent = link.name.includes('VIEW ALL') ? link.name : '  ' + link.name;
-        if (link.popup) { opt1.dataset.popup = link.popup; }
-        inboundSelect.appendChild(opt1);
-
-        const opt2 = document.createElement('option');
-        opt2.value = link.url;
-        opt2.textContent = link.name.includes('VIEW ALL') ? link.name : '  ' + link.name;
-        if (link.popup) { opt2.dataset.popup = link.popup; }
-        outboundSelect.appendChild(opt2);
+        appendHelpfulLinkOption(inboundSelect, link);
+        appendHelpfulLinkOption(outboundSelect, link);
       });
     }).getHelpfulLinksFromDoc();
 
     // ==========================================
-    // EMAIL TEMPLATES LOGIC (RICH TEXT & IMAGES FIXED)
+    // EMAIL TEMPLATES
     // ==========================================
     let emailTemplatesHtml = {};
 
@@ -2219,15 +2634,7 @@
           if (currentTemplateName && !currentTemplateName.includes("Email Signatures")) {
             emailTemplatesHtml[currentTemplateName] = styleTag + '<div class="' + bodyClass + '">' + currentHtml.join('') + '</div>';
 
-            const opt1 = document.createElement('option');
-            opt1.value = currentTemplateName;
-            opt1.textContent = currentTemplateName;
-            inboundSelect.appendChild(opt1);
-
-            const opt2 = document.createElement('option');
-            opt2.value = currentTemplateName;
-            opt2.textContent = currentTemplateName;
-            outboundSelect.appendChild(opt2);
+            appendTemplateOption(currentTemplateName);
           }
 
           currentTemplateName = textContent.replace(/\*/g, '').replace(/Template Name:/i, '').trim();
@@ -2240,47 +2647,39 @@
       if (currentTemplateName && !currentTemplateName.includes("Email Signatures")) {
         emailTemplatesHtml[currentTemplateName] = styleTag + '<div class="' + bodyClass + '">' + currentHtml.join('') + '</div>';
 
-        const opt1 = document.createElement('option');
-        opt1.value = currentTemplateName;
-        opt1.textContent = currentTemplateName;
-        inboundSelect.appendChild(opt1);
-
-        const opt2 = document.createElement('option');
-        opt2.value = currentTemplateName;
-        opt2.textContent = currentTemplateName;
-        outboundSelect.appendChild(opt2);
+        appendTemplateOption(currentTemplateName);
       }
     }).getEmailTemplatesHtml();
 
     function previewEmailTemplate(mode) {
       const selectId = mode === 'inbound' ? 'templateSelectInbound' : 'templateSelectOutbound';
       const previewId = mode === 'inbound' ? 'templatePreviewInbound' : 'templatePreviewOutbound';
-      
+
       const selectedTemplate = document.getElementById(selectId).value;
       const previewBox = document.getElementById(previewId);
-      
+
       if (!selectedTemplate) {
         previewBox.style.display = 'none';
         previewBox.innerHTML = '';
         return;
       }
-      
+
       let templateHtml = emailTemplatesHtml[selectedTemplate];
-      
-      // Strip the Google Docs <style> tag so it doesn't break the main Note Taker layout!
+
+      // Remove document styles from the preview to preserve the page layout.
       templateHtml = templateHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-      
+
       // Auto-fill the Member Name in the preview if they already typed it
       const memberName = mode === 'inbound' ? getValue('accountHolderInbound') : getValue('accountHolderOutbound');
       if (memberName) {
         templateHtml = templateHtml.replace(/\[Member Name\]/gi, `<span style="background: #e6f4ea; padding: 2px; border-radius: 3px;">${memberName}</span>`);
       }
-      
+
       // Highlight other placeholders so they stand out in the preview
       templateHtml = templateHtml.replace(/\[Case Number\]/gi, '<span style="background: #fce8e6; padding: 2px; border-radius: 3px;">[Case Number]</span>');
       templateHtml = templateHtml.replace(/\[Case Numer\]/gi, '<span style="background: #fce8e6; padding: 2px; border-radius: 3px;">[Case Number]</span>');
       templateHtml = templateHtml.replace(/\[Duration\]/gi, '<span style="background: #fce8e6; padding: 2px; border-radius: 3px;">[Duration]</span>');
-      
+
       previewBox.innerHTML = templateHtml;
       previewBox.style.display = 'block';
     }
@@ -2298,11 +2697,11 @@
 
       let templateHtml = emailTemplatesHtml[selectedTemplate];
 
-      // --- NEW: DYNAMIC PLACEHOLDER DETECTION ---
+      // Detect template placeholders.
       // This looks for anything inside brackets containing letters, numbers, or spaces (e.g. [Date], [Tracking Number])
-      const placeholderRegex = /\[([A-Za-z0-9\s_\-\/]+)\]/gi; 
+      const placeholderRegex = /\[([A-Za-z0-9\s_\-\/]+)\]/gi;
       const matches = templateHtml.match(placeholderRegex);
-      
+
       if (matches && matches.length > 0) {
         // Remove duplicates so we don't ask for the same thing twice
         const uniquePlaceholders = [...new Set(matches)];
@@ -2314,116 +2713,79 @@
 
     function showCustomPrompt(templateHtml, placeholders, statusId, mode) {
       const overlay = document.createElement('div');
-      overlay.style.position = 'fixed';
-      overlay.style.top = '0';
-      overlay.style.left = '0';
-      overlay.style.width = '100%';
-      overlay.style.height = '100%';
-      overlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
-      overlay.style.display = 'flex';
-      overlay.style.alignItems = 'center';
-      overlay.style.justifyContent = 'center';
-      overlay.style.zIndex = '999999';
+      overlay.className = 'email-prompt-overlay';
 
       const box = document.createElement('div');
-      box.style.backgroundColor = '#fff';
-      box.style.padding = '20px 25px';
-      box.style.borderRadius = '8px';
-      box.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
-      box.style.width = '320px';
-      box.style.fontFamily = 'Arial, sans-serif';
-      // Make the box scrollable if there are tons of placeholders
-      box.style.maxHeight = '90vh';
-      box.style.overflowY = 'auto';
+      box.className = 'email-prompt-box';
+      // Keep long placeholder forms scrollable.
 
       const title = document.createElement('h3');
+      title.className = 'email-prompt-title';
       title.textContent = 'Additional Info Required';
-      title.style.marginTop = '0';
-      title.style.color = '#003b8f';
       box.appendChild(title);
 
-      // Store our generated inputs so we can grab their values later
+      // Track inputs by placeholder.
       const inputElements = {};
 
       // Loop through every placeholder found and build a text box for it
       placeholders.forEach(placeholder => {
         // Remove the brackets for the label
-        const cleanName = placeholder.replace(/\[|\]/g, ''); 
+        const cleanName = placeholder.replace(/\[|\]/g, '');
         const lowerName = cleanName.toLowerCase();
 
         const lbl = document.createElement('label');
-        lbl.style.display = 'block'; 
-        lbl.style.marginBottom = '5px'; 
-        lbl.style.fontWeight = 'bold'; 
-        lbl.style.fontSize = '13px';
+      lbl.className = 'email-prompt-label';
 
         const input = document.createElement('input');
+      input.className = 'email-prompt-input';
         input.type = 'text';
-        input.style.width = '100%'; 
-        input.style.marginBottom = '15px'; 
-        input.style.padding = '8px'; 
-        input.style.border = '1px solid #ccc'; 
-        input.style.borderRadius = '4px';
 
-        // --- PRE-FILL LOGIC FOR KNOWN FIELDS ---
+        // Prefill recognized placeholders.
         if (lowerName === 'member name') {
           const customerType = getRadioValue('customerType');
           lbl.textContent = customerType === 'commercial' ? 'Company Name:' : 'Account Holder Name:';
-          
+
           const callerName = mode === 'inbound' ? getValue('A') : getValue('outboundName');
           const companyName = mode === 'inbound' ? getValue('accountHolderInbound') : getValue('accountHolderOutbound');
           input.value = (customerType === 'commercial' && companyName) ? companyName : callerName;
-        } 
+        }
         else if (lowerName === 'case number' || lowerName === 'case numer') {
           lbl.textContent = 'Case Number:';
           input.value = mode === 'inbound' ? getValue('B') : getValue('outboundAr');
-        } 
+        }
         else {
-          // For all new custom fields, just use the bracket text as the label!
+          // Use the placeholder text as the label for other fields.
           lbl.textContent = cleanName + ':';
         }
 
         inputElements[placeholder] = input;
-        box.appendChild(lbl); 
+        box.appendChild(lbl);
         box.appendChild(input);
       });
 
       const btnContainer = document.createElement('div');
-      btnContainer.style.display = 'flex'; 
-      btnContainer.style.justifyContent = 'flex-end'; 
-      btnContainer.style.gap = '10px'; 
-      btnContainer.style.marginTop = '5px';
+      btnContainer.className = 'email-prompt-actions';
 
       const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'email-prompt-cancel';
       cancelBtn.textContent = 'Cancel';
-      cancelBtn.style.padding = '8px 12px'; 
-      cancelBtn.style.cursor = 'pointer'; 
-      cancelBtn.style.border = '1px solid #ccc'; 
-      cancelBtn.style.backgroundColor = '#eee'; 
-      cancelBtn.style.borderRadius = '4px';
       cancelBtn.onclick = function() { document.body.removeChild(overlay); };
 
       const copyBtn = document.createElement('button');
+      copyBtn.className = 'email-prompt-copy';
       copyBtn.textContent = 'Copy to Clipboard';
-      copyBtn.style.padding = '8px 12px'; 
-      copyBtn.style.cursor = 'pointer'; 
-      copyBtn.style.backgroundColor = '#003b8f'; 
-      copyBtn.style.color = '#fff'; 
-      copyBtn.style.border = 'none'; 
-      copyBtn.style.borderRadius = '4px'; 
-      copyBtn.style.fontWeight = 'bold';
 
       copyBtn.onclick = function() {
-        // Loop through all our inputs and replace the text in the email!
+        // Substitute the entered placeholder values.
         for (const [placeholder, inputEl] of Object.entries(inputElements)) {
           // If they leave it blank, just leave the placeholder in the email
-          const val = inputEl.value.trim() || placeholder; 
-          
-          // Safely replace all instances of this placeholder in the HTML
+          const val = inputEl.value.trim() || placeholder;
+
+          // Escape the placeholder for matching and replace all occurrences.
           const regex = new RegExp(placeholder.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
           templateHtml = templateHtml.replace(regex, val);
         }
-        
+
         document.body.removeChild(overlay);
         executeCopy(templateHtml, statusId);
       };
@@ -2435,8 +2797,8 @@
       document.body.appendChild(overlay);
 
       // Auto-focus the very first input box
-      if (placeholders.length > 0) { 
-        inputElements[placeholders[0]].focus(); 
+      if (placeholders.length > 0) {
+        inputElements[placeholders[0]].focus();
       }
     }
 
