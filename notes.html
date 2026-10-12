@@ -759,18 +759,32 @@
       cursor: pointer;
     }
 
-    div.layout-detail-2 {
-      gap: 14px;
+    /* Align mode controls with the note form's two columns. */
+    .mode-controls-grid {
+      display: grid;
+      grid-template-columns: 250px 250px;
+      gap: 6px;
+      align-items: stretch;
+      max-width: 100%;
       margin-bottom: 14px;
-      flex-wrap: wrap;
     }
 
-    div.layout-detail-3 {
-      margin-bottom: 0;
+    .mode-controls-grid > .mode-toggle {
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+      align-items: center;
+      justify-content: flex-start;
     }
 
-    div.layout-detail-4 {
-      margin-bottom: 0;
+    .mode-controls-grid .mode-option {
+      white-space: nowrap;
+    }
+
+    @media (max-width: 560px) {
+      .mode-controls-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     div.layout-detail-5 {
@@ -1119,8 +1133,8 @@
   <main class="aaa-page-content">
 
     <!-- Toggles: Inbound/Outbound and Residential/Commercial -->
-    <div class="layout-detail-2" style="display: flex;">
-      <div class="mode-toggle layout-detail-3" role="radiogroup" aria-label="Call type">
+    <div class="mode-controls-grid">
+      <div class="mode-toggle" role="radiogroup" aria-label="Call type">
         <label class="mode-option">
           <input type="radio" name="callMode" value="inbound" checked onchange="switchCallMode()">
           Inbound
@@ -1131,7 +1145,7 @@
         </label>
       </div>
 
-      <div class="mode-toggle layout-detail-4" role="radiogroup" aria-label="Customer type">
+      <div class="mode-toggle" role="radiogroup" aria-label="Customer type">
         <label class="mode-option">
           <input type="radio" name="customerType" value="residential" checked onchange="switchCustomerType()">
           Residential
