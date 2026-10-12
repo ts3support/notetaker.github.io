@@ -5,7 +5,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Residential Scheduling</title>
-
   <style>
     :root {
       --aaa-blue: #003b8f;
@@ -15,11 +14,9 @@
       --aaa-text: #252a34;
       --aaa-muted: #66727d;
     }
-
     * {
       box-sizing: border-box;
     }
-
     body {
       min-height: 100vh;
       margin: 0;
@@ -29,7 +26,6 @@
       background: var(--aaa-page);
       color: var(--aaa-text);
     }
-
     .aaa-header {
       display: flex;
       align-items: center;
@@ -41,53 +37,28 @@
       border-bottom: 5px solid var(--aaa-red);
       box-shadow: 0 3px 12px rgba(0, 45, 106, 0.20);
     }
-
     .header-left {
       display: flex;
       align-items: center;
       gap: 16px;
     }
-
-    .aaa-logo-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+    .aaa-logo {
       width: 110px;
       min-width: 110px;
-      height: 58px;
-      border: 2px solid rgba(255, 255, 255, 0.75);
-      border-radius: 6px;
-      color: #ffffff;
-      text-align: center;
+      max-height: 58px;
+      object-fit: contain;
     }
-
-    .aaa-logo-placeholder span {
-      font-size: 24px;
-      font-weight: bold;
-      line-height: 1;
-    }
-
-    .aaa-logo-placeholder small {
-      margin-top: 3px;
-      font-size: 10px;
-      font-weight: bold;
-      letter-spacing: 0.06em;
-    }
-
     .header-text h1 {
       margin: 0;
       color: #ffffff;
       font-size: 26px;
       line-height: 1;
     }
-
     .header-text p {
       margin: 5px 0 0;
       color: rgba(255, 255, 255, 0.84);
       font-size: 13px;
     }
-
     .header-status {
       min-width: 185px;
       padding: 10px 14px;
@@ -98,44 +69,37 @@
       font-size: 12px;
       text-align: right;
     }
-
     .header-status strong {
       display: block;
       margin-top: 3px;
       color: #ffffff;
       font-size: 15px;
     }
-
     .page-content {
       flex: 1;
       padding: 14px;
     }
-
     .form-area {
       width: 520px;
       max-width: 100%;
     }
-
     .field {
       display: flex;
       flex-direction: column;
       margin-bottom: 8px;
     }
-
     label {
       margin-bottom: 3px;
       font-size: 14px;
       font-weight: bold;
     }
-
     .note {
       font-size: 12px;
       font-weight: normal;
       font-style: italic;
     }
-
     input[type="text"],
-    textarea {
+    textarea, select {
       width: 400px;
       max-width: 100%;
       padding: 6px;
@@ -145,47 +109,42 @@
       font-family: Arial, Helvetica, sans-serif;
       font-size: 14px;
     }
-
-    input[type="text"] {
+    input[type="text"], select {
       height: 30px;
     }
-
     textarea {
       height: 60px;
       resize: vertical;
     }
-
     .radio-group {
       display: flex;
       align-items: center;
       gap: 12px;
       font-size: 14px;
     }
-
     .radio-group label {
       margin: 0;
       font-size: 14px;
       font-weight: normal;
     }
-
     .radio-group input[type="radio"] {
       margin-right: 4px;
       cursor: pointer;
     }
-
+    .conditional-field {
+      display: none;
+    }
     .agent-info {
       margin-top: 10px;
       font-size: 14px;
       line-height: 1.3;
     }
-
     .buttons {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
       margin-top: 10px;
     }
-
     button {
       padding: 6px 10px;
       border: 1px solid #333333;
@@ -197,23 +156,19 @@
       font-weight: bold;
       cursor: pointer;
     }
-
     button:hover {
       background: #d5d5d5;
     }
-
     button:disabled {
       cursor: not-allowed;
       opacity: 0.55;
     }
-
     #status {
       min-height: 18px;
       margin-top: 8px;
       font-size: 12px;
       font-weight: bold;
     }
-
     .copy-output-label {
       display: block;
       margin-top: 10px;
@@ -221,7 +176,6 @@
       font-size: 14px;
       font-weight: bold;
     }
-
     #copyOutput {
       width: 400px;
       max-width: 100%;
@@ -234,7 +188,6 @@
       font-size: 13px;
       resize: vertical;
     }
-
     .page-footer {
       padding: 18px 24px;
       color: var(--aaa-muted);
@@ -242,56 +195,18 @@
       font-size: 12px;
       text-align: center;
     }
-
     .page-footer strong {
       color: var(--aaa-blue);
     }
-
     @media (max-width: 560px) {
-      .aaa-header {
-        padding: 10px 14px;
-      }
-
-      .header-left {
-        gap: 10px;
-      }
-
-      .aaa-logo-placeholder {
-        width: 82px;
-        min-width: 82px;
-        height: 48px;
-      }
-
-      .aaa-logo-placeholder span {
-        font-size: 19px;
-      }
-
-      .aaa-logo-placeholder small {
-        font-size: 8px;
-      }
-
-      .header-text h1 {
-        font-size: 22px;
-      }
-
-      .header-text p {
-        font-size: 11px;
-      }
-
-      .header-status {
-        display: none;
-      }
-
       .page-content {
         padding: 10px;
       }
-
       input[type="text"],
-      textarea,
+      textarea, select,
       #copyOutput {
         width: 100%;
       }
-
       .page-footer {
         padding: 14px 10px;
         font-size: 11px;
@@ -299,138 +214,111 @@
     }
   </style>
 </head>
-
 <body>
   <header class="aaa-header">
     <div class="header-left">
-      <div class="aaa-logo-placeholder">
-        <span>AAA</span>
-        <small>SMART HOME</small>
-      </div>
-
+      <img
+        class="aaa-logo"
+        src="https://raw.githubusercontent.com/erickdansby/Note-taker-images/main/AAA_color_RGB.png"
+        alt="AAA Smart Home Security"
+      >
       <div class="header-text">
-        <h1>RESIDENTIAL SCHEDULING</h1>
-        <p>Residential Service Request</p>
+        <h1>Residential Scheduling</h1>
+        <p>AAA Smart Home • Secure Scheduling Workflow</p>
       </div>
     </div>
-
     <div class="header-status">
-      <span>Secure Agent Access</span>
-      <strong>Internal Use Only</strong>
+      Ready to Schedule
+      <strong>Residential Service</strong>
     </div>
   </header>
 
   <main class="page-content">
+    <!-- START RESIDENTIAL SECTION -->
     <form id="resiForm" class="form-area" onsubmit="return false;">
-      <div class="field">
+      <div class="field" data-internal-id="system_number">
         <label for="A">SYSTEM #:</label>
         <input type="text" id="A" required>
       </div>
-
-      <div class="field">
+      <div class="field" data-internal-id="name_contact">
         <label for="B">NAME/CONTACT#:</label>
         <input type="text" id="B" required>
       </div>
-
-      <div class="field">
+      <div class="field" data-internal-id="access">
         <label for="C">ACCESS/GATE/LOCKBOX:</label>
         <input type="text" id="C" required>
       </div>
-
-      <div class="field">
+      <div class="field" data-internal-id="system_type">
         <label for="D">SYSTEM TYPE:</label>
         <input type="text" id="D" required>
       </div>
-
-      <div class="field">
+      <div class="field" data-internal-id="issue">
         <label for="E">
           ISSUE:
-          <span class="note">Please notate if TSEXEMPT</span>
+          <span class="note"></span>
         </label>
         <textarea id="E"></textarea>
       </div>
-
-      <div class="field">
+      <div class="field" data-internal-id="parts_needed">
         <label for="F">PARTS NEEDED:</label>
         <input type="text" id="F" required>
       </div>
-
-      <div class="field">
+      <div class="field" data-internal-id="quoted_rate">
         <label for="G">QUOTED RATE:</label>
-        <input type="text" id="G" required>
+        <select id="G" onchange="toggleResidentialConditionalFields()">
+          <option value="">Select...</option>
+          <option value="$125/hr">$125/hr</option>
+          <option value="Go Back">Go Back</option>
+          <option value="Warranty">Warranty</option>
+        </select>
       </div>
-
-      <div class="field">
+      <div class="field conditional-field" id="laborWaivedContainer" data-internal-id="labor_waived">
         <label>LABOR WAIVED?</label>
-
         <div class="radio-group">
           <label>
-            <input
-              type="radio"
-              name="laborWaived"
-              value="Yes"
-              onchange="toggleResidentialSubmissionId()"
-            >
+            <input type="radio" name="laborWaived" value="Yes" onchange="toggleResidentialConditionalFields()">
             Yes
           </label>
-
           <label>
-            <input
-              type="radio"
-              name="laborWaived"
-              value="No"
-              onchange="toggleResidentialSubmissionId()"
-            >
+            <input type="radio" name="laborWaived" value="No" onchange="toggleResidentialConditionalFields()">
             No
+          </label>
+          <label>
+            <input type="radio" name="laborWaived" value="Sup/Incident" onchange="toggleResidentialConditionalFields()">
+            Sup/Incident
           </label>
         </div>
       </div>
-
-      <div class="field">
+      <div class="field conditional-field" id="totalHoursContainer" data-internal-id="total_hours">
+        <label for="I">HOURS WAIVED:</label>
+        <select id="I">
+          <option value="">Select...</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+        </select>
+      </div>
+      <div class="field conditional-field" id="submissionIdContainer" data-internal-id="submission_id">
         <label for="H">SUBMISSION ID:</label>
         <input type="text" id="H">
       </div>
-
       <div class="agent-info">
-        AGENT: <span id="nameDisplay"></span>
-        EXT: <span id="phoneDisplay"></span>
+        AGENT: <span id="nameDisplay"></span><br>
+        EXT: <span id="phoneDisplay"></span><br>
         DEPT: <span id="deptDisplay"></span>
       </div>
-
       <div class="buttons">
         <button type="button" onclick="copyForm()">COPY RESI NOTE</button>
         <button type="button" onclick="clearForm()">CLEAR</button>
-
-        <button
-          type="button"
-          id="undoClearButton"
-          onclick="undoClear()"
-          disabled
-        >
-          UNDO CLEAR
-        </button>
-
+        <button type="button" id="undoClearButton" onclick="undoClear()" disabled>UNDO CLEAR</button>
         <button type="button" onclick="window.close()">CLOSE</button>
       </div>
-
       <div id="status"></div>
-
-      <label
-        id="copyOutputLabel"
-        class="copy-output-label"
-        for="copyOutput"
-        style="display: none;"
-      >
+      <label id="copyOutputLabel" class="copy-output-label" for="copyOutput" style="display: none;">
         GENERATED NOTE:
       </label>
-
-      <textarea
-        id="copyOutput"
-        readonly
-        style="display: none;"
-        placeholder="Your generated Residential Scheduling note will appear here."
-      ></textarea>
+      <textarea id="copyOutput" readonly style="display: none;" placeholder="Your generated Residential Scheduling note will appear here."></textarea>
     </form>
+    <!-- END RESIDENTIAL SECTION -->
   </main>
 
   <footer class="page-footer">
@@ -443,60 +331,194 @@
     const agent = localStorage.getItem('name') || '';
     const phone = localStorage.getItem('phone') || '';
     const dept = localStorage.getItem('dept') || '';
-
     let previousFormData = null;
 
     document.getElementById('nameDisplay').textContent = agent;
     document.getElementById('phoneDisplay').textContent = phone;
     document.getElementById('deptDisplay').textContent = dept;
 
-    google.script.url.getLocation(function (location) {
-      const params = location.parameter;
+    if (window.google && google.script && google.script.url) {
+      google.script.url.getLocation(function (location) {
+        const params = location.parameter;
+        const arSysParts = [];
+        if (params.ar) {
+          arSysParts.push('AR# ' + params.ar);
+        }
+        if (params.systemNumber) {
+          arSysParts.push(params.systemNumber);
+        }
+        document.getElementById('A').value = arSysParts.join(' / ');
 
-      const nameContact = [
-        params.noteName || '',
-        params.cbr || ''
-      ]
-        .filter(function (value) {
-          return value !== '';
-        })
-        .join(' / ');
+        const nameContact = [
+          params.noteName || '',
+          params.cbr || params.phone || ''
+        ].filter(value => value !== '').join(' / ');
 
-      document.getElementById('A').value = params.systemNumber || '';
-      document.getElementById('B').value = nameContact;
-      document.getElementById('D').value = params.systemType || '';
-    });
-
-    function getValue(id) {
-      return document.getElementById(id).value.trim();
+        document.getElementById('B').value = nameContact;
+        document.getElementById('D').value = params.systemType || '';
+      });
     }
 
-    function getLaborWaived() {
-      const selected = document.querySelector(
-        'input[name="laborWaived"]:checked'
-      );
+    function getValue(id) {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    }
 
+    function getRadioValue(name) {
+      const selected = document.querySelector('input[name="' + name + '"]:checked');
       return selected ? selected.value.trim() : '';
     }
 
-    function setLaborWaived(value) {
-      document.querySelectorAll(
-        'input[name="laborWaived"]'
-      ).forEach(function (radio) {
+    function setRadioValue(name, value) {
+      document.querySelectorAll('input[name="' + name + '"]').forEach(function (radio) {
         radio.checked = radio.value === value;
       });
     }
 
-    function toggleResidentialSubmissionId() {
-      const laborWaived = getLaborWaived();
+    // ==========================================
+    // DYNAMIC FORM SCHEMA LOGIC
+    // ==========================================
+    let formSchema = {};
+
+    if (window.google && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(function(schema) {
+        formSchema = (schema && schema.residential) ? schema.residential : {};
+        
+        const processField = (key, fieldData) => {
+          const fieldEl = document.querySelector(`[data-internal-id="${key}"]`);
+          if (!fieldEl) return;
+          
+          // 1. Update Label Text (Preserving notes/spans)
+          const labelEl = fieldEl.querySelector('label');
+          if (labelEl && fieldData.label) {
+            for (let i = 0; i < labelEl.childNodes.length; i++) {
+              if (labelEl.childNodes[i].nodeType === Node.TEXT_NODE && labelEl.childNodes[i].nodeValue.trim().length > 0) {
+                labelEl.childNodes[i].nodeValue = fieldData.label + (fieldData.label.endsWith(':') ? '' : ': ');
+                break;
+              }
+            }
+          }
+
+          // 2. Dynamic Input / Dropdown Morphing
+          const inputEl = fieldEl.querySelector('input, select, textarea');
+          const isDropdownType = fieldData.type && fieldData.type.toLowerCase() === 'dropdown';
+
+          if (isDropdownType && fieldData.options) {
+            let selectEl = fieldEl.querySelector('select');
+            // If the element is currently an input, replace it with a select tag
+            if (!selectEl && inputEl) {
+              selectEl = document.createElement('select');
+              if (inputEl.id) selectEl.id = inputEl.id;
+              inputEl.parentNode.replaceChild(selectEl, inputEl);
+            }
+            if (selectEl) {
+              const optionsList = fieldData.options.toString().split(',').map(opt => opt.trim());
+              let optionsHtml = '<option value="">Select...</option>';
+              optionsList.forEach(opt => { 
+                optionsHtml += `<option value="${opt}">${opt}</option>`; 
+              });
+              selectEl.innerHTML = optionsHtml;
+            }
+          } else if (!isDropdownType && fieldEl.querySelector('select') && key === 'total_hours') {
+            // If switched back to text in the sheet, restore input
+            const currentSelect = fieldEl.querySelector('select');
+            const newInput = document.createElement('input');
+            newInput.type = 'text';
+            newInput.id = currentSelect.id;
+            newInput.placeholder = 'e.g. 1 hr, 2 hrs waived';
+            currentSelect.parentNode.replaceChild(newInput, currentSelect);
+          }
+          
+          // 3. Update Visibility
+          if (fieldData.visible !== undefined) {
+            const isVisible = fieldData.visible.toString().toUpperCase();
+            if (isVisible === 'FALSE' || isVisible === 'NO') {
+              fieldEl.style.display = 'none';
+              fieldEl.classList.add('schema-hidden');
+            } else {
+              fieldEl.classList.remove('schema-hidden');
+            }
+          }
+        };
+
+        for (const key in formSchema) {
+          processField(key, formSchema[key]);
+        }
+
+        toggleResidentialConditionalFields();
+      }).getFormSchema();
+    }
+
+    function getLabel(key, defaultLabel) {
+      if (formSchema[key] && formSchema[key].label) {
+        return formSchema[key].label.replace(/:$/, '').toUpperCase();
+      }
+      return defaultLabel;
+    }
+
+    function isFieldVisible(key) {
+      if (formSchema[key]) {
+        const vis = formSchema[key].visible.toString().toUpperCase();
+        if (vis === 'FALSE' || vis === 'NO') return false;
+      }
+      return true;
+    }
+
+    // ==========================================
+    // DYNAMIC CONDITIONAL VISIBILITY LOGIC
+    // ==========================================
+    function toggleResidentialConditionalFields() {
+      const quotedRate = getValue('G');
+      const laborWaived = getRadioValue('laborWaived');
+      
+      const laborWaivedContainer = document.getElementById('laborWaivedContainer');
+      const totalHoursContainer = document.getElementById('totalHoursContainer');
+      const totalHoursInput = document.getElementById('I');
+      const submissionIdContainer = document.getElementById('submissionIdContainer');
       const submissionIdInput = document.getElementById('H');
-      const isRequired = laborWaived.toLowerCase() === 'yes';
+      const quotedRateLabel = document.querySelector('[data-internal-id="quoted_rate"] label');
 
-      submissionIdInput.required = isRequired;
+      const is125Rate = (quotedRate === '$125/hr');
+      const isLaborWaivedSchemaVisible = isFieldVisible('labor_waived');
 
-      if (isRequired) {
+      // 1. Labor Waived ONLY shows up if "$125/hr" is selected
+      if (is125Rate && isLaborWaivedSchemaVisible) {
+        laborWaivedContainer.style.display = 'flex';
+      } else {
+        laborWaivedContainer.style.display = 'none';
+        setRadioValue('laborWaived', '');
+      }
+
+      const currentLaborWaived = getRadioValue('laborWaived').toLowerCase();
+      const isYesWaived = (currentLaborWaived === 'yes');
+      const isSupIncident = (currentLaborWaived === 'sup/incident');
+
+      // 2. Dynamic Quoted Rate Label
+      if (quotedRateLabel) {
+        if (isYesWaived) {
+          quotedRateLabel.textContent = 'ORIGINAL RATE QUOTED:';
+        } else if (currentLaborWaived === 'no') {
+          quotedRateLabel.textContent = 'QUOTED RATE (BILLABLE):';
+        } else {
+          quotedRateLabel.textContent = getLabel('quoted_rate', 'QUOTED RATE') + ':';
+        }
+      }
+
+      // 3. Total Hours ONLY shows up if Labor Waived is "Yes"
+      if (is125Rate && isYesWaived && isFieldVisible('total_hours')) {
+        totalHoursContainer.style.display = 'flex';
+      } else {
+        totalHoursContainer.style.display = 'none';
+        if (totalHoursInput) totalHoursInput.value = '';
+      }
+
+      // 4. Submission ID ONLY shows up if Labor Waived is "Yes"
+      if (is125Rate && isYesWaived && isFieldVisible('submission_id')) {
+        submissionIdContainer.style.display = 'flex';
+        submissionIdInput.required = true;
         submissionIdInput.setCustomValidity('');
       } else {
+        submissionIdContainer.style.display = 'none';
         submissionIdInput.value = '';
         submissionIdInput.required = false;
         submissionIdInput.setCustomValidity('');
@@ -512,7 +534,8 @@
         issue: getValue('E'),
         partsNeeded: getValue('F'),
         quotedRate: getValue('G'),
-        laborWaived: getLaborWaived(),
+        totalHours: getValue('I'),
+        laborWaived: getRadioValue('laborWaived'),
         submissionId: getValue('H')
       };
     }
@@ -521,34 +544,17 @@
       if (!previousFormData) {
         return;
       }
-
-      document.getElementById('A').value =
-        previousFormData.systemNumber;
-
-      document.getElementById('B').value =
-        previousFormData.nameContact;
-
-      document.getElementById('C').value =
-        previousFormData.accessGateLockbox;
-
-      document.getElementById('D').value =
-        previousFormData.systemType;
-
-      document.getElementById('E').value =
-        previousFormData.issue;
-
-      document.getElementById('F').value =
-        previousFormData.partsNeeded;
-
-      document.getElementById('G').value =
-        previousFormData.quotedRate;
-
-      setLaborWaived(previousFormData.laborWaived);
-      toggleResidentialSubmissionId();
-
-      document.getElementById('H').value =
-        previousFormData.submissionId;
-
+      document.getElementById('A').value = previousFormData.systemNumber;
+      document.getElementById('B').value = previousFormData.nameContact;
+      document.getElementById('C').value = previousFormData.accessGateLockbox;
+      document.getElementById('D').value = previousFormData.systemType;
+      document.getElementById('E').value = previousFormData.issue;
+      document.getElementById('F').value = previousFormData.partsNeeded;
+      document.getElementById('G').value = previousFormData.quotedRate;
+      setRadioValue('laborWaived', previousFormData.laborWaived);
+      if (document.getElementById('I')) document.getElementById('I').value = previousFormData.totalHours;
+      document.getElementById('H').value = previousFormData.submissionId;
+      toggleResidentialConditionalFields();
       document.getElementById('undoClearButton').disabled = true;
 
       const status = document.getElementById('status');
@@ -557,38 +563,82 @@
     }
 
     async function copyForm() {
-      const laborWaived = getLaborWaived();
-      const submissionIdInput = document.getElementById('H');
-      const includeSubmissionId = laborWaived.toLowerCase() === 'yes';
+      const form = document.getElementById('resiForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
 
-      if (includeSubmissionId && !submissionIdInput.value.trim()) {
-        submissionIdInput.setCustomValidity(
-          'Submission ID is required when labor is waived.'
-        );
+      const quotedRateValue = getValue('G');
+      const laborWaived = getRadioValue('laborWaived');
+      const submissionIdInput = document.getElementById('H');
+      const is125Rate = (quotedRateValue === '$125/hr');
+      const isYesWaived = is125Rate && (laborWaived.toLowerCase() === 'yes');
+      const isSupIncident = is125Rate && (laborWaived.toLowerCase() === 'sup/incident');
+
+      // Validation for Submission ID
+      if (isYesWaived && !submissionIdInput.value.trim() && isFieldVisible('submission_id')) {
+        submissionIdInput.setCustomValidity('Submission ID is required when labor is waived.');
         submissionIdInput.reportValidity();
         submissionIdInput.focus();
         return;
       }
-
       submissionIdInput.setCustomValidity('');
 
-      const outputLines = [
-        'SYSTEM #: ' + getValue('A'),
-        'NAME/CONTACT#: ' + getValue('B'),
-        'ACCESS/GATE/LOCKBOX: ' + getValue('C'),
-        'SYSTEM TYPE: ' + getValue('D'),
-        'ISSUE: ' + getValue('E'),
-        'PARTS NEEDED: ' + getValue('F'),
-        'QUOTED RATE: ' + getValue('G'),
-        'LABOR WAIVED?: ' + laborWaived
-      ];
+      const outputLines = [];
+      if (isFieldVisible('system_number')) outputLines.push(getLabel('system_number', 'SYSTEM #') + ': ' + getValue('A'));
+      if (isFieldVisible('name_contact')) outputLines.push(getLabel('name_contact', 'NAME/CONTACT#') + ': ' + getValue('B'));
+      if (isFieldVisible('access')) outputLines.push(getLabel('access', 'ACCESS/GATE/LOCKBOX') + ': ' + getValue('C'));
+      if (isFieldVisible('system_type')) outputLines.push(getLabel('system_type', 'SYSTEM TYPE') + ': ' + getValue('D'));
+      if (isFieldVisible('issue')) outputLines.push(getLabel('issue', 'ISSUE') + ': ' + getValue('E'));
+      if (isFieldVisible('parts_needed')) outputLines.push(getLabel('parts_needed', 'PARTS NEEDED') + ': ' + getValue('F'));
 
-      if (includeSubmissionId) {
-        outputLines.push('SUBMISSION ID: ' + getValue('H'));
+      // Dynamic Billing Output
+      const totalHoursValue = getValue('I');
+
+      if (is125Rate && isFieldVisible('labor_waived')) {
+        // 1. If Labor Waived is "Yes"
+        if (isYesWaived) {
+          if (totalHoursValue && isFieldVisible('total_hours')) {
+            let cleanHours = totalHoursValue.toLowerCase().replace(/hours?|hrs?|waived/g, '').trim();
+            let waivedDetails = '(WAIVED)';
+            if (cleanHours !== '') {
+              const unit = cleanHours === '1' ? 'hour' : 'hours';
+              waivedDetails = '(' + cleanHours + ' ' + unit + ' waived)';
+            } else {
+              waivedDetails = '(' + totalHoursValue + ' waived)';
+            }
+
+            outputLines.push('LABOR WAIVED: Yes ' + waivedDetails);
+
+            if (quotedRateValue && isFieldVisible('quoted_rate')) {
+              outputLines.push('ORIGINAL RATE QUOTED: ' + quotedRateValue);
+            }
+
+            if (getValue('H') && isFieldVisible('submission_id')) {
+              outputLines.push(getLabel('submission_id', 'SUBMISSION ID') + ': ' + getValue('H'));
+            }
+          }
+        } 
+        // 2. If Labor Waived is "Sup/Incident"
+        else if (isSupIncident) {
+          outputLines.push('LABOR WAIVED: Sup/Incident');
+        } 
+        // 3. If Not Waived (Billable No)
+        else {
+          outputLines.push('LABOR WAIVED: No (Billable)');
+          if (quotedRateValue && isFieldVisible('quoted_rate')) {
+            outputLines.push('QUOTED RATE: ' + quotedRateValue);
+          }
+        }
+      } else {
+        // Standard non-125 rate (Warranty, Go Back, etc.)
+        if (quotedRateValue && isFieldVisible('quoted_rate')) {
+          outputLines.push(getLabel('quoted_rate', 'QUOTED RATE') + ': ' + quotedRateValue);
+        }
       }
 
       const output = outputLines.join('\n');
-
       const status = document.getElementById('status');
       const copyOutput = document.getElementById('copyOutput');
       const copyOutputLabel = document.getElementById('copyOutputLabel');
@@ -599,28 +649,22 @@
 
       try {
         await navigator.clipboard.writeText(output);
-
         status.style.color = '#188038';
         status.textContent = 'Residential note copied to clipboard.';
       } catch (error) {
         copyOutput.style.display = 'block';
         copyOutputLabel.style.display = 'block';
-
         copyOutput.focus();
         copyOutput.select();
-
         status.style.color = '#1a73e8';
-        status.textContent =
-          'Automatic copy was blocked. The note is selected below—press Ctrl + C.';
+        status.textContent = 'Automatic copy was blocked. The note is selected below—press Ctrl + C.';
       }
     }
 
     function clearForm() {
       previousFormData = captureFormData();
-
       document.getElementById('resiForm').reset();
-      toggleResidentialSubmissionId();
-
+      toggleResidentialConditionalFields();
       const status = document.getElementById('status');
       const copyOutput = document.getElementById('copyOutput');
       const copyOutputLabel = document.getElementById('copyOutputLabel');
@@ -628,12 +672,9 @@
       copyOutput.value = '';
       copyOutput.style.display = 'none';
       copyOutputLabel.style.display = 'none';
-
       document.getElementById('undoClearButton').disabled = false;
-
       status.style.color = '#188038';
-      status.textContent =
-        'Residential scheduling fields cleared. Select UNDO CLEAR to restore them.';
+      status.textContent = 'Residential scheduling fields cleared. Select UNDO CLEAR to restore them.';
     }
   </script>
 </body>
