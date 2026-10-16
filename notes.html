@@ -223,9 +223,9 @@
     }
 
     textarea {
-      width: 620px;
+      width: 600px;
       max-width: 100%;
-      height: 150px;
+      height: 100px;
       padding: 6px;
       border: 2px solid #777777;
       border-radius: 4px;
@@ -1124,9 +1124,14 @@
     <div class="header-status">
       <span>Secure Agent Access</span>
       <strong>Internal Use Only</strong>
-      <a class="layout-detail-1" href="javascript:void(0)" onclick="openFeedbackModal()" style="display: block;">
-        💬 Submit Feedback
-      </a>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px;">
+        <a class="layout-detail-1" href="javascript:void(0)" onclick="openFeedbackModal()">
+          💬 Submit Feedback
+        </a>
+        <a class="layout-detail-1" href="javascript:void(0)" onclick="openChangeLogModal()">
+          📋 Change Log
+        </a>
+      </div>
     </div>
   </header>
 
@@ -1142,6 +1147,11 @@
         <label class="mode-option">
           <input type="radio" name="callMode" value="outbound" onchange="switchCallMode()">
           Outbound
+        </label>
+        <!-- Obscure Special Project Mode: Hidden by default -->
+        <label class="mode-option" id="specialProjectOption" style="display: none;">
+          <input type="radio" name="callMode" value="special_project" onchange="switchCallMode()">
+          NC
         </label>
       </div>
 
@@ -1283,8 +1293,10 @@
             <a href="#" onclick="openDealerTicket(); return false;">Dealer Service</a>
             |
             <a href="#" onclick="openAddendumTicket(); return false;">Addendum Request</a>
+            |
+            <a href="#" onclick="openPartsTicket(); return false;">Parts Order</a>
           </div>
-
+          
           <!-- INBOUND HELPFUL LINKS & EMAIL TEMPLATES ROW -->
           <div class="tools-row">
             <div class="helpful-links">
@@ -1698,6 +1710,20 @@
       select.appendChild(option);
     }
 
+    function checkSpecialProjectAccess() {
+      const storedPhone = (localStorage.getItem('phone') || '').trim();
+      const projectOption = document.getElementById('specialProjectOption');
+      
+      if (storedPhone === '1306228') {
+        if (projectOption) projectOption.style.display = 'inline-flex';
+      } else {
+        if (projectOption) projectOption.style.display = 'none';
+      }
+    }
+
+    // Run on page load
+    checkSpecialProjectAccess();
+
     function getValue(id) {
       return document.getElementById(id).value.trim();
     }
@@ -1838,11 +1864,44 @@
       const selected = document.querySelector('input[name="callMode"]:checked');
       const mode = selected ? selected.value : 'inbound';
 
+      // 1. Show Inbound only if inbound is selected
       document.getElementById('inboundWorkspace').style.display = mode === 'inbound' ? 'block' : 'none';
-      document.getElementById('outboundWorkspace').style.display = mode === 'outbound' ? 'block' : 'none';
+
+      // 2. Show Outbound if either standard 'outbound' OR 'special_project' is selected
+      const isOutboundOrSpecial = (mode === 'outbound' || mode === 'special_project');
+      document.getElementById('outboundWorkspace').style.display = isOutboundOrSpecial ? 'block' : 'none';
+
+      // 3. Handle the locked Reason field for the Special Project
+      const reasonEl = document.querySelector('#outboundWorkspace [data-internal-id="reason"] input, #outboundWorkspace [data-internal-id="reason"] textarea, #outboundReason');
+      if (reasonEl) {
+        if (mode === 'special_project') {
+          reasonEl.value = 'Non Communication Project (2026)';
+          reasonEl.readOnly = true;
+          reasonEl.style.backgroundColor = '#fff9db'; // Subtle yellow tint to indicate special project
+        } else if (mode === 'outbound') {
+          if (reasonEl.readOnly) {
+            reasonEl.readOnly = false;
+            reasonEl.style.backgroundColor = '';
+            if (reasonEl.value === 'Non Communication Project (2026)') {
+              reasonEl.value = '';
+            }
+          }
+        }
+      }
 
       closeTicketPanel();
     }
+
+        function checkSpecialProjectAccess() {
+      const ext = (localStorage.getItem('phone') || '').trim();
+      const projectToggle = document.getElementById('specialProjectOption');
+      if (projectToggle) {
+        projectToggle.style.display = (ext === '1306228') ? 'inline-flex' : 'none';
+      }
+    }
+
+    // Run check on startup
+    checkSpecialProjectAccess();
 
     function switchCustomerType() {
       const type = getRadioValue('customerType');
@@ -2128,6 +2187,16 @@
       });
       const url = buildTicketUrl(params);
       openTicketPanel(url, 'ADDENDUM REQUEST');
+    }
+
+    function openPartsTicket() {
+  const params = new URLSearchParams({
+    page: 'parts',
+    noteName: getValue('A'), // Caller Name
+    phone: getValue('H')     // Contact Phone
+  });
+  const url = buildTicketUrl(params);
+  openTicketPanel(url, 'PARTS ORDERING');
     }
 
     function openOutboundResidentialTicket() {
@@ -2660,8 +2729,60 @@
 
       if (currentTemplateName && !currentTemplateName.includes("Email Signatures")) {
         emailTemplatesHtml[currentTemplateName] = styleTag + '<div class="' + bodyClass + '">' + currentHtml.join('') + '</div>';
-
         appendTemplateOption(currentTemplateName);
+      }
+
+      // ==========================================
+      // SPECIAL PROJECT 2026 EMAIL TEMPLATES (GATED)
+      // ==========================================
+      const currentExt = (localStorage.getItem('phone') || '').trim();
+      if (currentExt === '1306228') {
+        
+        // 1. AAA TEMPLATE (IN FOOTPRINT)
+        const special1Name = "🔒 Project 2026 - AAA (In Footprint)";
+        const special1Html = `
+          <div>
+            <p><strong>SUBJECT: IMPORTANT MESSAGE REGARDING YOUR ALARM SYSTEM</strong></p>
+            <br>
+            <p>Dear [Member Name],</p>
+            <br>
+            <p>Thank you, again, for being a AAA Smart Home Security Member. As your home security provider, we encourage you to test your system monthly to ensure the system is operating properly and is able to transmit signals to our monitoring centers in the event of an actual emergency.</p>
+            <br>
+            <p>Our records indicate that you may not have performed a recent test of your alarm system. We attempted to reach you by phone and were unable to get in contact with you. At your earliest convenience, please contact us at (888) 853-0603 while you are at home so we can assist you with testing. Please have your password and code ready.</p>
+            <br>
+            <p>For reference your case number is: [Case Number]</p>
+            <br>
+            <p>Thank you,</p>
+            <p>AAA Smart Home Security</p>
+          </div>
+        `;
+
+        // 2. A3 TEMPLATE (OUT OF FOOTPRINT)
+        const special2Name = "🔒 Project 2026 - A3 (Out of Footprint)";
+        const special2Html = `
+          <div>
+            <p><strong>SUBJECT: IMPORTANT MESSAGE REGARDING YOUR ALARM SYSTEM</strong></p>
+            <br>
+            <p>Dear [Member Name],</p>
+            <br>
+            <p>Thank you, again, for being an A3 Smart Home Security Customer. As your home security provider, we encourage you to test your system monthly to ensure the system is operating properly and is able to transmit signals to our monitoring centers in the event of an actual emergency.</p>
+            <br>
+            <p>Our records indicate that you may not have performed a recent test of your alarm system. We attempted to reach you by phone and were unable to get in contact with you. At your earliest convenience, please contact us at (888) 853-0603 while you are at home so we can assist you with testing. Please have your password and code ready.</p>
+            <br>
+            <p>For reference your case number is: [Case Number]</p>
+            <br>
+            <p>Thank you,</p>
+            <p>A3 Smart Home Security</p>
+          </div>
+        `;
+
+        // Register into template dictionary
+        emailTemplatesHtml[special1Name] = special1Html;
+        emailTemplatesHtml[special2Name] = special2Html;
+
+        // Append to dropdown selection
+        appendTemplateOption(special1Name);
+        appendTemplateOption(special2Name);
       }
     }).getEmailTemplatesHtml();
 
@@ -2938,6 +3059,82 @@
         }
       });
     }
+    </script>
+
+  <!-- 1. HTML MODAL STRUCTURE (Outside of script) -->
+  <div id="changeLogModal" style="display:none; position:fixed; z-index:99999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.55); align-items:center; justify-content:center;">
+    <div style="background:#ffffff; width:680px; max-width:92%; max-height:82vh; border-radius:8px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,0.35); font-family: Arial, sans-serif;">
+      <div style="background:#003b8f; color:#ffffff; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #e2231a;">
+        <h3 style="margin:0; font-size:16px; font-weight:bold;">📋 Note Taker Change Log</h3>
+        <button type="button" onclick="closeChangeLogModal()" style="background:transparent; border:none; color:#ffffff; font-size:20px; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+      <div id="changeLogContent" style="padding:16px; overflow-y:auto; font-size:13px; line-height:1.4; max-height:60vh;">
+        <p style="color:#666; font-style:italic;">Loading updates from Note Taker Base...</p>
+      </div>
+      <div style="padding:10px 18px; background:#f5f5f5; border-top:1px solid #ddd; text-align:right;">
+        <button type="button" onclick="closeChangeLogModal()" style="padding:6px 14px; background:#e9e9e9; border:1px solid #777; border-radius:4px; font-weight:bold; cursor:pointer;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. JAVASCRIPT LOGIC (Inside script) -->
+  <script>
+    // ==========================================
+    // CHANGE LOG MODAL LOGIC
+    // ==========================================
+    function openChangeLogModal() {
+      const modal = document.getElementById('changeLogModal');
+      const container = document.getElementById('changeLogContent');
+      if (!modal || !container) return;
+
+      modal.style.display = 'flex';
+      container.innerHTML = '<p style="color:#666; font-style:italic;">Loading updates from Note Taker Base...</p>';
+
+      google.script.run
+        .withSuccessHandler(function(entries) {
+          if (!entries || entries.length === 0) {
+            container.innerHTML = '<p style="color:#666;">No change log entries found.</p>';
+            return;
+          }
+
+          let html = '<table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">';
+          html += '<thead style="position:sticky; top:0; background:#f0f4f8;">';
+          html += '<tr style="border-bottom:2px solid #003b8f; color:#003b8f;">';
+          html += '<th style="padding:8px 6px; width:85px;">Date</th>';
+          html += '<th style="padding:8px 6px; width:65px;">Version</th>';
+          html += '<th style="padding:8px 6px; width:120px;">Form</th>';
+          html += '<th style="padding:8px 6px;">Description</th>';
+          html += '</tr></thead><tbody>';
+
+          entries.forEach(function(item) {
+            html += '<tr style="border-bottom:1px solid #e2e8f0;">';
+            html += '<td style="padding:8px 6px; white-space:nowrap; font-weight:bold; color:#333;">' + (item.date || '') + '</td>';
+            html += '<td style="padding:8px 6px; white-space:nowrap; color:#003b8f; font-weight:bold;">' + (item.version || '') + '</td>';
+            html += '<td style="padding:8px 6px; white-space:nowrap; color:#444;">' + (item.form || '') + '</td>';
+            html += '<td style="padding:8px 6px; color:#222;">' + (item.description || '') + '</td>';
+            html += '</tr>';
+          });
+
+          html += '</tbody></table>';
+          container.innerHTML = html;
+        })
+        .withFailureHandler(function(err) {
+          container.innerHTML = '<p style="color:#d93025;">Unable to load Change Log: ' + err.toString() + '</p>';
+        })
+        .getChangeLog();
+    }
+
+    function closeChangeLogModal() {
+      const modal = document.getElementById('changeLogModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    window.addEventListener('click', function(event) {
+      const modal = document.getElementById('changeLogModal');
+      if (event.target === modal) {
+        closeChangeLogModal();
+      }
+    });
   </script>
 </body>
 </html>
