@@ -1107,6 +1107,11 @@
       font-size: 12px;
       font-weight: bold;
     }
+
+    /* Call-outcome fields remain hidden until the matching answer is selected. */
+    #outboundForm td.call-outcome-hidden {
+      display: none !important;
+    }
   </style>
 </head>
 
@@ -1374,7 +1379,7 @@
                   </label>
                 </div>
               </td>
-              <td data-internal-id="voicemail_left">
+              <td class="call-outcome-hidden" data-internal-id="voicemail_left">
                 <div id="voicemailLeftContainer">
                   <label>VOICEMAIL LEFT:</label>
                   <div class="radio-options layout-detail-7">
@@ -1395,7 +1400,7 @@
               </td>
             </tr>
             <tr>
-              <td data-internal-id="privacy_script">
+              <td class="call-outcome-hidden" data-internal-id="privacy_script">
                 <div class="privacy-label-wrap">
                   <label class="privacy-label" tabindex="0">
                     PRIVACY SCRIPT:
@@ -1797,6 +1802,7 @@
 
       for (const key in schema.inbound) processField('inbound', key, schema.inbound[key]);
       for (const key in schema.outbound) processField('outbound', key, schema.outbound[key]);
+      toggleVoicemailField();
 
     }).getFormSchema();
 
@@ -1945,16 +1951,19 @@
 
     function toggleVoicemailField() {
       const callAnswered = getRadioValue('outboundCallAnswered');
+      const voicemailField = document.querySelector('#outboundForm [data-internal-id="voicemail_left"]');
+      const privacyField = document.querySelector('#outboundForm [data-internal-id="privacy_script"]');
       const vmContainer = document.getElementById('voicemailLeftContainer');
+      const showVoicemail = callAnswered === 'No' && isFieldVisible('outbound', 'voicemail_left');
+      const showPrivacy = callAnswered === 'Yes' && isFieldVisible('outbound', 'privacy_script');
 
-      if (!vmContainer) return;
+      if (voicemailField) voicemailField.classList.toggle('call-outcome-hidden', !showVoicemail);
+      if (privacyField) privacyField.classList.toggle('call-outcome-hidden', !showPrivacy);
+      if (vmContainer) vmContainer.style.display = showVoicemail ? 'block' : 'none';
 
-      if (callAnswered === 'Yes' || !isFieldVisible('outbound', 'voicemail_left')) {
-        vmContainer.style.display = 'none';
-        setRadioValue('outboundVoicemailLeft', '');
-      } else {
-        vmContainer.style.display = 'block';
-      }
+      // Discard answers that no longer apply to the selected call outcome.
+      if (!showVoicemail) setRadioValue('outboundVoicemailLeft', '');
+      if (!showPrivacy) setRadioValue('outboundPrivacyScript', '');
     }
 
     const schedulingFields = {
@@ -2126,6 +2135,8 @@
 
       setRadioValue('customerType', previousOutboundFormData.customerType || 'residential');
       switchCustomerType();
+
+      toggleVoicemailField();
 
       document.getElementById('undoOutboundClearButton').disabled = true;
 
@@ -2555,11 +2566,11 @@
 
       if (isFieldVisible('outbound', 'call_answered')) addLine(outputLines, getLabel('outbound', 'call_answered', 'CALL ANSWERED'), callAnswered);
 
-      if (isFieldVisible('outbound', 'voicemail_left') && callAnswered !== 'Yes') {
+      if (isFieldVisible('outbound', 'voicemail_left') && callAnswered === 'No') {
         addLine(outputLines, getLabel('outbound', 'voicemail_left', 'VOICEMAIL LEFT'), voicemailLeft);
       }
 
-      if (isFieldVisible('outbound', 'privacy_script')) addLine(outputLines, getLabel('outbound', 'privacy_script', 'PRIVACY SCRIPT'), privacyScript);
+      if (isFieldVisible('outbound', 'privacy_script') && callAnswered === 'Yes') addLine(outputLines, getLabel('outbound', 'privacy_script', 'PRIVACY SCRIPT'), privacyScript);
       if (isFieldVisible('outbound', 'service_type')) addLine(outputLines, getLabel('outbound', 'service_type', 'SERVICE TYPE'), serviceType);
 
       if (isFieldVisible('outbound', 'panel_type')) {
@@ -2621,7 +2632,7 @@
       document.getElementById('outboundForm').reset();
       clearFormDrafts('outboundForm');
 
-      document.getElementById('voicemailLeftContainer').style.display = 'block';
+      toggleVoicemailField();
       document.getElementById('outboundServiceFeeWaivedField').classList.remove('is-visible');
       document.getElementById('outboundSubmissionIdField').classList.remove('is-visible');
       document.getElementById('outboundSubmissionId').value = '';
@@ -3048,6 +3059,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', loadDrafts);
+    window.addEventListener('DOMContentLoaded', toggleVoicemailField);
 
     function clearFormDrafts(formId) {
       const elements = document.querySelectorAll(`#${formId} input, #${formId} select, #${formId} textarea`);
