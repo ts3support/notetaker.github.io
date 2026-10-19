@@ -1715,19 +1715,7 @@
       select.appendChild(option);
     }
 
-    function checkSpecialProjectAccess() {
-      const storedPhone = (localStorage.getItem('phone') || '').trim();
-      const projectOption = document.getElementById('specialProjectOption');
-      
-      if (storedPhone === '1306228') {
-        if (projectOption) projectOption.style.display = 'inline-flex';
-      } else {
-        if (projectOption) projectOption.style.display = 'none';
-      }
-    }
 
-    // Run on page load
-    checkSpecialProjectAccess();
 
     function getValue(id) {
       return document.getElementById(id).value.trim();
@@ -1737,16 +1725,108 @@
     // DYNAMIC FORM SCHEMA LOGIC
     // ==========================================
     let formSchema = { inbound: {}, outbound: {} };
-    let authorizedProjectExtensions = []; // <-- 1. Add global variable here
+    let authorizedProjectExtensions = [];
+    let projectSchemaLoaded = false;
+    let emailTemplatesLoaded = false;
+
+    checkSpecialProjectAccess();
+
+    function normalizeProjectExtensions(values) {
+      // Accept a scalar, a list, or a one-column Sheets array.
+      const list = Array.isArray(values) ? values.flat(Infinity) : [values];
+      return [...new Set(list
+        .filter(value => value !== null && value !== undefined)
+        .map(value => String(value).trim())
+        .filter(Boolean))];
+    }
+
+    function hasSpecialProjectAccess() {
+      const extension = String(localStorage.getItem('phone') || '').trim();
+      return projectSchemaLoaded && extension !== '' &&
+        authorizedProjectExtensions.includes(extension);
+    }
+
+    function checkSpecialProjectAccess() {
+      const allowed = hasSpecialProjectAccess();
+      const toggle = document.getElementById('specialProjectOption');
+      if (toggle) toggle.style.display = allowed ? 'inline-flex' : 'none';
+
+      if (!allowed && getRadioValue('callMode') === 'special_project') {
+        setRadioValue('callMode', 'outbound');
+        switchCallMode();
+      }
+      syncSpecialProjectTemplates();
+    }
+
+    function syncSpecialProjectTemplates() {
+      // Both independent loads call this function; either completion order works.
+      if (!emailTemplatesLoaded) return;
+      const names = [
+        '🔒 Project 2026 - AAA (In Footprint)',
+        '🔒 Project 2026 - A3 (Out of Footprint)'
+      ];
+      ['templateSelectInbound', 'templateSelectOutbound'].forEach(function (id) {
+        const select = document.getElementById(id);
+        if (!select) return;
+        Array.from(select.options).forEach(function (option) {
+          if (names.includes(option.value)) option.remove();
+        });
+      });
+      names.forEach(function (name) { delete emailTemplatesHtml[name]; });
+      if (!hasSpecialProjectAccess()) return;
+
+    // 1. AAA TEMPLATE (IN FOOTPRINT)
+    const special1Name = "🔒 Project 2026 - AAA (In Footprint)";
+    const special1Html = `
+      <div>
+        <p><strong>SUBJECT: IMPORTANT MESSAGE REGARDING YOUR ALARM SYSTEM</strong></p>
+        <br>
+        <p>Dear [Member Name],</p>
+        <br>
+        <p>Thank you, again, for being a AAA Smart Home Security Member. As your home security provider, we encourage you to test your system monthly to ensure the system is operating properly and is able to transmit signals to our monitoring centers in the event of an actual emergency.</p>
+        <br>
+        <p>Our records indicate that you may not have performed a recent test of your alarm system. We attempted to reach you by phone and were unable to get in contact with you. At your earliest convenience, please contact us at (888) 853-0603 while you are at home so we can assist you with testing. Please have your password and code ready.</p>
+        <br>
+        <p>For reference your case number is: [Case Number]</p>
+        <br>
+        <p>Thank you,</p>
+        <p>AAA Smart Home Security</p>
+      </div>
+    `;
+
+    // 2. A3 TEMPLATE (OUT OF FOOTPRINT)
+    const special2Name = "🔒 Project 2026 - A3 (Out of Footprint)";
+    const special2Html = `
+      <div>
+        <p><strong>SUBJECT: IMPORTANT MESSAGE REGARDING YOUR ALARM SYSTEM</strong></p>
+        <br>
+        <p>Dear [Member Name],</p>
+        <br>
+        <p>Thank you, again, for being an A3 Smart Home Security Customer. As your home security provider, we encourage you to test your system monthly to ensure the system is operating properly and is able to transmit signals to our monitoring centers in the event of an actual emergency.</p>
+        <br>
+        <p>Our records indicate that you may not have performed a recent test of your alarm system. We attempted to reach you by phone and were unable to get in contact with you. At your earliest convenience, please contact us at (888) 853-0603 while you are at home so we can assist you with testing. Please have your password and code ready.</p>
+        <br>
+        <p>For reference your case number is: [Case Number]</p>
+        <br>
+        <p>Thank you,</p>
+        <p>A3 Smart Home Security</p>
+      </div>
+    `;
+
+    // Register into template dictionary
+    emailTemplatesHtml[special1Name] = special1Html;
+    emailTemplatesHtml[special2Name] = special2Html;
+
+    // Append to dropdown selection
+    appendTemplateOption(special1Name);
+    appendTemplateOption(special2Name);
+    }
 
     google.script.run.withSuccessHandler(function(schema) {
-      formSchema = schema || {};
-      authorizedProjectExtensions = (schema && schema.authorizedExtensions) ? schema.authorizedExtensions : []; // <-- 2. Capture authorized list
-
-      // 3. Immediately evaluate visibility for the active agent
-      if (typeof checkSpecialProjectAccess === 'function') {
-        checkSpecialProjectAccess();
-      }
+      formSchema = Object.assign({ inbound: {}, outbound: {} }, schema || {});
+      authorizedProjectExtensions = normalizeProjectExtensions(schema && schema.authorizedExtensions);
+      projectSchemaLoaded = true;
+      checkSpecialProjectAccess();
 
       const processField = (mode, key, fieldData) => {
         const fieldEl = document.querySelector(`#${mode}Workspace [data-internal-id="${key}"]`);
@@ -1811,6 +1891,11 @@
       for (const key in schema.outbound) processField('outbound', key, schema.outbound[key]);
       toggleVoicemailField();
 
+    }).withFailureHandler(function(error) {
+      authorizedProjectExtensions = [];
+      projectSchemaLoaded = false;
+      checkSpecialProjectAccess();
+      console.error('Unable to load form schema; NC project access remains hidden.', error);
     }).getFormSchema();
 
     // Helper to grab dynamic label for clipboard output (strips out "(REQUIRED)")
@@ -1875,7 +1960,11 @@
 
     function switchCallMode() {
       const selected = document.querySelector('input[name="callMode"]:checked');
-      const mode = selected ? selected.value : 'inbound';
+      let mode = selected ? selected.value : 'inbound';
+      if (mode === 'special_project' && !hasSpecialProjectAccess()) {
+        mode = 'outbound';
+        setRadioValue('callMode', mode);
+      }
 
       // 1. Show Inbound only if inbound is selected
       document.getElementById('inboundWorkspace').style.display = mode === 'inbound' ? 'block' : 'none';
@@ -1905,16 +1994,7 @@
       closeTicketPanel();
     }
 
-        function checkSpecialProjectAccess() {
-      const ext = (localStorage.getItem('phone') || '').trim();
-      const projectToggle = document.getElementById('specialProjectOption');
-      if (projectToggle) {
-        projectToggle.style.display = (ext === '1306228') ? 'inline-flex' : 'none';
-      }
-    }
 
-    // Run check on startup
-    checkSpecialProjectAccess();
 
     function switchCustomerType() {
       const type = getRadioValue('customerType');
@@ -2750,58 +2830,8 @@
         appendTemplateOption(currentTemplateName);
       }
 
-      // ==========================================
-      // SPECIAL PROJECT 2026 EMAIL TEMPLATES (GATED)
-      // ==========================================
-      const currentExt = (localStorage.getItem('phone') || '').trim();
-      if (authorizedProjectExtensions.includes(currentExt)) {
-        
-        // 1. AAA TEMPLATE (IN FOOTPRINT)
-        const special1Name = "🔒 Project 2026 - AAA (In Footprint)";
-        const special1Html = `
-          <div>
-            <p><strong>SUBJECT: IMPORTANT MESSAGE REGARDING YOUR ALARM SYSTEM</strong></p>
-            <br>
-            <p>Dear [Member Name],</p>
-            <br>
-            <p>Thank you, again, for being a AAA Smart Home Security Member. As your home security provider, we encourage you to test your system monthly to ensure the system is operating properly and is able to transmit signals to our monitoring centers in the event of an actual emergency.</p>
-            <br>
-            <p>Our records indicate that you may not have performed a recent test of your alarm system. We attempted to reach you by phone and were unable to get in contact with you. At your earliest convenience, please contact us at (888) 853-0603 while you are at home so we can assist you with testing. Please have your password and code ready.</p>
-            <br>
-            <p>For reference your case number is: [Case Number]</p>
-            <br>
-            <p>Thank you,</p>
-            <p>AAA Smart Home Security</p>
-          </div>
-        `;
-
-        // 2. A3 TEMPLATE (OUT OF FOOTPRINT)
-        const special2Name = "🔒 Project 2026 - A3 (Out of Footprint)";
-        const special2Html = `
-          <div>
-            <p><strong>SUBJECT: IMPORTANT MESSAGE REGARDING YOUR ALARM SYSTEM</strong></p>
-            <br>
-            <p>Dear [Member Name],</p>
-            <br>
-            <p>Thank you, again, for being an A3 Smart Home Security Customer. As your home security provider, we encourage you to test your system monthly to ensure the system is operating properly and is able to transmit signals to our monitoring centers in the event of an actual emergency.</p>
-            <br>
-            <p>Our records indicate that you may not have performed a recent test of your alarm system. We attempted to reach you by phone and were unable to get in contact with you. At your earliest convenience, please contact us at (888) 853-0603 while you are at home so we can assist you with testing. Please have your password and code ready.</p>
-            <br>
-            <p>For reference your case number is: [Case Number]</p>
-            <br>
-            <p>Thank you,</p>
-            <p>A3 Smart Home Security</p>
-          </div>
-        `;
-
-        // Register into template dictionary
-        emailTemplatesHtml[special1Name] = special1Html;
-        emailTemplatesHtml[special2Name] = special2Html;
-
-        // Append to dropdown selection
-        appendTemplateOption(special1Name);
-        appendTemplateOption(special2Name);
-      }
+      emailTemplatesLoaded = true;
+      syncSpecialProjectTemplates();
     }).getEmailTemplatesHtml();
 
     function previewEmailTemplate(mode) {
