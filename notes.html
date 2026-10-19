@@ -1737,9 +1737,16 @@
     // DYNAMIC FORM SCHEMA LOGIC
     // ==========================================
     let formSchema = { inbound: {}, outbound: {} };
+    let authorizedProjectExtensions = []; // <-- 1. Add global variable here
 
     google.script.run.withSuccessHandler(function(schema) {
-      formSchema = schema;
+      formSchema = schema || {};
+      authorizedProjectExtensions = (schema && schema.authorizedExtensions) ? schema.authorizedExtensions : []; // <-- 2. Capture authorized list
+
+      // 3. Immediately evaluate visibility for the active agent
+      if (typeof checkSpecialProjectAccess === 'function') {
+        checkSpecialProjectAccess();
+      }
 
       const processField = (mode, key, fieldData) => {
         const fieldEl = document.querySelector(`#${mode}Workspace [data-internal-id="${key}"]`);
@@ -2747,7 +2754,7 @@
       // SPECIAL PROJECT 2026 EMAIL TEMPLATES (GATED)
       // ==========================================
       const currentExt = (localStorage.getItem('phone') || '').trim();
-      if (currentExt === '1306228') {
+      if (authorizedProjectExtensions.includes(currentExt)) {
         
         // 1. AAA TEMPLATE (IN FOOTPRINT)
         const special1Name = "🔒 Project 2026 - AAA (In Footprint)";
