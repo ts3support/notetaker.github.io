@@ -696,10 +696,34 @@
 }
 
     function handleFieldInput(fieldId, val) {
-      if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
+      if (!formValues[activeFormKey]) {
+        formValues[activeFormKey] = {};
+      }
+
       formValues[activeFormKey][fieldId] = val;
 
-      if (fieldId === 'service_type' || fieldId === 'scheduled_service' || fieldId === 'call_answered') {
+      const targetKey = activeFormKey === 'notes'
+        ? callType.toLowerCase()
+        : activeFormKey;
+
+      const field = getOrderedFields(targetKey).find(function (item) {
+        const id = item.id || item['Internal ID'] || item.internalId;
+        return id === fieldId;
+      });
+
+      const fieldType = String(field
+        ? field.type || field.fieldType || field['Field Type'] || 'Text'
+        : 'Text'
+      ).trim().toLowerCase();
+
+      const updatesDependentFields = [
+        'service_type',
+        'scheduled_service',
+        'call_answered'
+      ].includes(fieldId);
+
+      // Refresh schema-defined radio highlights without rerendering text keystrokes.
+      if (fieldType === 'radio' || updatesDependentFields) {
         renderActiveForm();
       }
     }
