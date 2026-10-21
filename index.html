@@ -631,11 +631,24 @@
       const id = field.id || field['Internal ID'] || field.internalId;
       const visible = field.visible !== undefined ? field.visible : field['Visible'];
       if (visible === false || String(visible).trim().toUpperCase() === 'FALSE') return false;
-      if (targetKey === 'outbound' && String(values.call_answered || '').trim().toLowerCase() === 'no')
-        return ['obc_to','phone_number','outboundPhone','caller_name','name_contact','name','member_name','call_answered','voicemail_left','attempt'].includes(id);
+
+      const normalized = key => String(values[key] || '').trim().toLowerCase();
+      const scheduled = normalized('scheduled_service') === 'yes';
+      const notUnderWarranty = normalized('warranty') === 'no';
+      const requiresSubmission = ['yes', 'sup/incident', 'critical issues'].includes(normalized('fee_waived'));
+
+      // Scheduling workflow overrides the unanswered-call field filter.
+      if (id === 'scheduled_service') return true;
+      if (id === 'warranty') return scheduled;
+      if (id === 'fee_waived') return scheduled && notUnderWarranty;
+      if (id === 'submission_id') return scheduled && notUnderWarranty && requiresSubmission;
+
+      if (targetKey === 'outbound' && normalized('call_answered') === 'no') {
+        return ['obc_to', 'phone_number', 'outboundPhone', 'caller_name', 'name_contact',
+          'name', 'member_name', 'call_answered', 'voicemail_left', 'attempt'].includes(id);
+      }
       if (id === 'company_name' && customerType === 'Residential') return false;
-      if (id === 'panel_type' && String(values.service_type || '').toLowerCase() === 'video only') return false;
-      if (['fee_waived','submission_id'].includes(id) && String(values.scheduled_service || '').toLowerCase() !== 'yes') return false;
+      if (id === 'panel_type' && normalized('service_type') === 'video only') return false;
       return true;
     }
 
@@ -720,7 +733,7 @@
       const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
       const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
       const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
-      if (type === 'radio' || ['service_type','scheduled_service','call_answered'].includes(fieldId)) renderActiveForm();
+      if (type === 'radio' || ['service_type','scheduled_service','warranty','fee_waived','call_answered'].includes(fieldId)) renderActiveForm();
     }
 
     // NOTE COMPILED TEXT BUILDER (FOLLOWS SHEET ROW ORDER)
