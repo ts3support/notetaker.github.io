@@ -1518,6 +1518,17 @@
             <textarea id="outboundResolution" name="outboundResolution"></textarea>
           </div>
 
+          <div class="field" data-internal-id="attempt">
+          <label for="outboundAttempt">ATTEMPT:</label>
+          <select id="outboundAttempt">
+              <option value="">Select Attempt...</option>
+              <option value="1st">1st</option>
+              <option value="2nd">2nd</option>
+              <option value="3rd">3rd</option>
+              <option value="Final">Final</option>
+            </select>
+          </div>
+
           <div class="agent-info">
             AGENT: <span id="outboundNameDisplay"></span>
             EXT: <span id="outboundPhoneDisplay"></span>
@@ -1538,6 +1549,8 @@
             <a href="#" onclick="openOutboundDealerTicket(); return false;">Dealer Service</a>
             |
             <a href="#" onclick="openOutboundAddendumTicket(); return false;">Addendum Request</a>
+            |
+            <a href="#" onclick="openOutboundPartsTicket(); return false;">Parts Order</a>
           </div>
 
           <!-- OUTBOUND HELPFUL LINKS & EMAIL TEMPLATES ROW -->
@@ -1774,44 +1787,6 @@
       });
       names.forEach(function (name) { delete emailTemplatesHtml[name]; });
       if (!hasSpecialProjectAccess()) return;
-
-    // 1. AAA TEMPLATE (IN FOOTPRINT)
-    const special1Name = "🔒 Project 2026 - AAA (In Footprint)";
-    const special1Html = `
-      <div>
-        <p><strong>SUBJECT: IMPORTANT MESSAGE REGARDING YOUR ALARM SYSTEM</strong></p>
-        <br>
-        <p>Dear [Member Name],</p>
-        <br>
-        <p>Thank you, again, for being a AAA Smart Home Security Member. As your home security provider, we encourage you to test your system monthly to ensure the system is operating properly and is able to transmit signals to our monitoring centers in the event of an actual emergency.</p>
-        <br>
-        <p>Our records indicate that you may not have performed a recent test of your alarm system. We attempted to reach you by phone and were unable to get in contact with you. At your earliest convenience, please contact us at (888) 853-0603 while you are at home so we can assist you with testing. Please have your password and code ready.</p>
-        <br>
-        <p>For reference your case number is: [Case Number]</p>
-        <br>
-        <p>Thank you,</p>
-        <p>AAA Smart Home Security</p>
-      </div>
-    `;
-
-    // 2. A3 TEMPLATE (OUT OF FOOTPRINT)
-    const special2Name = "🔒 Project 2026 - A3 (Out of Footprint)";
-    const special2Html = `
-      <div>
-        <p><strong>SUBJECT: IMPORTANT MESSAGE REGARDING YOUR ALARM SYSTEM</strong></p>
-        <br>
-        <p>Dear [Member Name],</p>
-        <br>
-        <p>Thank you, again, for being an A3 Smart Home Security Customer. As your home security provider, we encourage you to test your system monthly to ensure the system is operating properly and is able to transmit signals to our monitoring centers in the event of an actual emergency.</p>
-        <br>
-        <p>Our records indicate that you may not have performed a recent test of your alarm system. We attempted to reach you by phone and were unable to get in contact with you. At your earliest convenience, please contact us at (888) 853-0603 while you are at home so we can assist you with testing. Please have your password and code ready.</p>
-        <br>
-        <p>For reference your case number is: [Case Number]</p>
-        <br>
-        <p>Thank you,</p>
-        <p>A3 Smart Home Security</p>
-      </div>
-    `;
 
     // Register into template dictionary
     emailTemplatesHtml[special1Name] = special1Html;
@@ -2302,7 +2277,6 @@
       const params = new URLSearchParams({
         page: 'residential',
         noteName: combinedNameContact,
-        phone: getValue('outboundPhone'),
         systemNumber: getValue('outboundSystemNumber'),
         systemType: getValue('outboundPanelType')
       });
@@ -2331,6 +2305,16 @@
       });
       const url = buildTicketUrl(params);
       openTicketPanel(url, 'ADDENDUM REQUEST');
+    }
+
+    function openOutboundPartsTicket() {
+      const params = new URLSearchParams({
+        page: 'parts',
+        noteName: getValue('outboundName'),
+        phone: getValue('outboundPhone')
+      });
+      const url = buildTicketUrl(params);
+      openTicketPanel(url, 'PARTS ORDERING');
     }
 
     // --- HELPFUL LINKS & ZIP CODE OPENERS ---
@@ -2657,6 +2641,15 @@
         addLine(outputLines, getLabel('outbound', 'voicemail_left', 'VOICEMAIL LEFT'), voicemailLeft);
       }
 
+      // ATTEMPT COUNTER: Formats cleanly as "[Value] Attempt"
+      const attemptVal = getValue('outboundAttempt');
+      if (attemptVal && isFieldVisible('outbound', 'attempt')) {
+        const formattedAttempt = attemptVal.toLowerCase().includes('attempt') 
+        ? attemptVal 
+        : attemptVal + ' Attempt';
+        addLine(outputLines, getLabel('outbound', 'attempt', 'ATTEMPT'), formattedAttempt);
+}
+
       if (isFieldVisible('outbound', 'privacy_script') && callAnswered === 'Yes') addLine(outputLines, getLabel('outbound', 'privacy_script', 'PRIVACY SCRIPT'), privacyScript);
       if (isFieldVisible('outbound', 'service_type')) addLine(outputLines, getLabel('outbound', 'service_type', 'SERVICE TYPE'), serviceType);
 
@@ -2830,8 +2823,20 @@
         appendTemplateOption(currentTemplateName);
       }
 
-      emailTemplatesLoaded = true;
-      syncSpecialProjectTemplates();
+      // ==========================================
+      // DYNAMIC SPECIAL PROJECT 2026 EMAIL TEMPLATES
+      // ==========================================
+      const currentExt = (localStorage.getItem('phone') || '').trim();
+      if (currentExt) {
+        google.script.run.withSuccessHandler(function(specialTemplates) {
+          if (specialTemplates && specialTemplates.length > 0) {
+            specialTemplates.forEach(function(tmpl) {
+              emailTemplatesHtml[tmpl.name] = tmpl.html;
+              appendTemplateOption(tmpl.name);
+            });
+          }
+        }).getSpecialEmailTemplates(currentExt);
+      }
     }).getEmailTemplatesHtml();
 
     function previewEmailTemplate(mode) {
