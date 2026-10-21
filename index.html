@@ -631,9 +631,10 @@
       const unanswered = targetKey === 'outbound' &&
         String(values.call_answered || '').trim().toLowerCase() === 'no';
       if (unanswered) {
-        // Keep the called number and outcome controls; hide all other outbound fields.
-        return ['obc_to', 'phone_number', 'outboundPhone', 'call_answered',
-          'voicemail_left', 'attempt'].includes(id);
+        // Preserve the called number, member name, and unanswered-call controls.
+        return ['obc_to', 'phone_number', 'outboundPhone',
+          'caller_name', 'name_contact', 'name', 'member_name',
+          'call_answered', 'voicemail_left', 'attempt'].includes(id);
       }
 
       if (id === 'company_name' && customerType === 'Residential') return false;
