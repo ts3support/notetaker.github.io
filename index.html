@@ -623,6 +623,26 @@
       renderActiveForm();
     }
 
+        function shouldShowNoteField(field, targetKey, values) {
+      const id = field.id || field['Internal ID'] || field.internalId;
+      const visible = field.visible !== undefined ? field.visible : field['Visible'];
+      if (visible === false || String(visible).trim().toUpperCase() === 'FALSE') return false;
+
+      const unanswered = targetKey === 'outbound' &&
+        String(values.call_answered || '').trim().toLowerCase() === 'no';
+      if (unanswered) {
+        // Keep the called number and outcome controls; hide all other outbound fields.
+        return ['obc_to', 'phone_number', 'outboundPhone', 'call_answered',
+          'voicemail_left', 'attempt'].includes(id);
+      }
+
+      if (id === 'company_name' && customerType === 'Residential') return false;
+      if (id === 'panel_type' && String(values.service_type || '').toLowerCase() === 'video only') return false;
+      if ((id === 'fee_waived' || id === 'submission_id') &&
+          String(values.scheduled_service || '').toLowerCase() !== 'yes') return false;
+      return true;
+    }
+
     function renderActiveForm() {
   const container = document.getElementById('dynamicFormContainer');
   const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
@@ -633,13 +653,7 @@
 
   fieldsList.forEach(field => {
     const fieldId = field.id || field['Internal ID'] || field.internalId;
-    const isVisible = (field.visible !== undefined ? field.visible : field['Visible']);
-    if (isVisible && isVisible.toString().toUpperCase() === 'FALSE') return;
-    
-    // Visibility conditions
-    if (fieldId === 'company_name' && customerType === 'Residential') return;
-    if (fieldId === 'panel_type' && (currentVals['service_type'] || '').toLowerCase() === 'video only') return;
-    if ((fieldId === 'fee_waived' || fieldId === 'submission_id') && (currentVals['scheduled_service'] || '').toLowerCase() !== 'yes') return;
+    if (!shouldShowNoteField(field, targetKey, currentVals)) return;
 
     const val = currentVals[fieldId] || '';
     
@@ -696,37 +710,21 @@
 }
 
     function handleFieldInput(fieldId, val) {
-      if (!formValues[activeFormKey]) {
-        formValues[activeFormKey] = {};
-      }
-
+      if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
       formValues[activeFormKey][fieldId] = val;
-
-      const targetKey = activeFormKey === 'notes'
-        ? callType.toLowerCase()
-        : activeFormKey;
-
+      const targetKey = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
       const field = getOrderedFields(targetKey).find(function (item) {
-        const id = item.id || item['Internal ID'] || item.internalId;
-        return id === fieldId;
+        return (item.id || item['Internal ID'] || item.internalId) === fieldId;
       });
-
       const fieldType = String(field
         ? field.type || field.fieldType || field['Field Type'] || 'Text'
-        : 'Text'
-      ).trim().toLowerCase();
-
-      const updatesDependentFields = [
-        'service_type',
-        'scheduled_service',
-        'call_answered'
-      ].includes(fieldId);
-
-      // Refresh schema-defined radio highlights without rerendering text keystrokes.
-      if (fieldType === 'radio' || updatesDependentFields) {
+        : 'Text').trim().toLowerCase();
+      if (fieldType === 'radio' ||
+          ['service_type', 'scheduled_service', 'call_answered'].includes(fieldId)) {
         renderActiveForm();
       }
     }
+
 
     // NOTE COMPILED TEXT BUILDER (FOLLOWS SHEET ROW ORDER)
     function buildCompiledNoteText() {
@@ -757,12 +755,8 @@
       lines.push(`-------------------------------------------------------`);
 
       fieldsList.forEach(field => {
-        const fieldId = field.id;
-        if (field.visible && field.visible.toString().toUpperCase() === 'FALSE') return;
-
-        if (fieldId === 'company_name' && customerType === 'Residential') return;
-        if (fieldId === 'panel_type' && (vals['service_type'] || '').toLowerCase() === 'video only') return;
-        if ((fieldId === 'fee_waived' || fieldId === 'submission_id') && (vals['scheduled_service'] || '').toLowerCase() !== 'yes') return;
+        const fieldId = field.id || field['Internal ID'] || field.internalId;
+        if (!shouldShowNoteField(field, targetKey, vals)) return;
 
         const val = vals[fieldId];
         lines.push(`${field.label || fieldId}: ${val && val.trim() ? val.trim() : 'N/A'}`);
