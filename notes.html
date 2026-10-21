@@ -1,16 +1,10 @@
-=======================================================
-  AAA SMART HOME - NOTES
-=======================================================
-AGENT: Erick Dansby
-EXTENSION: 1306228
-DEPARTMENT: Tech Support Level 3
-CALL TYPE: OUTBOUND
-CUSTOMER TYPE: RESIDENTIAL
-TIMESTAMP: 10/21/2026, 1:52:13 PM
--------------------------------------------------------
-OBC to: 6789123456
-MEMBER NAME: John Cena
-CALL ANSWERED?: No
-VOICEMAIL LEFT?: Yes
-ATTEMPT: 2nd
-=======================================================
+The Exact Workflow:
+SCHEDULED SERVICE? is always visible.
+If No $\rightarrow$ Hide Warranty, Fee Waived, and Submission ID.
+If Yes $\rightarrow$ Show Warranty.
+SYSTEM UNDER WARRANTY?:
+If Yes $\rightarrow$ Stop here. (Both Fee Waived and Submission ID stay hidden).
+If No $\rightarrow$ Show SERVICE FEE WAIVED?.
+SERVICE FEE WAIVED?:
+If No $\rightarrow$ Hide Submission ID.
+If Yes (or Sup/Incident / Critical Issues) $\rightarrow$ Show SUBMISSION ID.
