@@ -569,8 +569,12 @@
 
     // HELPER: GET ORDERED FIELDS (GUARANTEES SHEET ROW ORDER)
     function getOrderedFields(targetKey) {
-      if (formSchema && formSchema[targetKey + '_order'] && formSchema[targetKey + '_order'].length > 0) {
-        return formSchema[targetKey + '_order'];
+      const ordered = formSchema && formSchema[targetKey + '_order'];
+      if (Array.isArray(ordered) && ordered.length > 0) return ordered;
+      const fields = formSchema && formSchema[targetKey];
+      if (Array.isArray(fields)) return fields;
+      if (fields && typeof fields === 'object') {
+        return Object.entries(fields).map(([id, field]) => Object.assign({id: id}, field));
       }
       return getFallbackFieldsArray(targetKey);
     }
@@ -586,7 +590,48 @@
       renderActiveForm();
     }
 
+    function noteSourceValues() {
+      const values = Object.assign({}, formValues.notes || {});
+      const first = ids => {
+        for (const id of ids) {
+          if (values[id] !== undefined && values[id] !== null && String(values[id]).trim() !== '') return values[id];
+        }
+        return '';
+      };
+      values.caller_name = first(['caller_name', 'member_name', 'name_contact', 'name', 'contact_name']);
+      values.phone_number = first(callType === 'Outbound'
+        ? ['obc_to', 'outboundPhone', 'phone_number', 'phone', 'contact_phone']
+        : ['phone_number', 'phone', 'contact_phone', 'obc_to']);
+      values.system_number = first(['system_number', 'systemNumber', 'system_id', 'adc_id']);
+      values.ar_number = first(['ar_number', 'ar', 'arNumber', 'account_number']);
+      return values;
+    }
+
+    function prefillTicketFromNotes(formKey) {
+      if (!['residential', 'dealer', 'addendum', 'parts'].includes(formKey)) return;
+      const source = noteSourceValues();
+      const destination = formValues[formKey] || (formValues[formKey] = {});
+      const aliases = {
+        member_name: 'caller_name', contact_name: 'caller_name', name: 'caller_name',
+        name_contact: 'caller_name', noteName: 'caller_name',
+        phone: 'phone_number', contact_phone: 'phone_number', obc_to: 'phone_number',
+        systemNumber: 'system_number', system_id: 'system_number', adc_id: 'system_number',
+        ar: 'ar_number', arNumber: 'ar_number', arNumberInput: 'ar_number', account_number: 'ar_number',
+        system_type: 'panel_type', systemType: 'panel_type'
+      };
+      getOrderedFields(formKey).forEach(function (field) {
+        const id = field.id || field['Internal ID'] || field.internalId;
+        if (!id) return;
+        // Existing destination values always take priority.
+        if (destination[id] !== undefined && destination[id] !== null && String(destination[id]).trim() !== '') return;
+        const value = source[id] !== undefined ? source[id] : source[aliases[id]];
+        if (value !== undefined && value !== null && String(value).trim() !== '') destination[id] = value;
+      });
+      saveFormDrafts();
+    }
+
     function switchForm(formKey) {
+      prefillTicketFromNotes(formKey);
       activeFormKey = formKey;
       document.querySelectorAll('.form-tab').forEach(b => {
         b.className = 'form-tab px-3 py-1.5 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
@@ -830,7 +875,7 @@
     // AUTO-SYNC NOTE FIELDS TO EMAIL TEMPLATES ENGINE
     // ========================================================
     function syncFieldsFromNoteForm(showToast) {
-      const noteVals = formValues[activeFormKey] || {};
+      const noteVals = noteSourceValues();
 
       // 1. Caller / Member Name
       const callerName = noteVals.caller_name || 
@@ -1126,7 +1171,7 @@
         return;
       }
 
-      const noteVals = formValues[activeFormKey] || {};
+      const noteVals = noteSourceValues();
 
       // Dynamic variable values with auto-fallback to note form fields
       const nameVal = (document.getElementById('emailVarName')?.value || '').trim() || 
