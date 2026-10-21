@@ -1,3194 +1,410 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <base target="_top">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Note Taker</title>
-
-  <style>
-    :root {
-      --aaa-blue: #003b8f;
-      --aaa-red: #e2231a;
-      --aaa-page: #e7f6fc;
-      --aaa-text: #252a34;
-      --aaa-muted: #66727d;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      min-height: 100vh;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      font-family: Arial, Helvetica, sans-serif;
-      background: var(--aaa-page);
-      color: var(--aaa-text);
-    }
-
-    .aaa-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 25px;
-      padding: 18px 30px;
-      color: #ffffff;
-      background: var(--aaa-blue);
-      border-bottom: 5px solid var(--aaa-red);
-      box-shadow: 0 3px 12px rgba(0, 45, 106, 0.20);
-    }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-    }
-
-    .aaa-logo {
-      width: 175px;
-      min-width: 175px;
-      max-height: 82px;
-      object-fit: contain;
-    }
-
-    .header-text h1 {
-      margin: 0;
-      color: #ffffff;
-      font-size: 36px;
-      line-height: 1.05;
-    }
-
-    .header-text p {
-      margin: 8px 0 0;
-      color: rgba(255, 255, 255, 0.84);
-      font-size: 18px;
-    }
-
-    .header-status {
-      min-width: 195px;
-      padding: 12px 15px;
-      color: rgba(255, 255, 255, 0.86);
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      border-radius: 12px;
-      font-size: 14px;
-      text-align: right;
-    }
-
-    .header-status strong {
-      display: block;
-      margin-top: 4px;
-      color: #ffffff;
-      font-size: 16px;
-    }
-
-    .aaa-page-content {
-      flex: 1;
-      padding: 14px;
-    }
-
-    .mode-toggle {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      width: fit-content;
-      margin-bottom: 14px;
-      padding: 10px 12px;
-      border: 2px solid var(--aaa-blue);
-      border-radius: 6px;
-      background: #ffffff;
-    }
-
-    .mode-option {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      margin: 0;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .mode-option input[type="radio"] {
-      width: auto;
-      height: auto;
-      margin: 0;
-      cursor: pointer;
-    }
-
-    .workspace {
-      display: flex;
-      align-items: flex-start;
-      gap: 48px;
-    }
-
-    .note-form {
-      width: 620px;
-      max-width: 100%;
-      flex: 0 0 620px;
-    }
-
-    .outbound-form {
-      width: 620px;
-      max-width: 100%;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 250px 250px;
-      gap: 6px;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 8px;
-    }
-
-    label {
-      margin-bottom: 3px;
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    input[type="text"],
-    select {
-      width: 250px;
-      max-width: 100%;
-      height: 30px;
-      padding: 4px 6px;
-      border: 2px solid #777777;
-      border-radius: 4px;
-      background: #ffffff;
-      color: #000000;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 14px;
-    }
-
-    select {
-      cursor: pointer;
-    }
-
-    .outbound-form input[type="text"],
-    .outbound-form select {
-      width: 250px;
-    }
-
-    .ar-phone #-group {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-    }
-
-    .ar-phone #-group input {
-      width: 100%;
-    }
-
-    .radio-options {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-height: 30px;
-    }
-
-    .radio-options label {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin: 0;
-      font-weight: normal;
-      white-space: nowrap;
-    }
-
-    .radio-options input[type="radio"] {
-      width: auto;
-      height: auto;
-      margin: 0;
-      cursor: pointer;
-    }
-
-    .conditional-field {
-      display: none;
-    }
-
-    .conditional-field.is-visible {
-      display: flex;
-    }
-
-    .resolution-field {
-      margin-top: 6px;
-    }
-
-    textarea {
-      width: 600px;
-      max-width: 100%;
-      height: 100px;
-      padding: 6px;
-      border: 2px solid #777777;
-      border-radius: 4px;
-      background: #ffffff;
-      resize: vertical;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 14px;
-    }
-
-    .outbound-form textarea {
-      width: 448px;
-    }
-
-    .radio-table {
-      width: 100%;
-      max-width: 100%;
-      margin: 0 0 8px;
-      border-collapse: collapse;
-      /* Allow columns to size naturally. */
-    }
-
-    .radio-table td {
-      /* Let cell content determine column width. */
-      padding: 0 25px 8px 0; /* Space between columns. */
-      vertical-align: top;
-    }
-
-    .radio-table td:last-child {
-      padding-right: 0;
-    }
-
-    .two-input-table {
-      width: 448px;
-      max-width: 100%;
-      margin: 0 0 8px;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-
-    .two-input-table td {
-      width: 50%;
-      padding: 0 8px 0 0;
-      vertical-align: top;
-    }
-
-    .two-input-table td:last-child {
-      padding-right: 0;
-    }
-
-    .two-input-table input[type="text"] {
-      width: 100%;
-    }
-
-    .field-label-with-tooltip {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      width: fit-content;
-      cursor: help;
-    }
-
-    .field-help,
-    .privacy-help {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      color: #ffffff;
-      background: var(--aaa-blue);
-      font-size: 11px;
-      font-weight: bold;
-      line-height: 1;
-    }
-
-    .field-tooltip {
-      position: absolute;
-      z-index: 9999;
-      top: 24px;
-      left: 0;
-      display: none;
-      width: max-content;
-      max-width: calc(100vw - 40px);
-      padding: 8px 10px;
-      color: #252a34;
-      background: #ffffff;
-      border: 2px solid var(--aaa-blue);
-      border-radius: 6px;
-      box-shadow: 0 4px 14px rgba(0, 45, 106, 0.28);
-      font-size: 12px;
-      font-weight: normal;
-      line-height: 1.35;
-      white-space: nowrap;
-    }
-
-    .field-label-with-tooltip:hover .field-tooltip,
-    .field-label-with-tooltip:focus .field-tooltip,
-    .field-label-with-tooltip:focus-within .field-tooltip {
-      display: block;
-    }
-
-    .privacy-label-wrap {
-      position: relative;
-      display: inline-block;
-    }
-
-    .privacy-label {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      margin-bottom: 3px;
-      cursor: help;
-    }
-
-    .privacy-tooltip {
-      position: absolute;
-      z-index: 9999;
-      top: 24px;
-      left: 0;
-      display: none;
-      width: 390px;
-      max-width: calc(100vw - 40px);
-      padding: 12px;
-      color: #252a34;
-      background: #ffffff;
-      border: 2px solid var(--aaa-blue);
-      border-radius: 6px;
-      box-shadow: 0 4px 14px rgba(0, 45, 106, 0.28);
-      font-size: 12px;
-      font-weight: normal;
-      line-height: 1.35;
-      white-space: normal;
-    }
-
-    .privacy-tooltip strong {
-      display: block;
-      margin-top: 10px;
-      color: var(--aaa-blue);
-      font-size: 12px;
-    }
-
-    .privacy-tooltip strong:first-child {
-      margin-top: 0;
-    }
-
-    .privacy-label:hover .privacy-tooltip,
-    .privacy-label:focus .privacy-tooltip,
-    .privacy-label:focus-within .privacy-tooltip {
-      display: block;
-    }
-
-    .agent-info {
-      margin-top: 6px;
-      font-size: 14px;
-      line-height: 1.3;
-    }
-
-    .buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 10px;
-    }
-
-    button {
-      padding: 6px 10px;
-      border: 1px solid #333333;
-      border-radius: 4px;
-      background: #e9e9e9;
-      color: #000000;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 12px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #d5d5d5;
-    }
-
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.55;
-    }
-
-    .ticket-links {
-      margin-top: 12px;
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    .ticket-links a {
-      color: #0000cc;
-    }
-
-    .ticket-links a:hover {
-      color: #551a8b;
-    }
-
-    .helpful-links {
-      margin-top: 12px;
-    }
-
-    .helpful-links label {
-      display: block;
-      margin-bottom: 3px;
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    .helpful-links select {
-      width: 250px;
-      max-width: 100%;
-    }
-
-    .outbound-form .helpful-links select {
-      width: 448px;
-    }
-
-    /* Template Section Styling */
-    .template-section {
-      margin-top: 15px;
-      padding: 12px;
-      border: 2px solid #ccc;
-      border-radius: 6px;
-      background-color: #f5f5f5;
-    }
-
-    .template-section label {
-      display: block;
-      margin-bottom: 5px;
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    .template-section select {
-      width: 100%;
-      max-width: 448px;
-      margin-bottom: 10px;
-    }
-
-    /* Side-by-side container for Helpful Links & Email Templates */
-    .tools-row {
-      display: flex;
-      gap: 12px;
-      margin-top: 12px;
-      align-items: flex-start;
-    }
-
-    .tools-row .helpful-links,
-    .tools-row .template-section {
-      flex: 1;
-      margin-top: 0;
-      min-width: 200px;
-    }
-
-    .tools-row select {
-      width: 100% !important;
-    }
-
-    #inboundStatus,
-    #outboundStatus {
-      min-height: 18px;
-      margin-top: 8px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-
-    .copy-output-label {
-      display: block;
-      margin-top: 10px;
-      margin-bottom: 3px;
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    #inboundCopyOutput {
-      width: 620px;
-      max-width: 100%;
-      height: 150px;
-      padding: 6px;
-      border: 2px solid #777777;
-      border-radius: 4px;
-      background: #ffffff;
-      resize: vertical;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 13px;
-    }
-
-    #outboundCopyOutput {
-      width: 448px;
-      max-width: 100%;
-      height: 150px;
-      padding: 6px;
-      border: 2px solid #777777;
-      border-radius: 4px;
-      background: #ffffff;
-      resize: vertical;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 13px;
-    }
-
-    .ticket-panel {
-      display: none;
-      width: 520px;
-      min-width: 0;
-      flex: 0 0 520px;
-      height: 550px;
-      background: #ffffff;
-      border: 2px solid var(--aaa-blue);
-      border-radius: 6px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0, 45, 106, 0.18);
-      margin-top: -52px;
-    }
-
-    .ticket-panel.is-open {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .ticket-panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 8px 10px;
-      color: #ffffff;
-      background: var(--aaa-blue);
-      border-bottom: 3px solid var(--aaa-red);
-      font-size: 13px;
-      font-weight: bold;
-    }
-
-    .ticket-panel-header button {
-      padding: 4px 8px;
-      border-color: rgba(255, 255, 255, 0.7);
-      background: #ffffff;
-      color: var(--aaa-blue);
-      font-size: 11px;
-    }
-
-    .ticket-panel iframe {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      min-height: 500px;
-      border: 0;
-      background: #ffffff;
-    }
-
-    .page-footer {
-      padding: 18px 24px;
-      color: var(--aaa-muted);
-      background: var(--aaa-page);
-      font-size: 12px;
-      text-align: center;
-    }
-
-    .page-footer strong {
-      color: var(--aaa-blue);
-    }
-
-    @media (max-width: 1200px) {
-      .workspace {
-        flex-direction: column;
-      }
-
-      .note-form {
-        flex-basis: auto;
-      }
-
-      .ticket-panel {
-        width: 100%;
-        min-width: 0;
-        margin-top: 20px;
-      }
-    }
-
-    @media (max-width: 560px) {
-      .aaa-header {
-        padding: 14px;
-      }
-
-      .header-left {
-        gap: 14px;
-      }
-
-      .aaa-logo {
-        width: 94px;
-        min-width: 94px;
-        max-height: 54px;
-      }
-
-      .header-text h1 {
-        font-size: 22px;
-      }
-
-      .header-text p {
-        margin-top: 5px;
-        font-size: 13px;
-      }
-
-      .header-status {
-        display: none;
-      }
-
-      .aaa-page-content {
-        padding: 10px;
-      }
-
-      .grid {
-        grid-template-columns: 1fr;
-      }
-
-      /* Stack tools vertically on small screens. */
-      .tools-row {
-        flex-direction: column;
-      }
-
-      input[type="text"],
-      select,
-      textarea,
-      #inboundCopyOutput,
-      #outboundCopyOutput,
-      .helpful-links select,
-      .template-section select {
-        width: 100%;
-      }
-
-      .ticket-links {
-        line-height: 1.5;
-      }
-
-      .ticket-panel {
-        min-height: 500px;
-      }
-
-      .ticket-panel iframe {
-        min-height: 455px;
-      }
-
-      .page-footer {
-        padding: 14px 10px;
-        font-size: 11px;
-      }
-    }
-
-    /* Dialogs and static component styling */
-    .email-prompt-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 999999;
-    }
-
-    .email-prompt-box {
-      background-color: #fff;
-      padding: 20px 25px;
-      border-radius: 8px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-      width: 320px;
-      font-family: Arial, sans-serif;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    .email-prompt-title {
-      margin-top: 0;
-      color: #003b8f;
-    }
-
-    .email-prompt-label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      font-size: 13px;
-    }
-
-    input.email-prompt-input {
-      width: 100%;
-      margin-bottom: 15px;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-
-    .email-prompt-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 5px;
-    }
-
-    button.email-prompt-cancel,
-    button.email-prompt-cancel:hover {
-      padding: 8px 12px;
-      cursor: pointer;
-      border: 1px solid #ccc;
-      background-color: #eee;
-      border-radius: 4px;
-    }
-
-    button.email-prompt-copy,
-    button.email-prompt-copy:hover {
-      padding: 8px 12px;
-      cursor: pointer;
-      background-color: #003b8f;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      font-weight: bold;
-    }
-
-    a.layout-detail-1 {
-      margin-top: 8px;
-      color: #ffffff;
-      font-size: 16px;
-      font-weight: bold;
-      text-decoration: underline;
-      opacity: 0.95;
-      cursor: pointer;
-    }
-
-    /* Align mode controls with the note form's two columns. */
-    .mode-controls-grid {
-      display: grid;
-      grid-template-columns: 250px 250px;
-      gap: 6px;
-      align-items: stretch;
-      max-width: 100%;
-      margin-bottom: 14px;
-    }
-
-    .mode-controls-grid > .mode-toggle {
-      width: 100%;
-      min-width: 0;
-      margin: 0;
-      align-items: center;
-      justify-content: flex-start;
-    }
-
-    .mode-controls-grid .mode-option {
-      white-space: nowrap;
-    }
-
-    @media (max-width: 560px) {
-      .mode-controls-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    div.layout-detail-5 {
-      flex-wrap: wrap;
-      gap: 8px 14px;
-    }
-
-    #templatePreviewInbound {
-      margin-bottom: 10px;
-      padding: 10px;
-      border: 1px dashed #ccc;
-      border-radius: 4px;
-      background: #fafafa;
-      max-height: 200px;
-      overflow-y: auto;
-      font-size: 12px;
-      color: #333;
-    }
-
-    div.layout-detail-7 {
-      flex-wrap: wrap;
-      gap: 8px 14px;
-    }
-
-    div.layout-detail-8 {
-      flex-wrap: wrap;
-      gap: 8px 14px;
-    }
-
-    #templatePreviewOutbound {
-      margin-bottom: 10px;
-      padding: 10px;
-      border: 1px dashed #ccc;
-      border-radius: 4px;
-      background: #fafafa;
-      max-height: 200px;
-      overflow-y: auto;
-      font-size: 12px;
-      color: #333;
-    }
-
-    #zipModal {
-      position:fixed;
-      top:0;
-      left:0;
-      width:100%;
-      height:100%;
-      background:rgba(0,0,0,0.6);
-      z-index:999999;
-      align-items:center;
-      justify-content:center;
-      font-family: Arial, sans-serif;
-    }
-
-    div.layout-detail-11 {
-      background:#fff;
-      padding:25px;
-      border-radius:8px;
-      width:350px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      text-align: center;
-    }
-
-    h3.layout-detail-12 {
-      margin-top:0;
-      color: var(--aaa-blue);
-    }
-
-    p.layout-detail-13 {
-      font-size: 13px;
-      color: #555;
-      margin-bottom: 10px;
-    }
-
-    div.layout-detail-14 {
-      background-color: #fff4f4;
-      border: 1px solid #ffdce0;
-      border-left: 4px solid var(--aaa-red);
-      padding: 10px;
-      margin-bottom: 15px;
-      border-radius: 4px;
-      text-align: left;
-    }
-
-    p.layout-detail-15 {
-      font-size: 12px;
-      color: var(--aaa-red);
-      margin: 0;
-      font-weight: bold;
-      line-height: 1.4;
-    }
-
-    #zipSearchInput {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      border: 2px solid #ccc;
-      border-radius: 4px;
-      font-size: 16px;
-      text-align: center;
-    }
-
-    div.layout-detail-17 {
-      gap: 10px;
-      justify-content: center;
-    }
-
-    button.layout-detail-18,
-    button.layout-detail-18:hover {
-      padding: 10px 15px;
-      cursor: pointer;
-      background: #eee;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      width: 50%;
-    }
-
-    #zipSearchBtn,
-    #zipSearchBtn:hover {
-      padding: 10px 15px;
-      cursor: pointer;
-      background: var(--aaa-blue);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-weight: bold;
-      width: 50%;
-    }
-
-    #zipSearchResult {
-      margin-top: 15px;
-      font-size: 14px;
-      font-weight: bold;
-      padding: 10px;
-      border-radius: 4px;
-      white-space: pre-wrap;
-    }
-
-    #feedbackModal {
-      position:fixed;
-      top:0;
-      left:0;
-      width:100%;
-      height:100%;
-      background:rgba(0,0,0,0.6);
-      z-index:999999;
-      align-items:center;
-      justify-content:center;
-      font-family: Arial, sans-serif;
-    }
-
-    div.layout-detail-22 {
-      background:#fff;
-      padding:25px;
-      border-radius:8px;
-      width:420px;
-      max-width:90vw;
-      max-height:90vh;
-      overflow-y:auto;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      text-align: left;
-    }
-
-    div.layout-detail-23 {
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      border-bottom: 2px solid var(--aaa-blue);
-      padding-bottom: 8px;
-    }
-
-    h3.layout-detail-24 {
-      margin:0;
-      color: var(--aaa-blue);
-    }
-
-    button.layout-detail-25,
-    button.layout-detail-25:hover {
-      background: #ccc;
-      padding: 4px 8px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    p.layout-detail-26 {
-      font-size: 12px;
-      color: #555;
-      margin-bottom: 14px;
-    }
-
-    div.layout-detail-27 {
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-
-    div.layout-detail-28 {
-      flex: 2;
-    }
-
-    label.layout-detail-29 {
-      font-size: 11px;
-      font-weight: bold;
-      margin-bottom: 3px;
-    }
-
-    #fbAgent {
-      width: 100%;
-      padding: 6px;
-      background: #f0f0f0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-
-    div.layout-detail-31 {
-      flex: 1;
-    }
-
-    label.layout-detail-32 {
-      font-size: 11px;
-      font-weight: bold;
-      margin-bottom: 3px;
-    }
-
-    #fbPhone {
-      width: 100%;
-      padding: 6px;
-      background: #f0f0f0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-
-    div.layout-detail-34 {
-      margin-bottom: 10px;
-    }
-
-    label.layout-detail-35 {
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 3px;
-    }
-
-    #fbCategory {
-      width: 100%;
-      padding: 7px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-
-    div.layout-detail-37 {
-      margin-bottom: 10px;
-    }
-
-    label.layout-detail-38 {
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 3px;
-    }
-
-    #fbSection {
-      width: 100%;
-      padding: 7px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-
-    div.layout-detail-40 {
-      margin-bottom: 14px;
-    }
-
-    label.layout-detail-41 {
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 3px;
-    }
-
-    #fbDetails {
-      width: 100%;
-      padding: 7px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 13px;
-      font-family: Arial, sans-serif;
-      resize: vertical;
-      box-sizing: border-box;
-    }
-
-    div.layout-detail-43 {
-      gap: 8px;
-      justify-content: flex-end;
-    }
-
-    button.layout-detail-44,
-    button.layout-detail-44:hover {
-      padding: 8px 14px;
-      background: #eee;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    #fbSubmitBtn,
-    #fbSubmitBtn:hover {
-      padding: 8px 16px;
-      background: var(--aaa-blue);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    #fbStatus {
-      margin-top: 10px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-
-    /* Call-outcome fields remain hidden until the matching answer is selected. */
-    #outboundForm td.call-outcome-hidden {
-      display: none !important;
-    }
-  </style>
-</head>
-
-<body>
-  <header class="aaa-header">
-    <div class="header-left">
-      <img class="aaa-logo" src="https://lh3.googleusercontent.com/d/1DapvV4CJHEmIOJifIUfCTO5Q1Jq0N9Oh" alt="AAA Smart Home Logo">
-
-      <div class="header-text">
-        <h1>NOTE TAKER</h1>
-        <p>Note Taking and Scheduling Tool</p>
-      </div>
-    </div>
-
-    <div class="header-status">
-      <span>Secure Agent Access</span>
-      <strong>Internal Use Only</strong>
-      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px;">
-        <a class="layout-detail-1" href="javascript:void(0)" onclick="openFeedbackModal()">
-          💬 Submit Feedback
-        </a>
-        <a class="layout-detail-1" href="javascript:void(0)" onclick="openChangeLogModal()">
-          📋 Change Log
-        </a>
-      </div>
-    </div>
-  </header>
-
-  <main class="aaa-page-content">
-
-    <!-- Toggles: Inbound/Outbound and Residential/Commercial -->
-    <div class="mode-controls-grid">
-      <div class="mode-toggle" role="radiogroup" aria-label="Call type">
-        <label class="mode-option">
-          <input type="radio" name="callMode" value="inbound" checked onchange="switchCallMode()">
-          Inbound
-        </label>
-        <label class="mode-option">
-          <input type="radio" name="callMode" value="outbound" onchange="switchCallMode()">
-          Outbound
-        </label>
-        <!-- Obscure Special Project Mode: Hidden by default -->
-        <label class="mode-option" id="specialProjectOption" style="display: none;">
-          <input type="radio" name="callMode" value="special_project" onchange="switchCallMode()">
-          NC
-        </label>
-      </div>
-
-      <div class="mode-toggle" role="radiogroup" aria-label="Customer type">
-        <label class="mode-option">
-          <input type="radio" name="customerType" value="residential" checked onchange="switchCustomerType()">
-          Residential
-        </label>
-        <label class="mode-option">
-          <input type="radio" name="customerType" value="commercial" onchange="switchCustomerType()">
-          Commercial
-        </label>
-      </div>
-    </div>
-
-    <div class="workspace">
-      <!-- INBOUND SECTION -->
-      <section id="inboundWorkspace">
-        <form id="notepad" class="note-form" onsubmit="return false;">
-          <div class="grid">
-            <div class="field" data-internal-id="caller_name">
-              <label for="A">CALLER NAME:</label>
-              <input type="text" id="A" name="A">
-            </div>
-
-            <!-- HIDDEN BY DEFAULT (Only shows for Commercial) -->
-            <div class="field" id="inboundAccountHolderField" style="display: none;" data-internal-id="company_name">
-              <label for="accountHolderInbound" id="lblAccountHolderInbound">COMPANY NAME:</label>
-              <input type="text" id="accountHolderInbound" name="accountHolderInbound">
-            </div>
-
-            <div class="field" data-internal-id="ar_number">
-              <label for="B">AR#:</label>
-              <input type="text" id="B" name="B">
-            </div>
-
-            <div class="field" data-internal-id="system_number">
-              <label id="systemNumberLabel" for="C">SYSTEM # or ADC ID:</label>
-              <input type="text" id="C" name="C">
-            </div>
-
-            <div class="field" data-internal-id="phone_number">
-              <label for="H">PHONE #:</label>
-              <input type="text" id="H" name="H" title="Can Be Reached">
-            </div>
-
-            <div class="field" data-internal-id="verification">
-              <label for="D">VERIFICATION:</label>
-              <select id="D" name="D">
-                <option value="">Select verification...</option>
-                <option value="Passcode Verified">Passcode Verified</option>
-                <option value="Account Verified">Account Verified</option>
-                <option value="Not Verified">Not Verified</option>
-                <option value="Duress Code Verified">Duress Code Verified</option>
-              </select>
-            </div>
-
-            <div class="field" id="inboundPanelTypeField" data-internal-id="panel_type">
-              <label for="E">PANEL TYPE:</label>
-              <input type="text" id="E" name="E">
-            </div>
-
-            <div class="field" data-internal-id="service_type">
-              <label>SERVICE TYPE:</label>
-              <div class="radio-options layout-detail-5">
-                <label>
-                  <input type="radio" name="serviceType" value="Full System" onchange="togglePanelTypeVisibility()">
-                  Full System
-                </label>
-                <label id="inboundFireOption" style="display: none;">
-                  <input type="radio" name="serviceType" value="Fire System" onchange="togglePanelTypeVisibility()">
-                  Fire System
-                </label>
-                <label>
-                  <input type="radio" name="serviceType" value="Video Only" onchange="togglePanelTypeVisibility()">
-                  Video Only
-                </label>
-              </div>
-            </div>
-
-            <div class="field" data-internal-id="reason">
-              <label for="F">REASON:</label>
-              <input type="text" id="F" name="F">
-            </div>
-
-            <div class="field" data-internal-id="scheduled_service">
-              <label>SCHEDULED SERVICE?</label>
-              <div class="radio-options">
-                <label>
-                  <input type="radio" name="scheduledService" value="Yes" onchange="toggleScheduledServiceFields()">
-                  Yes
-                </label>
-                <label>
-                  <input type="radio" name="scheduledService" value="No" onchange="toggleScheduledServiceFields()">
-                  No
-                </label>
-              </div>
-            </div>
-
-            <div id="serviceFeeWaivedField" class="field conditional-field" data-internal-id="fee_waived">
-              <label for="inboundServiceFeeWaived">SERVICE FEE WAIVED?</label>
-              <select id="inboundServiceFeeWaived" name="serviceFeeWaived" onchange="toggleSubmissionIdField()">
-                <option value="">Select...</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-                <option value="NHO">NHO</option>
-                <option value="Sup/Incident">Sup/Incident</option>
-              </select>
-            </div>
-
-            <div id="submissionIdField" class="field conditional-field" data-internal-id="submission_id">
-              <label for="I">SUBMISSION ID:</label>
-              <input type="text" id="I" name="I">
-            </div>
-          </div>
-
-          <div class="field resolution-field" data-internal-id="resolution">
-            <label for="G">RESOLUTION:</label>
-            <textarea id="G" name="G"></textarea>
-          </div>
-
-          <div class="agent-info">
-            AGENT: <span id="inboundNameDisplay"></span>
-            EXT: <span id="inboundPhoneDisplay"></span>
-            DEPT: <span id="inboundDeptDisplay"></span>
-          </div>
-
-          <div class="buttons">
-            <button type="button" onclick="copyInboundForm()">COPY NOTE</button>
-            <button type="button" onclick="clearInboundForm()">CLEAR</button>
-            <button type="button" id="undoClearButton" onclick="undoInboundClear()" disabled>UNDO CLEAR</button>
-            <button type="button" onclick="changeAgent()">CHANGE AGENT</button>
-          </div>
-
-          <div class="ticket-links">
-            TICKETS:
-            <a href="#" onclick="openResidentialTicket(); return false;">Resi Scheduling</a>
-            |
-            <a href="#" onclick="openDealerTicket(); return false;">Dealer Service</a>
-            |
-            <a href="#" onclick="openAddendumTicket(); return false;">Addendum Request</a>
-            |
-            <a href="#" onclick="openPartsTicket(); return false;">Parts Order</a>
-          </div>
-          
-          <!-- INBOUND HELPFUL LINKS & EMAIL TEMPLATES ROW -->
-          <div class="tools-row">
-            <div class="helpful-links">
-              <label for="helpfulLinks">HELPFUL LINKS:</label>
-              <select id="helpfulLinks" onchange="openHelpfulLink()">
-                <option value="">Loading links...</option>
-              </select>
-            </div>
-
-            <div class="template-section">
-              <label for="templateSelectInbound">EMAIL TEMPLATES:</label>
-              <select id="templateSelectInbound" onchange="previewEmailTemplate('inbound')">
-                <option value="">Loading templates...</option>
-              </select>
-              <!-- PREVIEW BOX -->
-              <div class="layout-detail-6" id="templatePreviewInbound" style="display: none;"></div>
-
-              <button type="button" onclick="generateAndCopyEmail('inbound')">
-                COPY EMAIL TO CLIPBOARD
-              </button>
-            </div>
-          </div>
-
-          <div id="inboundStatus"></div>
-
-          <label id="inboundCopyOutputLabel" class="copy-output-label" for="inboundCopyOutput" style="display: none;">
-            GENERATED NOTE:
-          </label>
-
-          <textarea id="inboundCopyOutput" readonly style="display: none;" placeholder="Your generated note will appear here only if automatic copying is blocked."></textarea>
-        </form>
-      </section>
-      <!-- END INBOUND SECTION -->
-
-      <!-- OUTBOUND SECTION -->
-      <section id="outboundWorkspace" style="display: none;">
-        <form id="outboundForm" class="outbound-form" onsubmit="return false;">
-
-          <!-- GRID 1: Top Fields -->
-          <div class="grid">
-            <div class="field" data-internal-id="obc_to">
-              <label for="outboundPhone" class="field-label-with-tooltip">
-                OBC TO:
-                <span class="field-help" aria-label="Called Phone Number">ⓘ</span>
-                <span class="field-tooltip">Called Phone Number</span>
-              </label>
-              <input type="text" id="outboundPhone" name="outboundPhone">
-            </div>
-
-            <div class="field" data-internal-id="caller_name">
-              <label for="outboundName">CALLER NAME:</label>
-              <input type="text" id="outboundName" name="outboundName">
-            </div>
-
-            <!-- HIDDEN BY DEFAULT (Only shows for Commercial) -->
-            <div class="field" id="outboundAccountHolderField" style="display: none;" data-internal-id="company_name">
-              <label for="accountHolderOutbound" id="lblAccountHolderOutbound">COMPANY NAME:</label>
-              <input type="text" id="accountHolderOutbound" name="accountHolderOutbound">
-            </div>
-          </div>
-
-          <!-- STACKED: Large Radio Button Groups -->
-          <table class="radio-table">
-            <tr>
-              <td data-internal-id="call_answered">
-                <label>CALL ANSWERED:</label>
-                <div class="radio-options">
-                  <label>
-                    <input type="radio" name="outboundCallAnswered" value="Yes" onchange="toggleVoicemailField()">
-                    Yes
-                  </label>
-                  <label>
-                    <input type="radio" name="outboundCallAnswered" value="No" onchange="toggleVoicemailField()">
-                    No
-                  </label>
-                </div>
-              </td>
-              <td class="call-outcome-hidden" data-internal-id="voicemail_left">
-                <div id="voicemailLeftContainer">
-                  <label>VOICEMAIL LEFT:</label>
-                  <div class="radio-options layout-detail-7">
-                    <label>
-                      <input type="radio" name="outboundVoicemailLeft" value="Yes">
-                      Yes
-                    </label>
-                    <label>
-                      <input type="radio" name="outboundVoicemailLeft" value="No">
-                      No
-                    </label>
-                    <label>
-                      <input type="radio" name="outboundVoicemailLeft" value="Busy/Disconnected/Other">
-                      Busy/Disconnected/Other
-                    </label>
-                  </div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="call-outcome-hidden" data-internal-id="privacy_script">
-                <div class="privacy-label-wrap">
-                  <label class="privacy-label" tabindex="0">
-                    PRIVACY SCRIPT:
-                    <span class="privacy-help" aria-label="Privacy script details">ⓘ</span>
-                    <span class="privacy-tooltip">
-                      <strong>DIRECT-DIAL INBOUND / OUTBOUND</strong>
-                      “This call may be recorded and your personal information shared with our service providers. To learn more, visit our privacy policy at AAA.com”
-                      <strong>TRANSLATIONS</strong>
-                      “This call may be recorded and during this call your personal information may be shared with our service providers to provide you with language translations and services. To learn more, visit our privacy policy at AAA.com”
-                      <strong>SPANISH</strong>
-                      Esta llamada puede ser grabada y su información personal compartida con nuestros proveedores de servicios. Para saber más, visite nuestra política de privacidad en AAA.com”
-                      <strong>IVR</strong>
-                      “This call may be recorded for quality and training purposes. During this call, AAA may collect personal information from you and may need to share this information with third parties to provide you with services or help fulfill your request. To learn more, please visit AAA.com to view our privacy policy.”
-                    </span>
-                  </label>
-                </div>
-                <div class="radio-options">
-                  <label>
-                    <input type="radio" name="outboundPrivacyScript" value="Yes">
-                    Yes
-                  </label>
-                  <label>
-                    <input type="radio" name="outboundPrivacyScript" value="No">
-                    No
-                  </label>
-                </div>
-              </td>
-              <td data-internal-id="service_type">
-                <label>SERVICE TYPE:</label>
-                <div class="radio-options layout-detail-8">
-                  <label>
-                    <input type="radio" name="outboundServiceType" value="Full System" onchange="togglePanelTypeVisibility()">
-                    Full System
-                  </label>
-                  <label id="outboundFireOption" style="display: none;">
-                    <input type="radio" name="outboundServiceType" value="Fire System" onchange="togglePanelTypeVisibility()">
-                    Fire System
-                  </label>
-                  <label>
-                    <input type="radio" name="outboundServiceType" value="Video Only" onchange="togglePanelTypeVisibility()">
-                    Video Only
-                  </label>
-                </div>
-              </td>
-            </tr>
-          </table>
-
-          <!-- GRID 2: Bottom Fields -->
-          <div class="grid">
-            <div class="field" id="outboundPanelTypeField" data-internal-id="panel_type">
-              <label for="outboundPanelType">PANEL TYPE:</label>
-              <input type="text" id="outboundPanelType" name="outboundPanelType">
-            </div>
-
-            <div class="field" data-internal-id="verification">
-              <label for="outboundVerification">VERIFICATION:</label>
-              <select id="outboundVerification" name="outboundVerification">
-                <option value="">Select verification...</option>
-                <option value="Passcode Verified">Passcode Verified</option>
-                <option value="Account Verified">Account Verified</option>
-                <option value="Not Verified">Not Verified</option>
-                <option value="Duress Code Verified">Duress Code Verified</option>
-              </select>
-            </div>
-
-            <div class="field" data-internal-id="ar_number">
-              <label for="outboundAr">AR#:</label>
-              <input type="text" id="outboundAr" name="outboundAr">
-            </div>
-
-            <div class="field" data-internal-id="system_number">
-              <label id="outboundSystemNumberLabel" for="outboundSystemNumber">SYSTEM # or ADC ID:</label>
-              <input type="text" id="outboundSystemNumber" name="outboundSystemNumber">
-            </div>
-
-            <div class="field" data-internal-id="reason">
-              <label for="outboundReason">REASON:</label>
-              <input type="text" id="outboundReason" name="outboundReason">
-            </div>
-
-            <!-- OUTBOUND SCHEDULED SERVICE -->
-            <div class="field" data-internal-id="scheduled_service">
-              <label>SCHEDULED SERVICE?</label>
-              <div class="radio-options">
-                <label>
-                  <input type="radio" name="outboundScheduledService" value="Yes" onchange="toggleScheduledServiceFieldsOutbound()">
-                  Yes
-                </label>
-                <label>
-                  <input type="radio" name="outboundScheduledService" value="No" onchange="toggleScheduledServiceFieldsOutbound()">
-                  No
-                </label>
-              </div>
-            </div>
-
-            <div id="outboundServiceFeeWaivedField" class="field conditional-field" data-internal-id="fee_waived">
-              <label for="outboundServiceFeeWaived">SERVICE FEE WAIVED?</label>
-              <select id="outboundServiceFeeWaived" name="outboundServiceFeeWaived" onchange="toggleSubmissionIdFieldOutbound()">
-                <option value="">Select...</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-                <option value="NHO">NHO</option>
-                <option value="Sup/Incident">Sup/Incident</option>
-              </select>
-            </div>
-
-            <div id="outboundSubmissionIdField" class="field conditional-field" data-internal-id="submission_id">
-              <label for="outboundSubmissionId">SUBMISSION ID:</label>
-              <input type="text" id="outboundSubmissionId" name="outboundSubmissionId">
-            </div>
-          </div> <!-- END GRID 2 -->
-
-          <div class="field resolution-field" data-internal-id="resolution">
-            <label for="outboundResolution">RESOLUTION:</label>
-            <textarea id="outboundResolution" name="outboundResolution"></textarea>
-          </div>
-
-          <div class="field" data-internal-id="attempt">
-          <label for="outboundAttempt">ATTEMPT:</label>
-          <select id="outboundAttempt">
-              <option value="">Select Attempt...</option>
-              <option value="1st">1st</option>
-              <option value="2nd">2nd</option>
-              <option value="3rd">3rd</option>
-              <option value="Final">Final</option>
-            </select>
-          </div>
-
-          <div class="agent-info">
-            AGENT: <span id="outboundNameDisplay"></span>
-            EXT: <span id="outboundPhoneDisplay"></span>
-            DEPT: <span id="outboundDeptDisplay"></span>
-          </div>
-
-          <div class="buttons">
-            <button type="button" onclick="copyOutboundForm()">COPY OUTBOUND NOTE</button>
-            <button type="button" onclick="clearOutboundForm()">CLEAR</button>
-            <button type="button" id="undoOutboundClearButton" onclick="undoOutboundClear()" disabled>UNDO CLEAR</button>
-            <button type="button" onclick="changeAgent()">CHANGE AGENT</button>
-          </div>
-
-          <div class="ticket-links">
-            TICKETS:
-            <a href="#" onclick="openOutboundResidentialTicket(); return false;">Resi Scheduling</a>
-            |
-            <a href="#" onclick="openOutboundDealerTicket(); return false;">Dealer Service</a>
-            |
-            <a href="#" onclick="openOutboundAddendumTicket(); return false;">Addendum Request</a>
-            |
-            <a href="#" onclick="openOutboundPartsTicket(); return false;">Parts Order</a>
-          </div>
-
-          <!-- OUTBOUND HELPFUL LINKS & EMAIL TEMPLATES ROW -->
-          <div class="tools-row">
-            <div class="helpful-links">
-              <label for="outboundHelpfulLinks">HELPFUL LINKS:</label>
-              <select id="outboundHelpfulLinks" onchange="openOutboundHelpfulLink()">
-                <option value="">Loading links...</option>
-              </select>
-            </div>
-
-            <div class="template-section">
-              <label for="templateSelectOutbound">EMAIL TEMPLATES:</label>
-              <select id="templateSelectOutbound" onchange="previewEmailTemplate('outbound')">
-                <option value="">Loading templates...</option>
-              </select>
-              <!-- PREVIEW BOX -->
-              <div class="layout-detail-9" id="templatePreviewOutbound" style="display: none;"></div>
-
-              <button type="button" onclick="generateAndCopyEmail('outbound')">
-                COPY EMAIL TO CLIPBOARD
-              </button>
-            </div>
-          </div>
-
-          <div id="outboundStatus"></div>
-
-          <label id="outboundCopyOutputLabel" class="copy-output-label" for="outboundCopyOutput" style="display: none;">
-            GENERATED NOTE:
-          </label>
-
-          <textarea id="outboundCopyOutput" readonly style="display: none;" placeholder="Your generated outbound note will appear here only if automatic copying is blocked."></textarea>
-        </form>
-      </section>
-      <!-- END OUTBOUND SECTION -->
-
-      <!-- TICKET PANEL -->
-      <aside id="ticketPanel" class="ticket-panel">
-        <div class="ticket-panel-header">
-          <span id="ticketPanelTitle">TICKET</span>
-          <button type="button" onclick="closeTicketPanel()">CLOSE TICKET</button>
-        </div>
-        <iframe id="ticketFrame" title="Ticket Form" src="about:blank" allow="clipboard-write"></iframe>
-      </aside>
-    </div>
-  </main>
-
-  <footer class="page-footer">
-    <strong>AAA Smart Home Security</strong>
-    • Note Taker Tool
-    • Internal Use Only
-  </footer>
-
-  <!-- ZIP CODE SEARCH MODAL -->
-  <div class="layout-detail-10" id="zipModal" style="display:none;">
-    <div class="layout-detail-11">
-      <h3 class="layout-detail-12">📍 DS Zip Code Search</h3>
-      <p class="layout-detail-13">Enter a zip code to check if it's in the Dealer Service area.</p>
-
-      <!-- Service-area disclaimer -->
-      <div class="layout-detail-14">
-        <p class="layout-detail-15">
-          ⚠️ Please note: Service areas are subject to change. Always verify current technician availability with the Coordination team.
-        </p>
-      </div>
-
-      <input class="layout-detail-16" type="text" id="zipSearchInput" placeholder="Enter Zip Code...">
-
-      <div class="layout-detail-17" style="display: flex;">
-        <button class="layout-detail-18" type="button" onclick="closeZipSearch()">Cancel</button>
-        <button class="layout-detail-19" type="button" id="zipSearchBtn" onclick="performZipSearch()">Search</button>
-      </div>
-
-      <div class="layout-detail-20" id="zipSearchResult" style="display: none;"></div>
-    </div>
-  </div>
-
-  <!-- FEEDBACK MODAL -->
-  <div class="layout-detail-21" id="feedbackModal" style="display:none;">
-    <div class="layout-detail-22">
-
-      <div class="layout-detail-23" style="display: flex;">
-        <h3 class="layout-detail-24">💬 Submit Feedback</h3>
-        <button class="layout-detail-25" type="button" onclick="closeFeedbackModal()">✕</button>
-      </div>
-
-      <p class="layout-detail-26">
-        Report an issue, suggest a feature, or request template updates.
-      </p>
-
-      <div class="layout-detail-27" style="display: flex;">
-        <div class="layout-detail-28">
-          <label class="layout-detail-29" style="display:block;">AGENT</label>
-          <input class="layout-detail-30" type="text" id="fbAgent" readonly>
-        </div>
-        <div class="layout-detail-31">
-          <label class="layout-detail-32" style="display:block;">EXT</label>
-          <input class="layout-detail-33" type="text" id="fbPhone" readonly>
-        </div>
-      </div>
-
-      <div class="layout-detail-34">
-        <label class="layout-detail-35" for="fbCategory" style="display:block;">FEEDBACK TYPE:</label>
-        <select class="layout-detail-36" id="fbCategory">
-          <option value="Bug / Issue">🐛 Bug / Issue</option>
-          <option value="Feature Request">💡 Feature Request</option>
-          <option value="Template Update">📝 Email Template Update</option>
-          <option value="Field / Label Adjustment">🏷️ Field / Label Adjustment</option>
-          <option value="Other">❓ Other</option>
-        </select>
-      </div>
-
-      <div class="layout-detail-37">
-        <label class="layout-detail-38" for="fbSection" style="display:block;">APPLICABLE SECTION:</label>
-        <select class="layout-detail-39" id="fbSection">
-          <option value="General / Not Sure">General / Not Sure</option>
-          <option value="Inbound Note Taker">Inbound Note Taker</option>
-          <option value="Outbound Note Taker">Outbound Note Taker</option>
-          <option value="Residential Ticket">Residential Scheduling</option>
-          <option value="Dealer Ticket">Dealer Service</option>
-          <option value="Addendum Ticket">Addendum Request</option>
-          <option value="Email Templates">Email Templates</option>
-          <option value="Helpful Links / Zip Search">Helpful Links / Zip Search</option>
-        </select>
-      </div>
-
-      <div class="layout-detail-40">
-        <label class="layout-detail-41" for="fbDetails" style="display:block;">DESCRIPTION / SUGGESTION:</label>
-        <textarea class="layout-detail-42" id="fbDetails" rows="4" placeholder="Please provide specific details or describe what happened..."></textarea>
-      </div>
-
-      <div class="layout-detail-43" style="display: flex;">
-        <button class="layout-detail-44" type="button" onclick="closeFeedbackModal()">Cancel</button>
-        <button class="layout-detail-45" type="button" id="fbSubmitBtn" onclick="sendFeedback()">Send Feedback</button>
-      </div>
-
-      <div class="layout-detail-46" id="fbStatus" style="display: none;"></div>
-    </div>
-  </div>
-
-  <script>
-    const agent = localStorage.getItem('name') || '';
-    const phone = localStorage.getItem('phone') || '';
-    const dept = localStorage.getItem('dept') || '';
-
-    let previousInboundFormData = null;
-    let previousOutboundFormData = null;
-
-    document.getElementById('inboundNameDisplay').textContent = agent;
-    document.getElementById('inboundPhoneDisplay').textContent = phone;
-    document.getElementById('inboundDeptDisplay').textContent = dept;
-
-    document.getElementById('outboundNameDisplay').textContent = agent;
-    document.getElementById('outboundPhoneDisplay').textContent = phone;
-    document.getElementById('outboundDeptDisplay').textContent = dept;
-
-    function buildTicketUrl(params) {
-      return '<?= appUrl ?>?' + params.toString();
-    }
-
-    function appendTemplateOption(name) {
-      ['templateSelectInbound', 'templateSelectOutbound'].forEach(function (id) {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        document.getElementById(id).appendChild(option);
-      });
-    }
-
-    function appendHelpfulLinkOption(select, link) {
-      const option = document.createElement('option');
-      option.value = link.url;
-      option.textContent = link.name.includes('VIEW ALL') ? link.name : '  ' + link.name;
-      if (link.popup) option.dataset.popup = link.popup;
-      select.appendChild(option);
-    }
-
-
-
-    function getValue(id) {
-      return document.getElementById(id).value.trim();
-    }
-
-    // ==========================================
-    // DYNAMIC FORM SCHEMA LOGIC
-    // ==========================================
-    let formSchema = { inbound: {}, outbound: {} };
-    let authorizedProjectExtensions = [];
-    let projectSchemaLoaded = false;
-    let emailTemplatesLoaded = false;
-
-    checkSpecialProjectAccess();
-
-    function normalizeProjectExtensions(values) {
-      // Accept a scalar, a list, or a one-column Sheets array.
-      const list = Array.isArray(values) ? values.flat(Infinity) : [values];
-      return [...new Set(list
-        .filter(value => value !== null && value !== undefined)
-        .map(value => String(value).trim())
-        .filter(Boolean))];
-    }
-
-    function hasSpecialProjectAccess() {
-      const extension = String(localStorage.getItem('phone') || '').trim();
-      return projectSchemaLoaded && extension !== '' &&
-        authorizedProjectExtensions.includes(extension);
-    }
-
-    function checkSpecialProjectAccess() {
-      const allowed = hasSpecialProjectAccess();
-      const toggle = document.getElementById('specialProjectOption');
-      if (toggle) toggle.style.display = allowed ? 'inline-flex' : 'none';
-
-      if (!allowed && getRadioValue('callMode') === 'special_project') {
-        setRadioValue('callMode', 'outbound');
-        switchCallMode();
-      }
-      syncSpecialProjectTemplates();
-    }
-
-    function syncSpecialProjectTemplates() {
-      // Both independent loads call this function; either completion order works.
-      if (!emailTemplatesLoaded) return;
-      const names = [
-        '🔒 Project 2026 - AAA (In Footprint)',
-        '🔒 Project 2026 - A3 (Out of Footprint)'
-      ];
-      ['templateSelectInbound', 'templateSelectOutbound'].forEach(function (id) {
-        const select = document.getElementById(id);
-        if (!select) return;
-        Array.from(select.options).forEach(function (option) {
-          if (names.includes(option.value)) option.remove();
-        });
-      });
-      names.forEach(function (name) { delete emailTemplatesHtml[name]; });
-      if (!hasSpecialProjectAccess()) return;
-
-    // Register into template dictionary
-    emailTemplatesHtml[special1Name] = special1Html;
-    emailTemplatesHtml[special2Name] = special2Html;
-
-    // Append to dropdown selection
-    appendTemplateOption(special1Name);
-    appendTemplateOption(special2Name);
-    }
-
-    google.script.run.withSuccessHandler(function(schema) {
-      formSchema = Object.assign({ inbound: {}, outbound: {} }, schema || {});
-      authorizedProjectExtensions = normalizeProjectExtensions(schema && schema.authorizedExtensions);
-      projectSchemaLoaded = true;
-      checkSpecialProjectAccess();
-
-      const processField = (mode, key, fieldData) => {
-        const fieldEl = document.querySelector(`#${mode}Workspace [data-internal-id="${key}"]`);
-        if (!fieldEl) return;
-
-        // 1. Update Label Text (Completely replaces default text & preserves tooltips)
-        const labelEl = fieldEl.querySelector('label');
-        if (labelEl) {
-          const helpIcon = labelEl.querySelector('.field-help, .privacy-help');
-          const tooltip = labelEl.querySelector('.field-tooltip, .privacy-tooltip');
-
-          let rawLabel = fieldData.label.trim();
-          if (rawLabel.endsWith(':')) {
-            rawLabel = rawLabel.slice(0, -1).trim();
-          }
-
-          let formattedHtml = rawLabel;
-          if (rawLabel.toLowerCase().includes('(required)')) {
-            formattedHtml = rawLabel.replace(/\(required\)/gi, '<span style="color: var(--aaa-red); font-style: italic; font-weight: bold;">(required)</span>');
-          }
-          formattedHtml += ':';
-
-          labelEl.innerHTML = formattedHtml;
-
-          if (helpIcon) {
-            labelEl.innerHTML += ' ';
-            labelEl.appendChild(helpIcon);
-          }
-          if (tooltip) {
-            labelEl.appendChild(tooltip);
-          }
-        }
-
-        // 2. Update Dropdown Options
-        if (fieldData.type.toLowerCase() === 'dropdown' && fieldData.options) {
-          const selectEl = fieldEl.querySelector('select');
-          if (selectEl) {
-            const firstOption = selectEl.options.length > 0 && selectEl.options[0].value === "" ? selectEl.options[0].outerHTML : '<option value="">Select...</option>';
-            const newOptions = fieldData.options.split(',').map(opt => opt.trim());
-            let optionsHtml = firstOption;
-            newOptions.forEach(opt => {
-              optionsHtml += `<option value="${opt}">${opt}</option>`;
-            });
-            selectEl.innerHTML = optionsHtml;
-          }
-        }
-
-        // 3. Update Visibility
-        const isVisible = fieldData.visible.toString().toUpperCase();
-        if (isVisible === 'FALSE' || isVisible === 'NO') {
-          fieldEl.style.display = 'none';
-          fieldEl.classList.add('schema-hidden');
-        } else {
-          if (fieldEl.classList.contains('schema-hidden')) {
-            fieldEl.style.display = (fieldEl.tagName === 'TD') ? 'table-cell' : 'flex';
-            fieldEl.classList.remove('schema-hidden');
-          }
-        }
-      };
-
-      for (const key in schema.inbound) processField('inbound', key, schema.inbound[key]);
-      for (const key in schema.outbound) processField('outbound', key, schema.outbound[key]);
-      toggleVoicemailField();
-
-    }).withFailureHandler(function(error) {
-      authorizedProjectExtensions = [];
-      projectSchemaLoaded = false;
-      checkSpecialProjectAccess();
-      console.error('Unable to load form schema; NC project access remains hidden.', error);
-    }).getFormSchema();
-
-    // Helper to grab dynamic label for clipboard output (strips out "(REQUIRED)")
-    function getLabel(mode, key, defaultLabel) {
-      if (formSchema[mode] && formSchema[mode][key] && formSchema[mode][key].label) {
-        let cleanLabel = formSchema[mode][key].label.replace(/:$/, '').trim();
-        cleanLabel = cleanLabel.replace(/\(required\)/gi, '').trim();
-        return cleanLabel.toUpperCase();
-      }
-      return defaultLabel;
-    }
-
-    function isFieldVisible(mode, key) {
-      if (formSchema[mode] && formSchema[mode][key]) {
-        const vis = formSchema[mode][key].visible.toString().toUpperCase();
-        if (vis === 'FALSE' || vis === 'NO') return false;
-      }
-      return true;
-    }
-
-    // --- Hide Panel Type if Video Only ---
-    function togglePanelTypeVisibility() {
-      const inboundServiceType = getRadioValue('serviceType');
-      const inboundPanelField = document.getElementById('inboundPanelTypeField');
-      if (inboundPanelField && !inboundPanelField.classList.contains('schema-hidden')) {
-        if (inboundServiceType === 'Video Only') {
-          inboundPanelField.style.display = 'none';
-          document.getElementById('E').value = '';
-        } else {
-          inboundPanelField.style.display = 'flex';
-        }
-      }
-
-      const outboundServiceType = getRadioValue('outboundServiceType');
-      const outboundPanelField = document.getElementById('outboundPanelTypeField');
-      if (outboundPanelField && !outboundPanelField.classList.contains('schema-hidden')) {
-        if (outboundServiceType === 'Video Only') {
-          outboundPanelField.style.display = 'none';
-          document.getElementById('outboundPanelType').value = '';
-        } else {
-          outboundPanelField.style.display = 'flex';
-        }
-      }
-    }
-
-    function getRadioValue(name) {
-      const selected = document.querySelector('input[name="' + name + '"]:checked');
-      return selected ? selected.value : '';
-    }
-
-    function setRadioValue(name, value) {
-      document.querySelectorAll('input[name="' + name + '"]').forEach(function (radio) {
-        radio.checked = radio.value === value;
-      });
-    }
-
-    function addLine(outputLines, label, value) {
-      if (value) {
-        outputLines.push(label + ': ' + value);
-      }
-    }
-
-    function switchCallMode() {
-      const selected = document.querySelector('input[name="callMode"]:checked');
-      let mode = selected ? selected.value : 'inbound';
-      if (mode === 'special_project' && !hasSpecialProjectAccess()) {
-        mode = 'outbound';
-        setRadioValue('callMode', mode);
-      }
-
-      // 1. Show Inbound only if inbound is selected
-      document.getElementById('inboundWorkspace').style.display = mode === 'inbound' ? 'block' : 'none';
-
-      // 2. Show Outbound if either standard 'outbound' OR 'special_project' is selected
-      const isOutboundOrSpecial = (mode === 'outbound' || mode === 'special_project');
-      document.getElementById('outboundWorkspace').style.display = isOutboundOrSpecial ? 'block' : 'none';
-
-      // 3. Handle the locked Reason field for the Special Project
-      const reasonEl = document.querySelector('#outboundWorkspace [data-internal-id="reason"] input, #outboundWorkspace [data-internal-id="reason"] textarea, #outboundReason');
-      if (reasonEl) {
-        if (mode === 'special_project') {
-          reasonEl.value = 'Non Communication Project (2026)';
-          reasonEl.readOnly = true;
-          reasonEl.style.backgroundColor = '#fff9db'; // Subtle yellow tint to indicate special project
-        } else if (mode === 'outbound') {
-          if (reasonEl.readOnly) {
-            reasonEl.readOnly = false;
-            reasonEl.style.backgroundColor = '';
-            if (reasonEl.value === 'Non Communication Project (2026)') {
-              reasonEl.value = '';
-            }
-          }
-        }
-      }
-
-      closeTicketPanel();
-    }
-
-
-
-    function switchCustomerType() {
-      const type = getRadioValue('customerType');
-      const inboundAcctField = document.getElementById('inboundAccountHolderField');
-      const outboundAcctField = document.getElementById('outboundAccountHolderField');
-      const lblInbound = document.getElementById('lblAccountHolderInbound');
-      const lblOutbound = document.getElementById('lblAccountHolderOutbound');
-      const inboundFire = document.getElementById('inboundFireOption');
-      const outboundFire = document.getElementById('outboundFireOption');
-
-      if (type === 'commercial') {
-        if (inboundAcctField && isFieldVisible('inbound', 'company_name')) inboundAcctField.style.display = 'flex';
-        if (outboundAcctField && isFieldVisible('outbound', 'company_name')) outboundAcctField.style.display = 'flex';
-        if (lblInbound) lblInbound.textContent = getLabel('inbound', 'company_name', 'COMPANY NAME') + ':';
-        if (lblOutbound) lblOutbound.textContent = getLabel('outbound', 'company_name', 'COMPANY NAME') + ':';
-        if (inboundFire) inboundFire.style.display = 'flex';
-        if (outboundFire) outboundFire.style.display = 'flex';
-      } else {
-        if (inboundAcctField) {
-          inboundAcctField.style.display = 'none';
-          document.getElementById('accountHolderInbound').value = '';
-        }
-        if (outboundAcctField) {
-          outboundAcctField.style.display = 'none';
-          document.getElementById('accountHolderOutbound').value = '';
-        }
-        if (inboundFire) inboundFire.style.display = 'none';
-        if (outboundFire) outboundFire.style.display = 'none';
-
-        if (getRadioValue('serviceType') === 'Fire System') {
-          setRadioValue('serviceType', '');
-          updateSystemNumberLabel();
-        }
-        if (getRadioValue('outboundServiceType') === 'Fire System') {
-          setRadioValue('outboundServiceType', '');
-          updateOutboundSystemNumberLabel();
-        }
-      }
-      togglePanelTypeVisibility();
-    }
-
-    function toggleVoicemailField() {
-      const callAnswered = getRadioValue('outboundCallAnswered');
-      const voicemailField = document.querySelector('#outboundForm [data-internal-id="voicemail_left"]');
-      const privacyField = document.querySelector('#outboundForm [data-internal-id="privacy_script"]');
-      const vmContainer = document.getElementById('voicemailLeftContainer');
-      const showVoicemail = callAnswered === 'No' && isFieldVisible('outbound', 'voicemail_left');
-      const showPrivacy = callAnswered === 'Yes' && isFieldVisible('outbound', 'privacy_script');
-
-      if (voicemailField) voicemailField.classList.toggle('call-outcome-hidden', !showVoicemail);
-      if (privacyField) privacyField.classList.toggle('call-outcome-hidden', !showPrivacy);
-      if (vmContainer) vmContainer.style.display = showVoicemail ? 'block' : 'none';
-
-      // Discard answers that no longer apply to the selected call outcome.
-      if (!showVoicemail) setRadioValue('outboundVoicemailLeft', '');
-      if (!showPrivacy) setRadioValue('outboundPrivacyScript', '');
-    }
-
-    const schedulingFields = {
-      inbound: {
-        radio: 'scheduledService', feeField: 'serviceFeeWaivedField',
-        feeInput: 'inboundServiceFeeWaived', submissionField: 'submissionIdField',
-        submissionInput: 'I'
-      },
-      outbound: {
-        radio: 'outboundScheduledService', feeField: 'outboundServiceFeeWaivedField',
-        feeInput: 'outboundServiceFeeWaived', submissionField: 'outboundSubmissionIdField',
-        submissionInput: 'outboundSubmissionId'
-      }
-    };
-
-    function updateScheduledServiceFields(mode) {
-      const fields = schedulingFields[mode];
-      const scheduledService = getRadioValue(fields.radio);
-      const feeField = document.getElementById(fields.feeField);
-      const submissionField = document.getElementById(fields.submissionField);
-      const showFee = scheduledService === 'Yes' && isFieldVisible(mode, 'fee_waived');
-      feeField.classList.toggle('is-visible', showFee);
-      if (!showFee) {
-        document.getElementById(fields.feeInput).value = '';
-        document.getElementById(fields.submissionInput).value = '';
-        submissionField.classList.remove('is-visible');
-      }
-      updateSubmissionIdField(mode);
-    }
-
-    function updateSubmissionIdField(mode) {
-      const fields = schedulingFields[mode];
-      const scheduledService = getRadioValue(fields.radio);
-      const fee = document.getElementById(fields.feeInput).value;
-      const field = document.getElementById(fields.submissionField);
-      const input = document.getElementById(fields.submissionInput);
-      const show = scheduledService === 'Yes' &&
-        (fee === 'Yes' || fee === 'NHO' || fee === 'Sup/Incident') &&
-        isFieldVisible(mode, 'submission_id');
-      field.classList.toggle('is-visible', show);
-      input.required = show;
-      if (!show) {
-        input.value = '';
-        input.required = false;
-      }
-      input.setCustomValidity('');
-    }
-
-    function toggleScheduledServiceFields() {
-      updateScheduledServiceFields('inbound');
-    }
-
-    function toggleSubmissionIdField() {
-      updateSubmissionIdField('inbound');
-    }
-
-    function toggleScheduledServiceFieldsOutbound() {
-      updateScheduledServiceFields('outbound');
-    }
-
-    function toggleSubmissionIdFieldOutbound() {
-      updateSubmissionIdField('outbound');
-    }
-
-    // --- UNDO INBOUND ---
-    function captureInboundFormData() {
-      return {
-        callername: getValue('A'),
-        accountHolder: getValue('accountHolderInbound'),
-        customerType: getRadioValue('customerType'),
-        ar: getValue('B'),
-        phone: getValue('H'),
-        systemNumber: getValue('C'),
-        verification: getValue('D'),
-        panelType: getValue('E'),
-        serviceType: getRadioValue('serviceType'),
-        reason: getValue('F'),
-        resolution: getValue('G'),
-        scheduledService: getRadioValue('scheduledService'),
-        serviceFeeWaived: document.getElementById('inboundServiceFeeWaived').value,
-        submissionId: getValue('I')
-      };
-    }
-
-    function undoInboundClear() {
-      if (!previousInboundFormData) return;
-
-      document.getElementById('A').value = previousInboundFormData.callername || previousInboundFormData.name;
-      document.getElementById('accountHolderInbound').value = previousInboundFormData.accountHolder;
-
-      setRadioValue('customerType', previousInboundFormData.customerType || 'residential');
-      switchCustomerType();
-
-      document.getElementById('B').value = previousInboundFormData.ar;
-      document.getElementById('H').value = previousInboundFormData.phone;
-      document.getElementById('C').value = previousInboundFormData.systemNumber;
-      document.getElementById('D').value = previousInboundFormData.verification;
-      document.getElementById('E').value = previousInboundFormData.panelType;
-      document.getElementById('F').value = previousInboundFormData.reason;
-      document.getElementById('G').value = previousInboundFormData.resolution;
-
-      setRadioValue('serviceType', previousInboundFormData.serviceType);
-      setRadioValue('scheduledService', previousInboundFormData.scheduledService);
-      toggleScheduledServiceFields();
-
-      document.getElementById('inboundServiceFeeWaived').value = previousInboundFormData.serviceFeeWaived || '';
-      toggleSubmissionIdField();
-
-      document.getElementById('I').value = previousInboundFormData.submissionId;
-      document.getElementById('undoClearButton').disabled = true;
-
-      const status = document.getElementById('inboundStatus');
-      status.style.color = '#188038';
-      status.textContent = 'Previous ticket fields restored.';
-    }
-
-    // --- UNDO OUTBOUND ---
-    function captureOutboundFormData() {
-      return {
-        phone: getValue('outboundPhone'),
-        callerName: getValue('outboundName'),
-        accountHolder: getValue('accountHolderOutbound'),
-        callAnswered: getRadioValue('outboundCallAnswered'),
-        voicemailLeft: getRadioValue('outboundVoicemailLeft'),
-        privacyScript: getRadioValue('outboundPrivacyScript'),
-        serviceType: getRadioValue('outboundServiceType'),
-        panelType: getValue('outboundPanelType'),
-        verification: getValue('outboundVerification'),
-        ar: getValue('outboundAr'),
-        systemNumber: getValue('outboundSystemNumber'),
-        reason: getValue('outboundReason'),
-        scheduledService: getRadioValue('outboundScheduledService'),
-        serviceFeeWaived: document.getElementById('outboundServiceFeeWaived').value,
-        submissionId: getValue('outboundSubmissionId'),
-        resolution: getValue('outboundResolution'),
-        customerType: getRadioValue('customerType')
-      };
-    }
-
-    function undoOutboundClear() {
-      if (!previousOutboundFormData) return;
-
-      document.getElementById('outboundPhone').value = previousOutboundFormData.phone;
-      document.getElementById('outboundName').value = previousOutboundFormData.callerName;
-      document.getElementById('accountHolderOutbound').value = previousOutboundFormData.accountHolder;
-
-      setRadioValue('outboundCallAnswered', previousOutboundFormData.callAnswered);
-      toggleVoicemailField();
-      setRadioValue('outboundVoicemailLeft', previousOutboundFormData.voicemailLeft);
-
-      setRadioValue('outboundPrivacyScript', previousOutboundFormData.privacyScript);
-      setRadioValue('outboundServiceType', previousOutboundFormData.serviceType);
-      updateOutboundSystemNumberLabel();
-
-      document.getElementById('outboundPanelType').value = previousOutboundFormData.panelType;
-      document.getElementById('outboundVerification').value = previousOutboundFormData.verification;
-      document.getElementById('outboundAr').value = previousOutboundFormData.ar;
-      document.getElementById('outboundSystemNumber').value = previousOutboundFormData.systemNumber;
-      document.getElementById('outboundReason').value = previousOutboundFormData.reason;
-
-      setRadioValue('outboundScheduledService', previousOutboundFormData.scheduledService);
-      toggleScheduledServiceFieldsOutbound();
-
-      document.getElementById('outboundServiceFeeWaived').value = previousOutboundFormData.serviceFeeWaived || '';
-      toggleSubmissionIdFieldOutbound();
-
-      document.getElementById('outboundSubmissionId').value = previousOutboundFormData.submissionId;
-      document.getElementById('outboundResolution').value = previousOutboundFormData.resolution;
-
-      setRadioValue('customerType', previousOutboundFormData.customerType || 'residential');
-      switchCustomerType();
-
-      toggleVoicemailField();
-
-      document.getElementById('undoOutboundClearButton').disabled = true;
-
-      const status = document.getElementById('outboundStatus');
-      status.style.color = '#188038';
-      status.textContent = 'Previous outbound fields restored.';
-    }
-
-    // --- TICKET FUNCTIONS ---
-    function openTicketPanel(url, title) {
-      const ticketPanel = document.getElementById('ticketPanel');
-      const ticketFrame = document.getElementById('ticketFrame');
-      const ticketPanelTitle = document.getElementById('ticketPanelTitle');
-
-      ticketPanelTitle.textContent = title;
-      ticketFrame.src = url;
-      ticketPanel.classList.add('is-open');
-    }
-
-    function closeTicketPanel() {
-      const ticketPanel = document.getElementById('ticketPanel');
-      const ticketFrame = document.getElementById('ticketFrame');
-
-      ticketFrame.src = 'about:blank';
-      ticketPanel.classList.remove('is-open');
-    }
-
-    function openResidentialTicket() {
-      const params = new URLSearchParams({
-        page: 'residential',
-        noteName: getValue('A'),      // Caller name.
-        phone: getValue('H'),         // Contact phone.
-        ar: getValue('B'),            // Account reference.
-        systemNumber: getValue('C'),  // System identifier.
-        systemType: getValue('E')
-      });
-      const url = buildTicketUrl(params);
-      openTicketPanel(url, 'RESIDENTIAL SCHEDULING');
-    }
-
-    function openDealerTicket() {
-      const combinedNameContact = getValue('A') + ' / ' + getValue('H');
-      const params = new URLSearchParams({
-        page: 'dealer',
-        noteName: combinedNameContact,
-        phone: getValue('H'),
-        reason: getValue('F')
-      });
-      const url = buildTicketUrl(params);
-      openTicketPanel(url, 'DEALER SERVICE');
-    }
-
-    function openAddendumTicket() {
-      const params = new URLSearchParams({
-        page: 'addendum',
-        arNumber: getValue('B'),
-        noteName: getValue('A'),
-        systemNumber: getValue('C')
-      });
-      const url = buildTicketUrl(params);
-      openTicketPanel(url, 'ADDENDUM REQUEST');
-    }
-
-    function openPartsTicket() {
-  const params = new URLSearchParams({
-    page: 'parts',
-    noteName: getValue('A'), // Caller Name
-    phone: getValue('H')     // Contact Phone
-  });
-  const url = buildTicketUrl(params);
-  openTicketPanel(url, 'PARTS ORDERING');
-    }
-
-    function openOutboundResidentialTicket() {
-      const combinedNameContact = getValue('outboundName') + ' / ' + getValue('outboundPhone');
-      const params = new URLSearchParams({
-        page: 'residential',
-        noteName: combinedNameContact,
-        systemNumber: getValue('outboundSystemNumber'),
-        systemType: getValue('outboundPanelType')
-      });
-      const url = buildTicketUrl(params);
-      openTicketPanel(url, 'RESIDENTIAL SCHEDULING');
-    }
-
-    function openOutboundDealerTicket() {
-      const combinedNameContact = getValue('outboundName') + ' / ' + getValue('outboundPhone');
-      const params = new URLSearchParams({
-        page: 'dealer',
-        noteName: combinedNameContact,
-        phone: getValue('outboundPhone'),
-        reason: getValue('outboundReason')
-      });
-      const url = buildTicketUrl(params);
-      openTicketPanel(url, 'DEALER SERVICE');
-    }
-
-    function openOutboundAddendumTicket() {
-      const params = new URLSearchParams({
-        page: 'addendum',
-        arNumber: getValue('outboundAr'),
-        noteName: getValue('outboundName'),
-        systemNumber: getValue('outboundSystemNumber')
-      });
-      const url = buildTicketUrl(params);
-      openTicketPanel(url, 'ADDENDUM REQUEST');
-    }
-
-    function openOutboundPartsTicket() {
-      const params = new URLSearchParams({
-        page: 'parts',
-        noteName: getValue('outboundName'),
-        phone: getValue('outboundPhone')
-      });
-      const url = buildTicketUrl(params);
-      openTicketPanel(url, 'PARTS ORDERING');
-    }
-
-    // --- HELPFUL LINKS & ZIP CODE OPENERS ---
-    function openHelpfulLink() {
-      openHelpfulLinkFromSelect('helpfulLinks');
-    }
-
-    function openOutboundHelpfulLink() {
-      openHelpfulLinkFromSelect('outboundHelpfulLinks');
-    }
-
-    function openHelpfulLinkFromSelect(selectId) {
-      const select = document.getElementById(selectId);
-      const selectedOption = select.options[select.selectedIndex];
-      const url = select.value;
-
-      if (!url) return;
-
-      // Intercept Zip Code Spreadsheet Link
-      if (url.includes('1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw')) {
-        openZipSearch();
-        select.value = '';
-        return;
-      }
-
-      if (selectedOption.dataset.popup === 'chatbot') {
-        window.open(url, 'chatbot', 'width=700,height=500,resizable=yes,scrollbars=yes');
-      } else {
-        window.open(url, '_blank');
-      }
-
-      select.value = '';
-    }
-
-    // --- ZIP CODE SEARCH LOGIC ---
-    function openZipSearch() {
-      document.getElementById('zipModal').style.display = 'flex';
-      document.getElementById('zipSearchInput').value = '';
-      document.getElementById('zipSearchResult').style.display = 'none';
-      setTimeout(() => document.getElementById('zipSearchInput').focus(), 100);
-    }
-
-    function closeZipSearch() {
-      document.getElementById('zipModal').style.display = 'none';
-    }
-
-    function performZipSearch() {
-      const zipInput = document.getElementById('zipSearchInput').value.trim();
-      const resultDiv = document.getElementById('zipSearchResult');
-      const searchBtn = document.getElementById('zipSearchBtn');
-
-      if (!zipInput) {
-        alert("Please enter a zip code.");
-        return;
-      }
-
-      searchBtn.textContent = "Searching...";
-      searchBtn.disabled = true;
-      resultDiv.style.display = 'none';
-
-      google.script.run.withSuccessHandler(function(response) {
-        searchBtn.textContent = "Search";
-        searchBtn.disabled = false;
-
-        resultDiv.style.display = 'block';
-        resultDiv.textContent = response.message;
-
-        if (response.found) {
-          resultDiv.style.backgroundColor = '#e6f4ea';
-          resultDiv.style.color = '#137333';
-          resultDiv.style.border = '1px solid #ceead6';
-        } else {
-          resultDiv.style.backgroundColor = '#fce8e6';
-          resultDiv.style.color = '#c5221f';
-          resultDiv.style.border = '1px solid #fad2cf';
-        }
-      }).checkZipCode(zipInput);
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-      const zipField = document.getElementById('zipSearchInput');
-      if (zipField) {
-        zipField.addEventListener("keypress", function(event) {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            performZipSearch();
-          }
-        });
-      }
-    });
-
-    // --- IN-APP FEEDBACK MODAL LOGIC ---
-    function openFeedbackModal() {
-      document.getElementById('feedbackModal').style.display = 'flex';
-      document.getElementById('fbAgent').value = agent || 'Agent';
-      document.getElementById('fbPhone').value = phone || '-';
-      document.getElementById('fbDetails').value = '';
-
-      const statusDiv = document.getElementById('fbStatus');
-      statusDiv.style.display = 'none';
-      statusDiv.textContent = '';
-
-      setTimeout(() => document.getElementById('fbDetails').focus(), 100);
-    }
-
-    function closeFeedbackModal() {
-      document.getElementById('feedbackModal').style.display = 'none';
-    }
-
-    function sendFeedback() {
-      const details = document.getElementById('fbDetails').value.trim();
-      const statusDiv = document.getElementById('fbStatus');
-      const submitBtn = document.getElementById('fbSubmitBtn');
-
-      if (!details) {
-        alert('Please describe your feedback before submitting.');
-        document.getElementById('fbDetails').focus();
-        return;
-      }
-
-      submitBtn.textContent = 'Sending...';
-      submitBtn.disabled = true;
-
-      const payload = {
-        name: agent,
-        phone: phone,
-        dept: dept,
-        category: document.getElementById('fbCategory').value,
-        section: document.getElementById('fbSection').value,
-        details: details
-      };
-
-      google.script.run
-        .withSuccessHandler(function(response) {
-          submitBtn.textContent = 'Send Feedback';
-          submitBtn.disabled = false;
-
-          if (response.success) {
-            statusDiv.style.color = '#188038';
-            statusDiv.style.display = 'block';
-            statusDiv.textContent = '✅ ' + response.message;
-            document.getElementById('fbDetails').value = '';
-
-            setTimeout(() => {
-              closeFeedbackModal();
-            }, 1800);
-          } else {
-            statusDiv.style.color = 'var(--aaa-red)';
-            statusDiv.style.display = 'block';
-            statusDiv.textContent = '❌ ' + response.message;
-          }
-        })
-        .withFailureHandler(function(err) {
-          submitBtn.textContent = 'Send Feedback';
-          submitBtn.disabled = false;
-          statusDiv.style.color = 'var(--aaa-red)';
-          statusDiv.style.display = 'block';
-          statusDiv.textContent = '❌ Error submitting: ' + err.toString();
-        })
-        .submitFeedback(payload);
-    }
-
-    // --- COPY AND CLEAR LOGIC ---
-    async function copyInboundForm() {
-      const verificationInput = document.getElementById('D');
-      if (isFieldVisible('inbound', 'verification') && !verificationInput.value.trim()) {
-        const dynamicLabel = getLabel('inbound', 'verification', 'Verification');
-        verificationInput.setCustomValidity(`Please select a ${dynamicLabel} option.`);
-        verificationInput.reportValidity();
-        verificationInput.focus();
-        return;
-      }
-      verificationInput.setCustomValidity('');
-
-      const scheduledService = getRadioValue('scheduledService');
-      const serviceFeeWaived = document.getElementById('inboundServiceFeeWaived').value;
-      const submissionIdInput = document.getElementById('I');
-
-      const needsSubmissionId = (serviceFeeWaived === 'Yes');
-
-      if (isFieldVisible('inbound', 'scheduled_service') && scheduledService === 'Yes' && needsSubmissionId && !submissionIdInput.value.trim()) {
-        submissionIdInput.setCustomValidity('Submission ID is required when the service fee is waived.');
-        submissionIdInput.reportValidity();
-        submissionIdInput.focus();
-        return;
-      }
-      submissionIdInput.setCustomValidity('');
-
-      const customerType = getRadioValue('customerType');
-      const accountHolderLabel = customerType === 'commercial' ? getLabel('inbound', 'company_name', 'COMPANY NAME') : getLabel('inbound', 'company_name', 'ACCOUNT HOLDER NAME');
-
-      const callerName = getValue('A');
-      const companyName = getValue('accountHolderInbound');
-
-      const outputLines = [];
-
-      if (isFieldVisible('inbound', 'caller_name')) {
-        outputLines.push(getLabel('inbound', 'caller_name', 'CALLER NAME') + ': ' + callerName);
-      }
-
-      if (customerType === 'commercial' && companyName && isFieldVisible('inbound', 'company_name')) {
-        outputLines.push(accountHolderLabel + ': ' + companyName);
-      }
-
-      if (isFieldVisible('inbound', 'ar_number')) outputLines.push(getLabel('inbound', 'ar_number', 'AR') + ': ' + getValue('B'));
-      if (isFieldVisible('inbound', 'phone_number')) outputLines.push(getLabel('inbound', 'phone_number', 'Phone') + ': ' + getValue('H'));
-
-      if (isFieldVisible('inbound', 'system_number')) {
-        outputLines.push(getLabel('inbound', 'system_number', 'SYSTEM # or ADC ID') + ': ' + getValue('C'));
-      }
-
-      if (isFieldVisible('inbound', 'verification')) outputLines.push(getLabel('inbound', 'verification', 'VERIFICATION') + ': ' + getValue('D'));
-
-      if (isFieldVisible('inbound', 'panel_type')) {
-        const inboundPanelField = document.getElementById('inboundPanelTypeField');
-        if (inboundPanelField && inboundPanelField.style.display !== 'none') {
-          outputLines.push(getLabel('inbound', 'panel_type', 'PANEL TYPE') + ': ' + getValue('E'));
-        }
-      }
-
-      if (isFieldVisible('inbound', 'service_type')) outputLines.push(getLabel('inbound', 'service_type', 'SERVICE TYPE') + ': ' + getRadioValue('serviceType'));
-      if (isFieldVisible('inbound', 'reason')) outputLines.push(getLabel('inbound', 'reason', 'REASON') + ': ' + getValue('F'));
-
-      outputLines.push('');
-
-      if (isFieldVisible('inbound', 'resolution')) outputLines.push(getLabel('inbound', 'resolution', 'RESOLUTION') + ': ' + getValue('G'));
-
-      if (isFieldVisible('inbound', 'scheduled_service')) {
-        outputLines.push(getLabel('inbound', 'scheduled_service', 'SCHEDULED SERVICE') + ': ' + scheduledService);
-      }
-
-      if (scheduledService === 'Yes' && serviceFeeWaived && isFieldVisible('inbound', 'fee_waived')) {
-        outputLines.push(getLabel('inbound', 'fee_waived', 'SERVICE FEE WAIVED') + ': ' + serviceFeeWaived);
-      }
-
-      if (scheduledService === 'Yes' && needsSubmissionId && isFieldVisible('inbound', 'submission_id')) {
-        outputLines.push(getLabel('inbound', 'submission_id', 'SUBMISSION ID') + ': ' + getValue('I'));
-      }
-
-      outputLines.push('', 'AGENT: ' + agent, 'EXT: ' + phone, 'DEPT: ' + dept);
-
-      await copyNoteOutput(
-        outputLines.join('\n'),
-        'inboundStatus',
-        'inboundCopyOutput',
-        'inboundCopyOutputLabel',
-        'Note copied to clipboard.'
-      );
-    }
-
-    function clearInboundForm() {
-      previousInboundFormData = captureInboundFormData();
-
-      document.getElementById('notepad').reset();
-      clearFormDrafts('notepad');
-
-      document.getElementById('serviceFeeWaivedField').classList.remove('is-visible');
-      document.getElementById('submissionIdField').classList.remove('is-visible');
-      document.getElementById('I').value = '';
-
-      document.getElementById('inboundCopyOutput').value = '';
-      document.getElementById('inboundCopyOutput').style.display = 'none';
-      document.getElementById('inboundCopyOutputLabel').style.display = 'none';
-
-      document.getElementById('undoClearButton').disabled = false;
-      closeTicketPanel();
-
-      switchCustomerType();
-
-      const status = document.getElementById('inboundStatus');
-      status.style.color = '#188038';
-      status.textContent = 'Ticket fields cleared. Select UNDO CLEAR to restore them.';
-    }
-
-    async function copyOutboundForm() {
-      const callAnswered = getRadioValue('outboundCallAnswered');
-
-      const verificationInput = document.getElementById('outboundVerification');
-      if (isFieldVisible('outbound', 'verification') && callAnswered === 'Yes' && !verificationInput.value.trim()) {
-        const dynamicLabel = getLabel('outbound', 'verification', 'Verification');
-        verificationInput.setCustomValidity(`Please select a ${dynamicLabel} option.`);
-        verificationInput.reportValidity();
-        verificationInput.focus();
-        return;
-      }
-      verificationInput.setCustomValidity('');
-
-      const voicemailLeft = getRadioValue('outboundVoicemailLeft');
-      const privacyScript = getRadioValue('outboundPrivacyScript');
-      const serviceType = getRadioValue('outboundServiceType');
-
-      const customerType = getRadioValue('customerType');
-      const accountHolderLabel = customerType === 'commercial' ? getLabel('outbound', 'company_name', 'COMPANY NAME') : getLabel('outbound', 'company_name', 'ACCOUNT HOLDER NAME');
-
-      const scheduledService = getRadioValue('outboundScheduledService');
-      const serviceFeeWaived = document.getElementById('outboundServiceFeeWaived').value;
-      const submissionIdInput = document.getElementById('outboundSubmissionId');
-
-      const needsSubmissionId = (serviceFeeWaived === 'Yes');
-
-      if (isFieldVisible('outbound', 'scheduled_service') && scheduledService === 'Yes' && needsSubmissionId && !submissionIdInput.value.trim()) {
-        submissionIdInput.setCustomValidity('Submission ID is required when the service fee is waived.');
-        submissionIdInput.reportValidity();
-        submissionIdInput.focus();
-        return;
-      }
-      submissionIdInput.setCustomValidity('');
-
-      const callerName = getValue('outboundName');
-      const companyName = getValue('accountHolderOutbound');
-
-      const outputLines = [];
-
-      if (isFieldVisible('outbound', 'obc_to')) addLine(outputLines, getLabel('outbound', 'obc_to', 'OBC TO'), getValue('outboundPhone'));
-      if (isFieldVisible('outbound', 'caller_name')) addLine(outputLines, getLabel('outbound', 'caller_name', "CALLER'S NAME"), callerName);
-
-      if (customerType === 'commercial' && companyName && isFieldVisible('outbound', 'company_name')) {
-        addLine(outputLines, accountHolderLabel, companyName);
-      }
-
-      if (isFieldVisible('outbound', 'call_answered')) addLine(outputLines, getLabel('outbound', 'call_answered', 'CALL ANSWERED'), callAnswered);
-
-      if (isFieldVisible('outbound', 'voicemail_left') && callAnswered === 'No') {
-        addLine(outputLines, getLabel('outbound', 'voicemail_left', 'VOICEMAIL LEFT'), voicemailLeft);
-      }
-
-      // ATTEMPT COUNTER: Formats cleanly as "[Value] Attempt"
-      const attemptVal = getValue('outboundAttempt');
-      if (attemptVal && isFieldVisible('outbound', 'attempt')) {
-        const formattedAttempt = attemptVal.toLowerCase().includes('attempt') 
-        ? attemptVal 
-        : attemptVal + ' Attempt';
-        addLine(outputLines, getLabel('outbound', 'attempt', 'ATTEMPT'), formattedAttempt);
+// ==========================================
+// CONFIGURATION & DYNAMIC SPREADSHEET BINDING
+// ==========================================
+// Automatically uses the active spreadsheet with fallback to your copy ID
+const FALLBACK_SHEET_ID = '1a3qJOmQbn2eywwOEjA_vhLY3yCFU3j3qHrQ9hEvyEDo';
+
+function getDbSpreadsheet() {
+  try {
+    const active = SpreadsheetApp.getActiveSpreadsheet();
+    if (active) return active;
+  } catch (e) {}
+  return SpreadsheetApp.openById(FALLBACK_SHEET_ID);
 }
 
-      if (isFieldVisible('outbound', 'privacy_script') && callAnswered === 'Yes') addLine(outputLines, getLabel('outbound', 'privacy_script', 'PRIVACY SCRIPT'), privacyScript);
-      if (isFieldVisible('outbound', 'service_type')) addLine(outputLines, getLabel('outbound', 'service_type', 'SERVICE TYPE'), serviceType);
+// External Source References
+const ZIP_CODE_SS_ID = '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw';
+const HELPFUL_LINKS_DOC_ID = '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU';
+const EMAIL_TEMPLATES_DOC_ID = '1CJtJskbXT-fY2qNfna9W-i-x3rlJl404W4bgMoKFm0c';
 
-      if (isFieldVisible('outbound', 'panel_type')) {
-        const outboundPanelField = document.getElementById('outboundPanelTypeField');
-        if (outboundPanelField && outboundPanelField.style.display !== 'none') {
-          addLine(outputLines, getLabel('outbound', 'panel_type', 'PANEL TYPE'), getValue('outboundPanelType'));
+// ==========================================
+// WEB APP ROUTING LOGIC
+// ==========================================
+function doGet(e) {
+  const pageName = (e.parameter.page || 'inbound').toLowerCase();
+  
+  // Routes all page parameters through the dynamic Index engine
+  const template = HtmlService.createTemplateFromFile('Index');
+  template.appUrl = ScriptApp.getService().getUrl();
+  template.initialPage = pageName === 'notes' ? 'inbound' : pageName;
+  
+  return template
+    .evaluate()
+    .setTitle('AAA Smart Home - Tech Note Taker')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ==========================================
+// DYNAMIC FORM SCHEMA LOGIC (STRICT ARRAY ORDER)
+// ==========================================
+function getFormSchema() {
+  const ss = getDbSpreadsheet();
+  const tabNames = ['Inbound', 'Outbound', 'Residential', 'Dealer', 'Addendum', 'Parts', 'Index'];
+  const schema = {};
+
+  tabNames.forEach(tabName => {
+    const sheet = ss.getSheetByName(tabName);
+    const key = tabName.toLowerCase();
+    schema[key] = []; // Array preserves exact row sequence from Row 2 down
+    
+    if (sheet) {
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const internalId = row[0] ? row[0].toString().trim() : '';
+        if (internalId && internalId.toLowerCase() !== 'internal id') {
+          schema[key].push({
+            id: internalId,
+            label: row[1] ? row[1].toString().trim() : internalId,
+            type: row[2] ? row[2].toString().trim() : 'Text',
+            options: row[3] ? row[3].toString().trim() : '',
+            visible: row[4] === true || String(row[4]).toUpperCase() === 'TRUE'
+          });
         }
       }
+    }
+  });
 
-      if (isFieldVisible('outbound', 'verification')) addLine(outputLines, getLabel('outbound', 'verification', 'VERIFICATION'), getValue('outboundVerification'));
-      if (isFieldVisible('outbound', 'ar_number')) addLine(outputLines, getLabel('outbound', 'ar_number', 'AR'), getValue('outboundAr'));
+  // Dynamically read authorized extensions from Settings tab (Cell B2)
+  try {
+    const settingsSheet = ss.getSheetByName('Settings');
+    if (settingsSheet) {
+      const rawExts = settingsSheet.getRange('B2').getValue().toString();
+      schema.authorizedExtensions = rawExts.split(',').map(s => s.trim()).filter(Boolean);
+    } else {
+      schema.authorizedExtensions = [];
+    }
+  } catch (err) {
+    schema.authorizedExtensions = [];
+  }
 
-      if (isFieldVisible('outbound', 'system_number')) {
-        addLine(outputLines, serviceType === 'Video Only' ? 'ADC ID' : getLabel('outbound', 'system_number', 'SYSTEM # or ADC ID:'), getValue('outboundSystemNumber'));
-      }
+  return schema;
+}
 
-      if (isFieldVisible('outbound', 'reason')) {
-        addLine(outputLines, getLabel('outbound', 'reason', 'REASON'), getValue('outboundReason'));
-      }
+// ==========================================
+// SECURE PASSCODE LOGIC
+// ==========================================
+function getAdminPasscode() {
+  try {
+    const ss = getDbSpreadsheet();
+    const settingsSheet = ss.getSheetByName('Settings');
+    if (settingsSheet) {
+      return settingsSheet.getRange('B1').getValue().toString().trim();
+    }
+  } catch(e) {}
+  return "8454";
+}
 
-      // Check for resolution text (ignoring whitespace/empty spaces)
-      const resolutionText = (getValue('outboundResolution') || '').trim();
+// ==========================================
+// FEEDBACK SUBMISSION LOGIC
+// ==========================================
+function submitFeedback(data) {
+  try {
+    const ss = getDbSpreadsheet();
+    let feedbackSheet = ss.getSheetByName('Feedback');
+    if (!feedbackSheet) {
+      feedbackSheet = ss.insertSheet('Feedback');
+      feedbackSheet.appendRow([
+        'Timestamp',
+        'Agent Name',
+        'Extension',
+        'Department',
+        'Category',
+        'Applicable Form',
+        'Details / Comments'
+      ]);
+      feedbackSheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#f3f3f3');
+      feedbackSheet.setFrozenRows(1);
+    }
+    feedbackSheet.appendRow([
+      new Date(),
+      data.name || '',
+      data.phone || data.extension || '',
+      data.dept || data.department || '',
+      data.category || '',
+      data.section || data.applicableForm || '',
+      data.details || data.comments || ''
+    ]);
+    return { success: true, message: 'Thank you! Your feedback has been submitted.' };
+  } catch (err) {
+    return { success: false, message: 'Failed to submit feedback: ' + err.toString() };
+  }
+}
 
-      // Only add RESOLUTION and line spacing if there is text entered
-      if (resolutionText !== '' && isFieldVisible('outbound', 'resolution')) {
-        outputLines.push('');
-        addLine(outputLines, getLabel('outbound', 'resolution', 'RESOLUTION'), resolutionText);
-        outputLines.push('');
-      }
+// ==========================================
+// CHANGE LOG LOGIC (Only returns visible rows)
+// ==========================================
+function getChangeLog() {
+  try {
+    const ss = getDbSpreadsheet();
+    const sheet = ss.getSheetByName('Change Log');
+    if (!sheet) return [];
 
-      if (scheduledService && isFieldVisible('outbound', 'scheduled_service')) {
-        outputLines.push(getLabel('outbound', 'scheduled_service', 'SCHEDULED SERVICE') + ': ' + scheduledService);
-      }
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
 
-      if (scheduledService === 'Yes' && serviceFeeWaived && isFieldVisible('outbound', 'fee_waived')) {
-        outputLines.push(getLabel('outbound', 'fee_waived', 'SERVICE FEE WAIVED') + ': ' + serviceFeeWaived);
-      }
+    const tz = ss.getSpreadsheetTimeZone();
 
-      if (scheduledService === 'Yes' && needsSubmissionId && isFieldVisible('outbound', 'submission_id')) {
-        outputLines.push(getLabel('outbound', 'submission_id', 'SUBMISSION ID') + ': ' + getValue('outboundSubmissionId'));
-      }
+    const visibleRows = data.slice(1).filter(r => {
+      const isVisible = r[5] === true || String(r[5]).toUpperCase() === 'TRUE';
+      const hasContent = r[0] || r[3];
+      return isVisible && hasContent;
+    });
 
-      addLine(outputLines, 'AGENT', agent);
-      addLine(outputLines, 'EXT', phone);
-      addLine(outputLines, 'DEPT', dept);
+    return visibleRows.map(r => ({
+      date: r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd') : String(r[0]).trim(),
+      version: r[1] ? String(r[1]).trim() : '',
+      form: r[2] ? String(r[2]).trim() : '',
+      description: r[3] ? String(r[3]).trim() : '',
+      updatedBy: r[4] ? String(r[4]).trim() : ''
+    }));
+  } catch (err) {
+    return [];
+  }
+}
 
-      await copyNoteOutput(
-        outputLines.join('\n'),
-        'outboundStatus',
-        'outboundCopyOutput',
-        'outboundCopyOutputLabel',
-        'Outbound Call note copied to clipboard.'
-      );
+// ==========================================
+// DYNAMIC SPECIAL EMAIL TEMPLATES LOGIC
+// ==========================================
+function getSpecialEmailTemplates(userExtension) {
+  try {
+    const ss = getDbSpreadsheet();
+
+    // 1. Validate authorization server-side
+    const settingsSheet = ss.getSheetByName('Settings');
+    let authorizedExts = [];
+    if (settingsSheet) {
+      const rawExts = settingsSheet.getRange('B2').getValue().toString();
+      authorizedExts = rawExts.split(',').map(s => s.trim()).filter(Boolean);
     }
 
-    function clearOutboundForm() {
-      previousOutboundFormData = captureOutboundFormData();
-
-      document.getElementById('outboundForm').reset();
-      clearFormDrafts('outboundForm');
-
-      toggleVoicemailField();
-      document.getElementById('outboundServiceFeeWaivedField').classList.remove('is-visible');
-      document.getElementById('outboundSubmissionIdField').classList.remove('is-visible');
-      document.getElementById('outboundSubmissionId').value = '';
-
-      document.getElementById('outboundCopyOutput').value = '';
-      document.getElementById('outboundCopyOutput').style.display = 'none';
-      document.getElementById('outboundCopyOutputLabel').style.display = 'none';
-
-      document.getElementById('undoOutboundClearButton').disabled = false;
-
-      switchCustomerType();
-
-      const status = document.getElementById('outboundStatus');
-      status.style.color = '#188038';
-      status.textContent = 'Outbound fields cleared. Select UNDO CLEAR to restore them.';
+    const cleanUserExt = (userExtension || '').toString().trim();
+    if (!authorizedExts.includes(cleanUserExt)) {
+      return [];
     }
 
-    async function copyNoteOutput(output, statusId, outputId, outputLabelId, successMessage) {
-      const status = document.getElementById(statusId);
-      const copyOutput = document.getElementById(outputId);
-      const copyOutputLabel = document.getElementById(outputLabelId);
+    // 2. Read templates from 'Special Emails' tab
+    const sheet = ss.getSheetByName('Special Emails');
+    if (!sheet) return [];
 
-      copyOutput.value = output;
-      copyOutput.style.display = 'none';
-      copyOutputLabel.style.display = 'none';
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
 
-      try {
-        await navigator.clipboard.writeText(output);
-        status.style.color = '#188038';
-        status.textContent = successMessage;
-      } catch (error) {
-        copyOutput.style.display = 'block';
-        copyOutputLabel.style.display = 'block';
-        copyOutput.focus();
-        copyOutput.select();
+    const templates = [];
+    for (let i = 1; i < data.length; i++) {
+      const templateId = data[i][0] ? data[i][0].toString().trim() : '';
+      const brand = data[i][1] ? data[i][1].toString().trim() : '';
+      const subject = data[i][2] ? data[i][2].toString().trim() : '';
+      const body = data[i][3] ? data[i][3].toString().trim() : '';
 
-        status.style.color = '#1a73e8';
-        status.textContent = 'Automatic copy was blocked. The note is selected below—press Ctrl + C.';
+      if (templateId || brand) {
+        const displayName = `🔒 Project 2026 - ${brand}`;
+        const formattedBody = body
+          .split('\n\n')
+          .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+          .join('<br>');
+
+        const fullHtml = `
+          <div>
+            <p><strong>SUBJECT: ${subject}</strong></p>
+            <br>
+            ${formattedBody}
+          </div>
+        `;
+
+        templates.push({
+          name: displayName,
+          subject: subject,
+          body: body,
+          html: fullHtml
+        });
       }
     }
+    return templates;
+  } catch (err) {
+    return [];
+  }
+}
 
-    function changeAgent() {
-      window.top.location.href = '<?= appUrl ?>';
+// ==========================================
+// ZIP CODE SEARCH LOGIC
+// ==========================================
+function checkZipCode(zip) {
+  if (!zip) return { found: false, message: "No zip code provided." };
+  try {
+    const ss = SpreadsheetApp.openById(ZIP_CODE_SS_ID);
+    const cleanZip = zip.trim();
+    let textFinder = ss.createTextFinder(cleanZip).matchEntireCell(true);
+    let results = textFinder.findAll();
+    if (results.length === 0) {
+      textFinder = ss.createTextFinder(cleanZip);
+      results = textFinder.findAll().filter(r => r.getValue().toString().trim() === cleanZip);
     }
+    if (results.length > 0) {
+      let isProZip = false;
+      let isDSZip = false;
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        const sheet = r.getSheet();
+        const tabName = sheet.getName();
+        const col = r.getColumn();
+        if (tabName.includes("Official Pro Zips")) {
+          isProZip = true;
+        } else if (tabName.includes("Official DS (Upgrade & Service)")) {
+          const header1 = sheet.getRange(1, col).getValue().toString().toUpperCase();
+          if (!header1.includes("NO TECH")) {
+            isDSZip = true;
+          }
+        }
+      }
+      if (isProZip) {
+        return { found: true, message: "✅ In Footprint" };
+      } else if (isDSZip) {
+        return { found: true, message: "✅ Dealer Service" };
+      } else {
+        return { found: false, message: "❌ No Tech Available" };
+      }
+    } else {
+      return { found: false, message: "❌ No Tech Available" };
+    }
+  } catch (e) {
+    return { found: false, message: "Error searching zip codes: " + e.toString() };
+  }
+}
 
-    // ==========================================
-    // DYNAMIC HELPFUL LINKS LOGIC
-    // ==========================================
-    google.script.run.withSuccessHandler(function(links) {
-      const inboundSelect = document.getElementById('helpfulLinks');
-      const outboundSelect = document.getElementById('outboundHelpfulLinks');
-
-      inboundSelect.innerHTML = '<option value="">Select a helpful link...</option>';
-      outboundSelect.innerHTML = '<option value="">Select a helpful link...</option>';
-
-      links.forEach(function(link) {
-        appendHelpfulLinkOption(inboundSelect, link);
-        appendHelpfulLinkOption(outboundSelect, link);
-      });
-    }).getHelpfulLinksFromDoc();
-
-    // ==========================================
-    // EMAIL TEMPLATES
-    // ==========================================
-    let emailTemplatesHtml = {};
-
-    google.script.run.withSuccessHandler(function(htmlString) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlString, 'text/html');
-
-      const styleTag = doc.querySelector('style') ? doc.querySelector('style').outerHTML : '';
-      const bodyClass = doc.body.className || '';
-
-      const inboundSelect = document.getElementById('templateSelectInbound');
-      const outboundSelect = document.getElementById('templateSelectOutbound');
-
-      inboundSelect.innerHTML = '<option value="">Select a template...</option>';
-      outboundSelect.innerHTML = '<option value="">Select a template...</option>';
-
-      let currentTemplateName = null;
-      let currentHtml = [];
-
-      const elements = doc.body.children;
-      for (let i = 0; i < elements.length; i++) {
-        const el = elements[i];
-        const textContent = el.textContent || '';
-
-        if (textContent.trim() === 'Email Signatures' || textContent.includes('EMAIL Signature Options')) {
+// ==========================================
+// DYNAMIC HELPFUL LINKS LOGIC
+// ==========================================
+function getHelpfulLinksFromDoc() {
+  try {
+    const doc = DocumentApp.openById(HELPFUL_LINKS_DOC_ID);
+    const top10Names = [
+      "Tech Support Opportunities",
+      "Chatbot",
+      "Common Parts List",
+      "Test Mode SOP",
+      "DS Zip Codes",
+      "Tech Support Tier I Guide",
+      "Known Issues Tracker",
+      "Waived Fee Guideline",
+      "Call Routing Guide",
+      "Actual/Incident Form"
+    ];
+    const extractedLinks = {};
+    function extractLink(textObj) {
+      const textStr = textObj.getText().trim();
+      if (!textStr) return;
+      for (let i = 0; i < textStr.length; i++) {
+        const url = textObj.getLinkUrl(i);
+        if (url) {
+          extractedLinks[textStr] = url;
           break;
         }
-
-        if (textContent.includes('Template Name:')) {
-          if (currentTemplateName && !currentTemplateName.includes("Email Signatures")) {
-            emailTemplatesHtml[currentTemplateName] = styleTag + '<div class="' + bodyClass + '">' + currentHtml.join('') + '</div>';
-
-            appendTemplateOption(currentTemplateName);
-          }
-
-          currentTemplateName = textContent.replace(/\*/g, '').replace(/Template Name:/i, '').trim();
-          currentHtml = [];
-        } else if (currentTemplateName) {
-          currentHtml.push(el.outerHTML);
+      }
+    }
+    doc.getBody().getParagraphs().forEach(p => extractLink(p.editAsText()));
+    doc.getBody().getTables().forEach(table => {
+      for (let r = 0; r < table.getNumRows(); r++) {
+        const row = table.getRow(r);
+        for (let c = 0; c < row.getNumCells(); c++) {
+          extractLink(row.getCell(c).editAsText());
         }
-      }
-
-      if (currentTemplateName && !currentTemplateName.includes("Email Signatures")) {
-        emailTemplatesHtml[currentTemplateName] = styleTag + '<div class="' + bodyClass + '">' + currentHtml.join('') + '</div>';
-        appendTemplateOption(currentTemplateName);
-      }
-
-      // ==========================================
-      // DYNAMIC SPECIAL PROJECT 2026 EMAIL TEMPLATES
-      // ==========================================
-      const currentExt = (localStorage.getItem('phone') || '').trim();
-      if (currentExt) {
-        google.script.run.withSuccessHandler(function(specialTemplates) {
-          if (specialTemplates && specialTemplates.length > 0) {
-            specialTemplates.forEach(function(tmpl) {
-              emailTemplatesHtml[tmpl.name] = tmpl.html;
-              appendTemplateOption(tmpl.name);
-            });
-          }
-        }).getSpecialEmailTemplates(currentExt);
-      }
-    }).getEmailTemplatesHtml();
-
-    function previewEmailTemplate(mode) {
-      const selectId = mode === 'inbound' ? 'templateSelectInbound' : 'templateSelectOutbound';
-      const previewId = mode === 'inbound' ? 'templatePreviewInbound' : 'templatePreviewOutbound';
-
-      const selectedTemplate = document.getElementById(selectId).value;
-      const previewBox = document.getElementById(previewId);
-
-      if (!selectedTemplate) {
-        previewBox.style.display = 'none';
-        previewBox.innerHTML = '';
-        return;
-      }
-
-      let templateHtml = emailTemplatesHtml[selectedTemplate];
-
-      // Remove document styles from the preview to preserve the page layout.
-      templateHtml = templateHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-
-      // Auto-fill the Member Name in the preview if they already typed it
-      const memberName = mode === 'inbound' ? getValue('accountHolderInbound') : getValue('accountHolderOutbound');
-      if (memberName) {
-        templateHtml = templateHtml.replace(/\[Member Name\]/gi, `<span style="background: #e6f4ea; padding: 2px; border-radius: 3px;">${memberName}</span>`);
-      }
-
-      // Highlight other placeholders so they stand out in the preview
-      templateHtml = templateHtml.replace(/\[Case Number\]/gi, '<span style="background: #fce8e6; padding: 2px; border-radius: 3px;">[Case Number]</span>');
-      templateHtml = templateHtml.replace(/\[Case Numer\]/gi, '<span style="background: #fce8e6; padding: 2px; border-radius: 3px;">[Case Number]</span>');
-      templateHtml = templateHtml.replace(/\[Duration\]/gi, '<span style="background: #fce8e6; padding: 2px; border-radius: 3px;">[Duration]</span>');
-
-      previewBox.innerHTML = templateHtml;
-      previewBox.style.display = 'block';
-    }
-
-    function generateAndCopyEmail(mode) {
-      const selectId = mode === 'inbound' ? 'templateSelectInbound' : 'templateSelectOutbound';
-      const statusId = mode === 'inbound' ? 'inboundStatus' : 'outboundStatus';
-
-      const selectedTemplate = document.getElementById(selectId).value;
-
-      if (!selectedTemplate) {
-        alert('Please select a template first.');
-        return;
-      }
-
-      let templateHtml = emailTemplatesHtml[selectedTemplate];
-
-      // Detect template placeholders.
-      // This looks for anything inside brackets containing letters, numbers, or spaces (e.g. [Date], [Tracking Number])
-      const placeholderRegex = /\[([A-Za-z0-9\s_\-\/]+)\]/gi;
-      const matches = templateHtml.match(placeholderRegex);
-
-      if (matches && matches.length > 0) {
-        // Remove duplicates so we don't ask for the same thing twice
-        const uniquePlaceholders = [...new Set(matches)];
-        showCustomPrompt(templateHtml, uniquePlaceholders, statusId, mode);
-      } else {
-        executeCopy(templateHtml, statusId);
-      }
-    }
-
-    function showCustomPrompt(templateHtml, placeholders, statusId, mode) {
-      const overlay = document.createElement('div');
-      overlay.className = 'email-prompt-overlay';
-
-      const box = document.createElement('div');
-      box.className = 'email-prompt-box';
-      // Keep long placeholder forms scrollable.
-
-      const title = document.createElement('h3');
-      title.className = 'email-prompt-title';
-      title.textContent = 'Additional Info Required';
-      box.appendChild(title);
-
-      // Track inputs by placeholder.
-      const inputElements = {};
-
-      // Loop through every placeholder found and build a text box for it
-      placeholders.forEach(placeholder => {
-        // Remove the brackets for the label
-        const cleanName = placeholder.replace(/\[|\]/g, '');
-        const lowerName = cleanName.toLowerCase();
-
-        const lbl = document.createElement('label');
-      lbl.className = 'email-prompt-label';
-
-        const input = document.createElement('input');
-      input.className = 'email-prompt-input';
-        input.type = 'text';
-
-        // Prefill recognized placeholders.
-        if (lowerName === 'member name') {
-          const customerType = getRadioValue('customerType');
-          lbl.textContent = customerType === 'commercial' ? 'Company Name:' : 'Account Holder Name:';
-
-          const callerName = mode === 'inbound' ? getValue('A') : getValue('outboundName');
-          const companyName = mode === 'inbound' ? getValue('accountHolderInbound') : getValue('accountHolderOutbound');
-          input.value = (customerType === 'commercial' && companyName) ? companyName : callerName;
-        }
-        else if (lowerName === 'case number' || lowerName === 'case numer') {
-          lbl.textContent = 'Case Number:';
-          input.value = mode === 'inbound' ? getValue('B') : getValue('outboundAr');
-        }
-        else {
-          // Use the placeholder text as the label for other fields.
-          lbl.textContent = cleanName + ':';
-        }
-
-        inputElements[placeholder] = input;
-        box.appendChild(lbl);
-        box.appendChild(input);
-      });
-
-      const btnContainer = document.createElement('div');
-      btnContainer.className = 'email-prompt-actions';
-
-      const cancelBtn = document.createElement('button');
-      cancelBtn.className = 'email-prompt-cancel';
-      cancelBtn.textContent = 'Cancel';
-      cancelBtn.onclick = function() { document.body.removeChild(overlay); };
-
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'email-prompt-copy';
-      copyBtn.textContent = 'Copy to Clipboard';
-
-      copyBtn.onclick = function() {
-        // Substitute the entered placeholder values.
-        for (const [placeholder, inputEl] of Object.entries(inputElements)) {
-          // If they leave it blank, just leave the placeholder in the email
-          const val = inputEl.value.trim() || placeholder;
-
-          // Escape the placeholder for matching and replace all occurrences.
-          const regex = new RegExp(placeholder.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
-          templateHtml = templateHtml.replace(regex, val);
-        }
-
-        document.body.removeChild(overlay);
-        executeCopy(templateHtml, statusId);
-      };
-
-      btnContainer.appendChild(cancelBtn);
-      btnContainer.appendChild(copyBtn);
-      box.appendChild(btnContainer);
-      overlay.appendChild(box);
-      document.body.appendChild(overlay);
-
-      // Auto-focus the very first input box
-      if (placeholders.length > 0) {
-        inputElements[placeholders[0]].focus();
-      }
-    }
-
-    function executeCopy(templateHtml, statusId) {
-      const hiddenDiv = document.createElement('div');
-      hiddenDiv.style.position = 'absolute';
-      hiddenDiv.style.left = '-9999px';
-      hiddenDiv.style.top = '-9999px';
-      hiddenDiv.style.fontFamily = 'Arial, sans-serif';
-      hiddenDiv.style.fontSize = '14px';
-      hiddenDiv.style.color = '#000000';
-      hiddenDiv.innerHTML = templateHtml;
-      document.body.appendChild(hiddenDiv);
-
-      const textBlocks = hiddenDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-      textBlocks.forEach(block => {
-        const div = document.createElement('div');
-        div.innerHTML = block.innerHTML;
-        div.style.cssText = block.style.cssText;
-
-        div.style.marginTop = '0';
-        div.style.marginBottom = '0';
-        div.style.paddingTop = '0';
-        div.style.paddingBottom = '0';
-        div.style.lineHeight = '1.4';
-
-        if (div.textContent.trim() === '' && !div.querySelector('img')) {
-          div.innerHTML = '<br>';
-        }
-        block.parentNode.replaceChild(div, block);
-      });
-
-      const uls = hiddenDiv.querySelectorAll('ul');
-      uls.forEach(ul => {
-        ul.style.marginTop = '0';
-        ul.style.marginBottom = '0';
-        ul.style.listStyleType = 'disc';
-        ul.style.paddingLeft = '30px';
-      });
-
-      const ols = hiddenDiv.querySelectorAll('ol');
-      ols.forEach(ol => {
-        ol.style.marginTop = '0';
-        ol.style.marginBottom = '0';
-        ol.style.listStyleType = 'decimal';
-        ol.style.paddingLeft = '30px';
-      });
-
-      const lis = hiddenDiv.querySelectorAll('li');
-      lis.forEach(li => {
-        li.style.marginTop = '0';
-        li.style.marginBottom = '0';
-      });
-
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(hiddenDiv);
-      selection.removeAllRanges();
-      selection.addRange(range);
-
-      try {
-        document.execCommand('copy');
-        const status = document.getElementById(statusId);
-        status.style.color = '#188038';
-        status.textContent = 'Email template copied with perfect spacing and bullets!';
-      } catch (err) {
-        console.error('Copy failed: ', err);
-        alert('Failed to copy to clipboard.');
-      } finally {
-        selection.removeAllRanges();
-        document.body.removeChild(hiddenDiv);
-      }
-    }
-
-    // ==========================================
-    // AUTO-SAVE / DRAFT FEATURE
-    // ==========================================
-    function saveDraft(e) {
-      const el = e.target;
-
-      if (!el.id || el.id.includes('templateSelect') || el.id.includes('helpfulLinks') || el.id.includes('CopyOutput') || el.id.includes('zipSearch') || el.id.startsWith('fb')) return;
-
-      if (el.type === 'radio') {
-        if (el.checked) localStorage.setItem('draft_' + el.name, el.value);
-      } else {
-        localStorage.setItem('draft_' + el.id, el.value);
-      }
-    }
-
-    document.addEventListener('input', saveDraft);
-    document.addEventListener('change', saveDraft);
-
-    function loadDrafts() {
-      const elements = document.querySelectorAll('input, select, textarea');
-      elements.forEach(el => {
-        if (!el.id || el.id.includes('templateSelect') || el.id.includes('helpfulLinks') || el.id.includes('CopyOutput') || el.id.includes('zipSearch') || el.id.startsWith('fb')) return;
-
-        if (el.type === 'radio') {
-          const saved = localStorage.getItem('draft_' + el.name);
-          if (saved && el.value === saved) {
-            el.checked = true;
-            el.dispatchEvent(new Event('change'));
-          }
-        } else {
-          const saved = localStorage.getItem('draft_' + el.id);
-          if (saved) {
-            el.value = saved;
-            el.dispatchEvent(new Event('change'));
-          }
-        }
-      });
-    }
-
-    window.addEventListener('DOMContentLoaded', loadDrafts);
-    window.addEventListener('DOMContentLoaded', toggleVoicemailField);
-
-    function clearFormDrafts(formId) {
-      const elements = document.querySelectorAll(`#${formId} input, #${formId} select, #${formId} textarea`);
-      elements.forEach(el => {
-        if (el.type === 'radio') {
-          localStorage.removeItem('draft_' + el.name);
-        } else if (el.id) {
-          localStorage.removeItem('draft_' + el.id);
-        }
-      });
-    }
-    </script>
-
-  <!-- 1. HTML MODAL STRUCTURE (Outside of script) -->
-  <div id="changeLogModal" style="display:none; position:fixed; z-index:99999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.55); align-items:center; justify-content:center;">
-    <div style="background:#ffffff; width:680px; max-width:92%; max-height:82vh; border-radius:8px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,0.35); font-family: Arial, sans-serif;">
-      <div style="background:#003b8f; color:#ffffff; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #e2231a;">
-        <h3 style="margin:0; font-size:16px; font-weight:bold;">📋 Note Taker Change Log</h3>
-        <button type="button" onclick="closeChangeLogModal()" style="background:transparent; border:none; color:#ffffff; font-size:20px; cursor:pointer; line-height:1;">&times;</button>
-      </div>
-      <div id="changeLogContent" style="padding:16px; overflow-y:auto; font-size:13px; line-height:1.4; max-height:60vh;">
-        <p style="color:#666; font-style:italic;">Loading updates from Note Taker Base...</p>
-      </div>
-      <div style="padding:10px 18px; background:#f5f5f5; border-top:1px solid #ddd; text-align:right;">
-        <button type="button" onclick="closeChangeLogModal()" style="padding:6px 14px; background:#e9e9e9; border:1px solid #777; border-radius:4px; font-weight:bold; cursor:pointer;">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 2. JAVASCRIPT LOGIC (Inside script) -->
-  <script>
-    // ==========================================
-    // CHANGE LOG MODAL LOGIC
-    // ==========================================
-    function openChangeLogModal() {
-      const modal = document.getElementById('changeLogModal');
-      const container = document.getElementById('changeLogContent');
-      if (!modal || !container) return;
-
-      modal.style.display = 'flex';
-      container.innerHTML = '<p style="color:#666; font-style:italic;">Loading updates from Note Taker Base...</p>';
-
-      google.script.run
-        .withSuccessHandler(function(entries) {
-          if (!entries || entries.length === 0) {
-            container.innerHTML = '<p style="color:#666;">No change log entries found.</p>';
-            return;
-          }
-
-          let html = '<table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">';
-          html += '<thead style="position:sticky; top:0; background:#f0f4f8;">';
-          html += '<tr style="border-bottom:2px solid #003b8f; color:#003b8f;">';
-          html += '<th style="padding:8px 6px; width:85px;">Date</th>';
-          html += '<th style="padding:8px 6px; width:65px;">Version</th>';
-          html += '<th style="padding:8px 6px; width:120px;">Form</th>';
-          html += '<th style="padding:8px 6px;">Description</th>';
-          html += '</tr></thead><tbody>';
-
-          entries.forEach(function(item) {
-            html += '<tr style="border-bottom:1px solid #e2e8f0;">';
-            html += '<td style="padding:8px 6px; white-space:nowrap; font-weight:bold; color:#333;">' + (item.date || '') + '</td>';
-            html += '<td style="padding:8px 6px; white-space:nowrap; color:#003b8f; font-weight:bold;">' + (item.version || '') + '</td>';
-            html += '<td style="padding:8px 6px; white-space:nowrap; color:#444;">' + (item.form || '') + '</td>';
-            html += '<td style="padding:8px 6px; color:#222;">' + (item.description || '') + '</td>';
-            html += '</tr>';
-          });
-
-          html += '</tbody></table>';
-          container.innerHTML = html;
-        })
-        .withFailureHandler(function(err) {
-          container.innerHTML = '<p style="color:#d93025;">Unable to load Change Log: ' + err.toString() + '</p>';
-        })
-        .getChangeLog();
-    }
-
-    function closeChangeLogModal() {
-      const modal = document.getElementById('changeLogModal');
-      if (modal) modal.style.display = 'none';
-    }
-
-    window.addEventListener('click', function(event) {
-      const modal = document.getElementById('changeLogModal');
-      if (event.target === modal) {
-        closeChangeLogModal();
       }
     });
-  </script>
-</body>
-</html>
+    const finalLinks = [];
+    top10Names.forEach(name => {
+      let foundUrl = null;
+      for (let key in extractedLinks) {
+        if (key.toLowerCase().includes(name.toLowerCase())) {
+          foundUrl = extractedLinks[key];
+          break;
+        }
+      }
+      if (foundUrl) {
+        finalLinks.push({
+          name: name,
+          url: foundUrl,
+          popup: name.toLowerCase() === 'chatbot' ? 'chatbot' : ''
+        });
+      }
+    });
+    finalLinks.push({
+      name: "📄 VIEW ALL LINKS",
+      url: "https://docs.google.com/document/d/" + HELPFUL_LINKS_DOC_ID + "/edit",
+      popup: ""
+    });
+    return finalLinks;
+  } catch (err) {
+    return [];
+  }
+}
+
+// ==========================================
+// EMAIL TEMPLATES LOGIC (From Google Doc)
+// ==========================================
+function getEmailTemplatesHtml() {
+  try {
+    DriveApp.getFileById(EMAIL_TEMPLATES_DOC_ID);
+    const url = "https://docs.google.com/feeds/download/documents/export/Export?id=" + EMAIL_TEMPLATES_DOC_ID + "&exportFormat=html";
+    const options = {
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken()
+      },
+      muteHttpExceptions: true
+    };
+    const response = UrlFetchApp.fetch(url, options);
+    return response.getContentText();
+  } catch (e) {
+    return "<p>Unable to load doc templates.</p>";
+  }
+}
+
+// ==========================================
+// AUTOMATIC CHANGE LOG TRIGGER
+// ==========================================
+function onEdit(e) {
+  if (!e || !e.range) return;
+
+  const sheet = e.range.getSheet();
+  const sheetName = sheet.getName();
+
+  const excludedTabs = ['Change Log', 'Feedback', 'Special Emails'];
+  if (excludedTabs.includes(sheetName)) return;
+  if (e.range.getRow() === 1) return;
+
+  const ss = e.source;
+  const logSheet = ss.getSheetByName('Change Log');
+  if (!logSheet) return;
+
+  const timestamp = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  const user = Session.getActiveUser().getEmail() || 'Admin';
+  const cellNotation = e.range.getA1Notation();
+
+  let fieldIdentifier = '';
+  try {
+    const row = e.range.getRow();
+    const idVal = sheet.getRange(row, 1).getValue().toString().trim();
+    const labelVal = sheet.getRange(row, 2).getValue().toString().trim();
+    fieldIdentifier = labelVal || idVal || `Row ${row}`;
+  } catch (err) {
+    fieldIdentifier = `Row ${e.range.getRow()}`;
+  }
+
+  const oldValue = e.oldValue !== undefined ? `"${e.oldValue}"` : '(blank)';
+  const newValue = e.value !== undefined ? `"${e.value}"` : '(blank)';
+  const description = `Updated [${fieldIdentifier}] in ${cellNotation}: changed from ${oldValue} to ${newValue}`;
+
+  logSheet.insertRowBefore(2);
+  const newRowRange = logSheet.getRange(2, 1, 1, 6);
+  newRowRange.setValues([[
+    timestamp,
+    'v1.x',
+    sheetName,
+    description,
+    user,
+    true
+  ]]);
+
+  logSheet.getRange(2, 6).insertCheckboxes();
+}
