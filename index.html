@@ -181,7 +181,7 @@
           </button>
           <button type="button" onclick="clearCurrentForm()" class="px-2.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg transition">
             <i class="fa-solid fa-rotate-left mr-1"></i> Clear
-          </button>
+          </button><button type="button" data-undo-clear onclick="undoClearCurrentForm()" disabled class="px-3 py-1.5 text-xs font-semibold border rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">Undo Clear</button>
         </div>
       </div>
 
@@ -206,7 +206,7 @@
         <div class="flex items-center gap-2">
           <button type="button" onclick="clearCurrentForm()" class="px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg transition">
             <i class="fa-solid fa-rotate-left mr-1"></i> Clear All Fields
-          </button>
+          </button><button type="button" data-undo-clear onclick="undoClearCurrentForm()" disabled class="px-3 py-1.5 text-xs font-semibold border rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">Undo Clear</button>
           <button type="button" onclick="copyGeneratedNote()" id="bottomCopyBtn" class="px-5 py-2 bg-[#003b8f] hover:bg-[#002b6b] text-white text-xs font-extrabold uppercase tracking-wide rounded-lg transition shadow-sm flex items-center gap-2">
             <i class="fa-solid fa-copy"></i>
             <span>Copy Note to Clipboard</span>
@@ -267,9 +267,7 @@
           <button type="button" onclick="switchEmailTab('standard')" id="btnEmailTabStandard" class="px-3 py-1.5 rounded font-bold transition bg-white text-[#003b8f] shadow-sm">
             <i class="fa-solid fa-users mr-1"></i> Standard Team Guides
           </button>
-          <button type="button" onclick="switchEmailTab('special')" id="btnEmailTabSpecial" class="px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900">
-            <i class="fa-solid fa-lock text-amber-600 mr-1"></i> Special Emails (Project 2026)
-          </button>
+          <button type="button" onclick="switchEmailTab('special')" id="btnEmailTabSpecial" style="display:none;"></button>
         </div>
 
         <!-- Dynamic Replacement Variables (Auto-Synced from Note) -->
@@ -438,7 +436,7 @@
             <option value="Dealer Service">Dealer Service</option>
             <option value="Parts Order">Parts Order</option>
             <option value="Addendum Request">Addendum Request</option>
-            <option value="Special Emails">Special Emails</option>
+
           </select>
         </div>
         <div>
@@ -512,6 +510,7 @@
       if (savedDept) currentAgent.department = savedDept;
 
       updateAgentUI();
+      restoreFormDrafts();
 
       google.script.run
         .withSuccessHandler(handleSchemaLoaded)
@@ -577,6 +576,7 @@
     // FORM SCHEMA & 3-COLUMN RENDERER IN EXACT SHEET ROW ORDER
     function handleSchemaLoaded(schema) {
       formSchema = schema || {};
+      applySpecialEmailAccess();
       renderActiveForm();
     }
 
@@ -613,6 +613,7 @@
       document.getElementById('callTypeInbound').className = type === 'Inbound' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
       document.getElementById('callTypeOutbound').className = type === 'Outbound' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
       document.getElementById('activeFormTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-[#003b8f]"></i> ${callType} Note Taker`;
+      saveFormDrafts();
       renderActiveForm();
     }
 
@@ -620,6 +621,7 @@
       customerType = type;
       document.getElementById('custTypeRes').className = type === 'Residential' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
       document.getElementById('custTypeCom').className = type === 'Commercial' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+      saveFormDrafts();
       renderActiveForm();
     }
 
@@ -627,20 +629,11 @@
       const id = field.id || field['Internal ID'] || field.internalId;
       const visible = field.visible !== undefined ? field.visible : field['Visible'];
       if (visible === false || String(visible).trim().toUpperCase() === 'FALSE') return false;
-
-      const unanswered = targetKey === 'outbound' &&
-        String(values.call_answered || '').trim().toLowerCase() === 'no';
-      if (unanswered) {
-        // Preserve the called number, member name, and unanswered-call controls.
-        return ['obc_to', 'phone_number', 'outboundPhone',
-          'caller_name', 'name_contact', 'name', 'member_name',
-          'call_answered', 'voicemail_left', 'attempt'].includes(id);
-      }
-
+      if (targetKey === 'outbound' && String(values.call_answered || '').trim().toLowerCase() === 'no')
+        return ['obc_to','phone_number','outboundPhone','caller_name','name_contact','name','member_name','call_answered','voicemail_left','attempt'].includes(id);
       if (id === 'company_name' && customerType === 'Residential') return false;
       if (id === 'panel_type' && String(values.service_type || '').toLowerCase() === 'video only') return false;
-      if ((id === 'fee_waived' || id === 'submission_id') &&
-          String(values.scheduled_service || '').toLowerCase() !== 'yes') return false;
+      if (['fee_waived','submission_id'].includes(id) && String(values.scheduled_service || '').toLowerCase() !== 'yes') return false;
       return true;
     }
 
@@ -708,62 +701,33 @@
   });
 
   container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
+  updateUndoClearButtons();
 }
 
     function handleFieldInput(fieldId, val) {
       if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
       formValues[activeFormKey][fieldId] = val;
-      const targetKey = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
-      const field = getOrderedFields(targetKey).find(function (item) {
-        return (item.id || item['Internal ID'] || item.internalId) === fieldId;
-      });
-      const fieldType = String(field
-        ? field.type || field.fieldType || field['Field Type'] || 'Text'
-        : 'Text').trim().toLowerCase();
-      if (fieldType === 'radio' ||
-          ['service_type', 'scheduled_service', 'call_answered'].includes(fieldId)) {
-        renderActiveForm();
-      }
+      saveFormDrafts();
+      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
+      const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
+      if (type === 'radio' || ['service_type','scheduled_service','call_answered'].includes(fieldId)) renderActiveForm();
     }
-
 
     // NOTE COMPILED TEXT BUILDER (FOLLOWS SHEET ROW ORDER)
     function buildCompiledNoteText() {
-      const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
-      const fieldsList = getOrderedFields(targetKey);
+      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
       const vals = formValues[activeFormKey] || {};
-
-      const now = new Date();
-      const dateStr = now.toLocaleString();
-
-      let lines = [];
-      lines.push(`=======================================================`);
-      lines.push(`  AAA SMART HOME - ${activeFormKey.toUpperCase()}`);
-      lines.push(`=======================================================`);
-      lines.push(`AGENT: ${currentAgent.name}`);
-      lines.push(`EXTENSION: ${currentAgent.extension}`);
-      lines.push(`DEPARTMENT: ${currentAgent.department}`);
-      if (activeFormKey === 'notes') {
-        lines.push(`CALL TYPE: ${callType.toUpperCase()}`);
-        lines.push(`CUSTOMER TYPE: ${customerType.toUpperCase()}`);
-      }
-      lines.push(`TIMESTAMP: ${dateStr}`);
-      if (timerSeconds > 0) {
-        const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-        const s = String(timerSeconds % 60).padStart(2, '0');
-        lines.push(`HANDLE TIME: ${m}:${s}`);
-      }
-      lines.push(`-------------------------------------------------------`);
-
-      fieldsList.forEach(field => {
-        const fieldId = field.id || field['Internal ID'] || field.internalId;
-        if (!shouldShowNoteField(field, targetKey, vals)) return;
-
-        const val = vals[fieldId];
-        lines.push(`${field.label || fieldId}: ${val && val.trim() ? val.trim() : 'N/A'}`);
+      const lines = [];
+      getOrderedFields(key).forEach(field => {
+        const id = field.id || field['Internal ID'] || field.internalId;
+        if (!shouldShowNoteField(field, key, vals)) return;
+        const label = String(field.label || field['Display Label'] || field.displayLabel || id).trim().replace(/:\s*$/, '').toUpperCase();
+        const value = vals[id] == null ? '' : String(vals[id]).trim();
+        lines.push(label + ': ' + (value || 'N/A'));
       });
-
-      lines.push(`=======================================================`);
+      if (lines.length) lines.push('');
+      lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extension || ''), 'DEPT: ' + (currentAgent.department || ''));
       return lines.join('\n');
     }
 
@@ -804,9 +768,36 @@
       document.getElementById('notePreviewModal').classList.add('hidden');
     }
 
+    let undoClearSnapshots = {};
+    function formDraftStorageKey() { return 'noteTaker_v2_drafts_' + (String(currentAgent.extension || '').trim() || 'unassigned'); }
+    function saveFormDrafts() {
+      try { localStorage.setItem(formDraftStorageKey(), JSON.stringify({version:1,values:formValues,undo:undoClearSnapshots,callType:callType,customerType:customerType})); }
+      catch (e) { console.warn('Draft storage unavailable; entries remain in memory.',e); }
+    }
+    function restoreFormDrafts() {
+      try {
+        const saved=JSON.parse(localStorage.getItem(formDraftStorageKey()) || 'null');
+        if (!saved || saved.version !== 1 || !saved.values) return;
+        Object.keys(formValues).forEach(key => {
+          if (saved.values[key] && typeof saved.values[key] === 'object' && !Array.isArray(saved.values[key])) formValues[key]=saved.values[key];
+          if (saved.undo && saved.undo[key] && typeof saved.undo[key] === 'object' && !Array.isArray(saved.undo[key])) undoClearSnapshots[key]=saved.undo[key];
+        });
+        setCallType(saved.callType === 'Outbound' ? 'Outbound' : 'Inbound');
+        setCustomerType(saved.customerType === 'Commercial' ? 'Commercial' : 'Residential');
+      } catch(e) { console.warn('Unable to restore drafts.',e); }
+    }
+    function updateUndoClearButtons() {
+      document.querySelectorAll('[data-undo-clear]').forEach(b => { b.disabled=!Object.prototype.hasOwnProperty.call(undoClearSnapshots,activeFormKey); });
+    }
     function clearCurrentForm() {
-      formValues[activeFormKey] = {};
-      renderActiveForm();
+      const values=formValues[activeFormKey] || {};
+      if(Object.values(values).some(v => v !== '' && v !== null && v !== undefined)) undoClearSnapshots[activeFormKey]=JSON.parse(JSON.stringify(values));
+      formValues[activeFormKey]={}; saveFormDrafts(); renderActiveForm();
+    }
+    function undoClearCurrentForm() {
+      if(!Object.prototype.hasOwnProperty.call(undoClearSnapshots,activeFormKey)) return;
+      formValues[activeFormKey]=JSON.parse(JSON.stringify(undoClearSnapshots[activeFormKey]));
+      delete undoClearSnapshots[activeFormKey]; saveFormDrafts(); renderActiveForm();
     }
 
     function quickFillSampleData() {
@@ -823,6 +814,7 @@
         scheduled_service: 'No',
         resolution: 'Guided member through test mode, replaced battery, clear tamper sent. System normalized.'
       };
+      saveFormDrafts();
       renderActiveForm();
     }
 
@@ -876,6 +868,7 @@
     }
 
     function switchEmailTab(tab) {
+      if (tab === 'special' && !specialEmailAccessAllowed) tab = 'standard';
       activeEmailTab = tab;
       if (tab === 'standard') {
         document.getElementById('btnEmailTabStandard').className = 'px-3 py-1.5 rounded font-bold transition bg-white text-[#003b8f] shadow-sm';
@@ -993,9 +986,39 @@
       }
     }
 
+    let specialEmailAccessAllowed = false;
+    function applySpecialEmailAccess() {
+      const raw = formSchema.authorizedExtensions;
+      const allowed = (Array.isArray(raw) ? raw.flat(Infinity) : [raw])
+        .filter(v => v != null).map(v => String(v).trim()).filter(Boolean);
+      const ext = String(currentAgent.extension || '').trim();
+      specialEmailAccessAllowed = ext !== '' && allowed.includes(ext);
+      const button = document.getElementById('btnEmailTabSpecial');
+      button.style.display = specialEmailAccessAllowed ? '' : 'none';
+      button.textContent = specialEmailAccessAllowed ? 'Special Emails (Project 2026)' : '';
+      button.className = 'px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900';
+      const select = document.getElementById('feedbackSection');
+      if (select) {
+        Array.from(select.options).filter(o => o.value === 'Special Emails').forEach(o => o.remove());
+        if (specialEmailAccessAllowed) {
+          const option=document.createElement('option'); option.value='Special Emails'; option.textContent='Special Emails';select.appendChild(option);
+        }
+      }
+      if (!specialEmailAccessAllowed) {
+        specialTemplatesList=[];
+        if(activeSelectedTemplate && activeSelectedTemplate.type === 'special') {
+          activeSelectedTemplate=null;
+          if(parsedStandardTemplates.length) selectTemplate(parsedStandardTemplates[0]);
+        }
+        if(activeEmailTab === 'special') switchEmailTab('standard');
+      }
+    }
+
     function loadSpecialEmails() {
+      if (!specialEmailAccessAllowed) return;
       google.script.run
         .withSuccessHandler((templates) => {
+          if (!specialEmailAccessAllowed) return;
           specialTemplatesList = (templates || []).map((t, idx) => ({
             id: t.id || `SPEC-${idx + 1}`,
             name: t.name || `🔒 Special Email - ${t.brand}`,
@@ -1016,17 +1039,8 @@
       const sourceList = isSpecial ? specialTemplatesList : parsedStandardTemplates;
       const searchQ = (document.getElementById('searchTemplateInput')?.value || '').toLowerCase().trim();
 
-      // Check special email permission
-      if (isSpecial && sourceList.length === 0) {
-        container.innerHTML = `
-          <div class="py-12 px-4 text-center text-slate-500 text-xs bg-slate-50 rounded-lg border border-dashed border-slate-200 m-2">
-            <i class="fa-solid fa-lock text-3xl text-amber-500 mb-2"></i>
-            <h5 class="font-bold text-slate-800">Restricted Access</h5>
-            <p class="mt-1">Extension <strong>${currentAgent.extension}</strong> is not authorized to access Project 2026 Special Emails.</p>
-            <p class="text-[10px] text-slate-400 mt-2">Authorized extensions are configured in Settings!B2 of the spreadsheet.</p>
-          </div>
-        `;
-        document.getElementById('templateCountBadge').innerText = '0 Templates';
+      if (isSpecial && !specialEmailAccessAllowed) {
+        switchEmailTab('standard');
         return;
       }
 
