@@ -624,51 +624,76 @@
     }
 
     function renderActiveForm() {
-      const container = document.getElementById('dynamicFormContainer');
-      const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
-      
-      const fieldsList = getOrderedFields(targetKey);
-      const currentVals = formValues[activeFormKey] || {};
+  const container = document.getElementById('dynamicFormContainer');
+  const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
+  
+  const fieldsList = getOrderedFields(targetKey);
+  const currentVals = formValues[activeFormKey] || {};
+  let html = '';
 
-      let html = '';
+  fieldsList.forEach(field => {
+    const fieldId = field.id || field['Internal ID'] || field.internalId;
+    const isVisible = (field.visible !== undefined ? field.visible : field['Visible']);
+    if (isVisible && isVisible.toString().toUpperCase() === 'FALSE') return;
+    
+    // Visibility conditions
+    if (fieldId === 'company_name' && customerType === 'Residential') return;
+    if (fieldId === 'panel_type' && (currentVals['service_type'] || '').toLowerCase() === 'video only') return;
+    if ((fieldId === 'fee_waived' || fieldId === 'submission_id') && (currentVals['scheduled_service'] || '').toLowerCase() !== 'yes') return;
 
-      fieldsList.forEach(field => {
-        const fieldId = field.id;
-        if (field.visible && field.visible.toString().toUpperCase() === 'FALSE') return;
+    const val = currentVals[fieldId] || '';
+    
+    // Robust field type resolution supporting multiple naming conventions
 
-        if (fieldId === 'company_name' && customerType === 'Residential') return;
-        if (fieldId === 'panel_type' && (currentVals['service_type'] || '').toLowerCase() === 'video only') return;
-        if ((fieldId === 'fee_waived' || fieldId === 'submission_id') && (currentVals['scheduled_service'] || '').toLowerCase() !== 'yes') return;
+    const rawType = field.type || field.fieldType || field['Field Type'] || 'Text';
+    const fType = rawType.toString().trim().toLowerCase();
+    
+    // Robust options resolution
+    const rawOptions = field.options || field.Options || field['Options'] || '';
+    const opts = rawOptions.split(',').map(s => s.trim()).filter(Boolean);
 
-        const val = currentVals[fieldId] || '';
-        const fType = (field.type || 'Text').toLowerCase();
-        const isSpanningTextarea = fType === 'textarea';
+    const isSpanningTextarea = fType === 'textarea';
+    const label = field.label || field['Display Label'] || field.displayLabel || fieldId;
 
-        html += `<div class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
-          <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide block flex items-center justify-between">
-            <span>${field.label || fieldId}</span>
-            ${fieldId === 'submission_id' ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
-          </label>`;
+    html += `<div class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
+      <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
+        <span>${label}</span>
+        ${fieldId === 'submission_id' ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
+      </label>`;
 
-        if (fType === 'textarea') {
-          html += `<textarea rows="3" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${field.label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">${val}</textarea>`;
-        } else if (fType === 'dropdown') {
-          const opts = (field.options || '').split(',').map(s => s.trim()).filter(Boolean);
-          html += `<select onchange="handleFieldInput('${fieldId}', this.value)" class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition cursor-pointer">
-            <option value="">-- Select --</option>`;
-          opts.forEach(opt => {
-            html += `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>`;
-          });
-          html += `</select>`;
-        } else {
-          html += `<input type="text" value="${val}" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${field.label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">`;
-        }
-
-        html += `</div>`;
+    if (fType === 'textarea') {
+      html += `<textarea rows="3" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">${val}</textarea>`;
+    } else if (fType === 'dropdown') {
+      html += `<select onchange="handleFieldInput('${fieldId}', this.value)" class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition cursor-pointer">
+        <option value="">-- Select --</option>`;
+      opts.forEach(opt => {
+        html += `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>`;
       });
-
-      container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
+      html += `</select>`;
+    } else if (fType === 'radio') {
+      html += `<div class="flex flex-wrap gap-2 pt-0.5">`;
+      opts.forEach(opt => {
+        const isSelected = val === opt;
+        html += `
+          <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-semibold cursor-pointer transition ${
+            isSelected 
+              ? 'bg-[#003b8f] text-white border-[#003b8f]' 
+              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+          }">
+            <input type="radio" name="${fieldId}" value="${opt}" ${isSelected ? 'checked' : ''} onchange="handleFieldInput('${fieldId}', this.value)" class="hidden">
+            <span>${opt}</span>
+          </label>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<input type="text" value="${val}" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">`;
     }
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
+}
 
     function handleFieldInput(fieldId, val) {
       if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
