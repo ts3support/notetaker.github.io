@@ -1,1 +1,1081 @@
-so I am reviewing the grid for: CALLER NAME: AR#: SYSTEM # or ADC ID: PHONE #: VERIFICATION TYPE (required): Select verification... PANEL TYPE: SERVICE TYPE: Full System Video Only REASON: SCHEDULED SERVICE?: Yes No I see all of this is on a grid layout, but the inbound/outbound and residential/commmercial dont line up
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AAA Smart Home - Tech Note Taker</title>
+  <!-- Bootstrap 5 & FontAwesome -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --aaa-blue: #003b8f;
+      --aaa-red: #e2231a;
+      --bg-body: #f1f5f9;
+      --card-bg: #ffffff;
+      --text-dark: #0f172a;
+    }
+    body {
+      background-color: var(--bg-body);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text-dark);
+      padding-bottom: 85px;
+    }
+    .header-bar {
+      background-color: var(--aaa-blue);
+      border-bottom: 4px solid var(--aaa-red);
+    }
+    .nav-tabs {
+      border-bottom: 2px solid #cbd5e1;
+      background-color: #ffffff;
+    }
+    .nav-tabs .nav-link {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #475569;
+      border: none;
+      padding: 10px 18px;
+      transition: all 0.15s ease-in-out;
+    }
+    .nav-tabs .nav-link:hover {
+      color: var(--aaa-blue);
+      background-color: #f8fafc;
+    }
+    .nav-tabs .nav-link.active {
+      color: var(--aaa-blue);
+      border-bottom: 3px solid var(--aaa-blue);
+      background: transparent;
+      font-weight: 700;
+    }
+    /* Compact 3-Column Styling */
+    .form-label-compact {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #334155;
+      margin-bottom: 3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .form-control-compact, .form-select-compact {
+      font-size: 0.84rem;
+      border-color: #cbd5e1;
+      padding: 6px 10px;
+      border-radius: 5px;
+      background-color: #ffffff;
+    }
+    .form-control-compact:focus, .form-select-compact:focus {
+      border-color: var(--aaa-blue);
+      box-shadow: 0 0 0 0.18rem rgba(0, 59, 143, 0.15);
+      background-color: #ffffff;
+    }
+    .btn-aaa {
+      background-color: var(--aaa-blue);
+      color: #ffffff;
+      font-weight: 700;
+    }
+    .btn-aaa:hover {
+      background-color: #002b6b;
+      color: #ffffff;
+    }
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-top: 1px solid #cbd5e1;
+      padding: 10px 24px;
+      box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.07);
+      z-index: 1030;
+    }
+    .verification-field {
+      background-color: #fffbeb;
+      border-color: #fde68a;
+    }
+    .verification-invalid {
+      border-color: #e11d48 !important;
+      background-color: #fff1f2 !important;
+      box-shadow: 0 0 0 0.2rem rgba(225, 29, 72, 0.25) !important;
+    }
+    .required-badge {
+      font-size: 0.65rem;
+      font-family: monospace;
+      text-transform: uppercase;
+      background-color: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header class="header-bar text-white py-2 px-3 shadow-sm sticky-top" style="z-index: 1040;">
+    <div class="container-fluid d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-white text-primary fw-black fs-6 px-2 py-1 shadow-sm">AAA</span>
+        <div>
+          <span class="fw-bold tracking-tight fs-6 d-block leading-tight">SMART HOME TECH NOTE TAKER</span>
+          <small class="text-white-50 d-none d-sm-inline" id="agentBadgeInfo">Dynamic Script Engine</small>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center flex-wrap gap-2">
+        <!-- Call Duration Timer -->
+        <div class="bg-black bg-opacity-25 px-2 py-1 rounded border border-white-50 d-flex align-items-center gap-2 small">
+          <i class="fa-regular fa-clock text-warning"></i>
+          <span id="timerDisplay" class="font-monospace fw-bold">00:00</span>
+          <button id="toggleTimerBtn" class="btn btn-sm btn-link text-white p-0 ms-1" onclick="toggleTimer()" title="Start/Pause">
+            <i class="fa-solid fa-play"></i>
+          </button>
+          <button class="btn btn-sm btn-link text-white-50 p-0" onclick="resetTimer()" title="Reset">
+            <i class="fa-solid fa-rotate-left"></i>
+          </button>
+        </div>
+
+        <!-- Quick Zip Search -->
+        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#zipModal">
+          <i class="fa-solid fa-magnifying-glass me-1"></i> Zip Search
+        </button>
+
+        <!-- Feedback -->
+        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#feedbackModal">
+          <i class="fa-solid fa-comment-dots me-1"></i> Feedback
+        </button>
+
+        <!-- Agent Identity Display & Action -->
+        <div class="d-flex align-items-center gap-2">
+          <div class="bg-black bg-opacity-25 px-2.5 py-1 rounded text-white small d-flex align-items-center gap-2 border border-white-50">
+            <i class="fa-solid fa-user-check text-success"></i>
+            <div>
+              <span class="fw-bold" id="agentDisplayHeader">Checking Agent...</span>
+              <span class="text-white-50 d-none d-md-inline" id="deptDisplayHeader"></span>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-light text-primary fw-bold" onclick="openAgentModal()">
+            <i class="fa-solid fa-id-card me-1"></i> Change Agent
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAV TABS -->
+  <div class="shadow-sm">
+    <div class="container-fluid">
+      <ul class="nav nav-tabs" id="pageTabs">
+        <li class="nav-item"><a class="nav-link" href="#" data-form="inbound" onclick="switchForm('inbound')"><i class="fa-solid fa-phone me-1.5"></i> Inbound</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-form="outbound" onclick="switchForm('outbound')"><i class="fa-solid fa-phone-volume me-1.5"></i> Outbound</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-form="residential" onclick="switchForm('residential')"><i class="fa-solid fa-house me-1.5"></i> Residential</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-form="dealer" onclick="switchForm('dealer')"><i class="fa-solid fa-briefcase me-1.5"></i> Dealer</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-form="addendum" onclick="switchForm('addendum')"><i class="fa-solid fa-file-circle-plus me-1.5"></i> Addendum</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-form="parts" onclick="switchForm('parts')"><i class="fa-solid fa-box me-1.5"></i> Parts</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- MAIN 3-COLUMN COMPACT CONTAINER -->
+  <div class="container-fluid py-3 px-3 px-md-4">
+    <!-- Inline Validation Alert (for Missing Verification) -->
+    <div id="validationAlert" class="alert alert-danger py-2 px-3 small d-none mb-3 d-flex align-items-center justify-content-between shadow-xs">
+      <div class="d-flex align-items-center">
+        <i class="fa-solid fa-triangle-exclamation fs-6 me-2 text-danger"></i>
+        <span class="fw-bold" id="validationAlertText">Verification Type is required before copying the note!</span>
+      </div>
+      <button type="button" class="btn-close btn-sm" onclick="hideValidationAlert()"></button>
+    </div>
+
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white border-bottom d-flex flex-wrap justify-content-between align-items-center py-2 px-3">
+        <div class="d-flex align-items-center gap-2">
+          <span id="activeFormTitle" class="fw-bold fs-6 text-primary"><i class="fa-solid fa-pen-to-square me-1.5"></i> Inbound Form</span>
+          <span class="badge bg-light text-secondary border" id="fieldsCountBadge">Dynamic</span>
+        </div>
+
+        <!-- Header Action Buttons -->
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="quickFillSample()"><i class="fa-solid fa-wand-magic-sparkles text-warning me-1"></i> Quick Fill</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="clearActiveForm()"><i class="fa-solid fa-rotate-left me-1"></i> Clear</button>
+          <button id="topUndoClearBtn" class="btn btn-sm btn-outline-warning text-dark fw-bold d-none" onclick="undoClearForm()"><i class="fa-solid fa-arrow-rotate-left me-1"></i> Undo Clear</button>
+          <button id="topUndoCopyBtn" class="btn btn-sm btn-outline-secondary fw-bold" onclick="undoCopyAction()" title="Revert last copy"><i class="fa-solid fa-rotate-left me-1"></i> Undo Copy</button>
+          <button id="topCopyBtn" class="btn btn-sm btn-aaa px-3" onclick="copyNoteDirectly()">
+            <i class="fa-regular fa-copy me-1"></i> Copy Note
+          </button>
+        </div>
+      </div>
+
+      <div class="card-body p-3 p-md-4">
+        <!-- Classification Selector (Inbound / Outbound) -->
+        <div id="customerTypeRow" class="row g-2 mb-3 pb-3 border-bottom d-none">
+          <div class="col-md-4 col-sm-6">
+            <label class="form-label-compact">Customer Classification</label>
+            <div class="btn-group w-100" role="group">
+              <input type="radio" class="btn-check" name="custType" id="custRes" autocomplete="off" checked onchange="setCustomerType('Residential')">
+              <label class="btn btn-outline-primary btn-sm fw-bold py-1.5" for="custRes"><i class="fa-solid fa-house me-1"></i> Residential</label>
+              <input type="radio" class="btn-check" name="custType" id="custCom" autocomplete="off" onchange="setCustomerType('Commercial')">
+              <label class="btn btn-outline-primary btn-sm fw-bold py-1.5" for="custCom"><i class="fa-solid fa-building me-1"></i> Commercial</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Form Grid -->
+        <form id="dynamicFormContainer" class="row g-2.5">
+          <div class="col-12 text-center py-5 text-muted">
+            <div class="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
+            <div>Reading dynamic fields from Google Sheets...</div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING BOTTOM BAR -->
+  <div class="bottom-bar">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted small d-none d-md-inline" id="statusMessage">
+          <i class="fa-solid fa-bolt text-warning me-1"></i> Caller details auto-sync across all ticket tabs
+        </span>
+        <button class="btn btn-sm btn-link text-decoration-none text-muted p-0" data-bs-toggle="modal" data-bs-target="#peekModal">
+          <i class="fa-regular fa-eye me-1"></i> Peek Raw Note
+        </button>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary px-3" onclick="clearActiveForm()">
+          <i class="fa-solid fa-rotate-left me-1"></i> Reset
+        </button>
+        <button id="bottomUndoClearBtn" class="btn btn-sm btn-outline-warning text-dark fw-bold px-3 d-none" onclick="undoClearForm()">
+          <i class="fa-solid fa-arrow-rotate-left me-1"></i> Undo Clear
+        </button>
+        <button id="bottomUndoCopyBtn" class="btn btn-sm btn-outline-secondary fw-bold px-3" onclick="undoCopyAction()" title="Revert last copy">
+          <i class="fa-solid fa-rotate-left me-1"></i> Undo Copy
+        </button>
+        <button id="bottomCopyBtn" class="btn btn-aaa px-4 py-1.5 shadow-sm fw-bold" onclick="copyNoteDirectly()">
+          <i class="fa-regular fa-copy me-1.5"></i> Copy Note to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RAW NOTE PEEK -->
+  <div class="modal fade" id="peekModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h6 class="modal-title fw-bold"><i class="fa-solid fa-file-lines text-primary me-2"></i> Raw Note Preview</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0">
+          <textarea id="peekNoteBox" class="form-control border-0 font-monospace bg-dark text-success p-3" rows="14" readonly style="font-size: 0.83rem; resize: none;"></textarea>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-primary btn-sm" onclick="copyNoteDirectly(); bootstrap.Modal.getInstance(document.getElementById('peekModal')).hide();">
+            <i class="fa-regular fa-copy me-1"></i> Copy & Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DYNAMIC AGENT IDENTITY -->
+  <div class="modal fade" id="agentModal" data-bs-backdrop="static" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow border-0">
+        <div class="modal-header header-bar text-white py-2.5">
+          <h6 class="modal-title fw-bold">
+            <i class="fa-solid fa-id-badge me-2 text-warning"></i> Agent Profile & Identification
+          </h6>
+        </div>
+        <div class="modal-body p-4">
+          <p class="small text-muted mb-3">
+            Enter your details. Notes generated will be stamped with this info.
+          </p>
+
+          <div class="mb-3">
+            <label class="form-label-compact">Agent Name <span class="text-danger">*</span></label>
+            <input type="text" id="inputAgentName" class="form-control form-control-compact" placeholder="e.g. Erick Dansby">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label-compact">Extension (Phone / ID) <span class="text-danger">*</span></label>
+            <input type="text" id="inputAgentExt" class="form-control form-control-compact" placeholder="e.g. 1306228">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label-compact">Department <span class="text-danger">*</span></label>
+            <select id="inputAgentDept" class="form-select form-select-compact">
+              <option value="">-- Loading Departments from Sheet... --</option>
+            </select>
+          </div>
+
+          <div id="agentModalNotice"></div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-aaa btn-sm px-4" onclick="saveAgentProfile()">
+            <i class="fa-solid fa-check me-1"></i> Confirm & Start Session
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ZIP CODE CHECKER -->
+  <div class="modal fade" id="zipModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h6 class="modal-title fw-bold"><i class="fa-solid fa-map-location-dot text-primary me-2"></i> Territory Zip Search</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-2">Checks coverage across Official Pro Zips and Dealer Service tabs.</p>
+          <div class="input-group mb-3">
+            <input type="text" id="inputZipSearch" class="form-control form-control-compact" placeholder="Enter 5-digit zip code...">
+            <button class="btn btn-primary btn-sm" onclick="runZipSearch()"><i class="fa-solid fa-search"></i> Search</button>
+          </div>
+          <div id="zipSearchResult"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FEEDBACK SUBMISSION -->
+  <div class="modal fade" id="feedbackModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h6 class="modal-title fw-bold"><i class="fa-solid fa-comment-dots text-primary me-2"></i> Submit Feedback</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label-compact">Category</label>
+            <select id="feedbackCategory" class="form-select form-select-compact">
+              <option value="Feature Request">Feature Request</option>
+              <option value="Bug / Issue">Bug / Issue</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label-compact">Applicable Form</label>
+            <select id="feedbackForm" class="form-select form-select-compact">
+              <option value="Inbound">Inbound</option>
+              <option value="Outbound">Outbound</option>
+              <option value="Residential">Residential</option>
+              <option value="Dealer">Dealer</option>
+              <option value="Parts">Parts</option>
+              <option value="Addendum">Addendum</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label-compact">Details / Comments</label>
+            <textarea id="feedbackDetails" class="form-control form-control-compact" rows="3" placeholder="Provide feedback or missing field details..."></textarea>
+          </div>
+          <div id="feedbackNotice"></div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-primary btn-sm" onclick="submitAgentFeedback()">Submit to Sheet</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOTSTRAP JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- DYNAMIC CLIENT LOGIC -->
+  <script>
+    let appSchema = {};
+    let activeFormKey = '<?= initialPage ?>' || 'inbound';
+    let customerType = 'Residential';
+    let formData = {
+      inbound: {},
+      outbound: {
+        call_answered: 'Yes',
+        privacy_script: 'Yes'
+      },
+      residential: {},
+      dealer: {},
+      addendum: {},
+      parts: {}
+    };
+
+    // Cache for Undo Clear
+    let lastClearedCache = {
+      formKey: null,
+      data: null
+    };
+
+    // Cache for Undo Copy (tracks previous copied note)
+    let previousCopiedNote = null;
+    let currentCopiedNote = null;
+
+    let agentProfile = {
+      name: localStorage.getItem('agent_name') || '',
+      extension: localStorage.getItem('agent_ext') || '',
+      department: localStorage.getItem('agent_dept') || ''
+    };
+    let timerSeconds = 0;
+    let timerInterval = null;
+
+    // Cross-form smart mapping
+    const CROSS_FORM_MAP = {
+      residential: {
+        system_number: (src) => {
+          const ar = src.ar_number || '';
+          const sys = src.system_number || '';
+          if (ar && sys) return `AR# ${ar} / SYS# ${sys}`;
+          return sys || ar || '';
+        },
+        name_contact: (src) => {
+          const name = src.caller_name || '';
+          const phone = src.phone_number || '';
+          if (name && phone) return `${name} (${phone})`;
+          return name || phone || '';
+        },
+        issue: (src) => src.reason || src.resolution || '',
+        system_type: (src) => src.panel_type || ''
+      },
+      dealer: {
+        issue: (src) => src.reason || '',
+        troubleshooting: (src) => src.resolution || '',
+        name_contact: (src) => {
+          const name = src.caller_name || '';
+          const phone = src.phone_number || '';
+          if (name && phone) return `${name} (${phone})`;
+          return name || phone || '';
+        }
+      },
+      addendum: {
+        ar_number: (src) => src.ar_number || '',
+        name: (src) => src.caller_name || '',
+        system_number: (src) => src.system_number || '',
+        request: (src) => src.reason || src.resolution || ''
+      },
+      parts: {
+        contact_name: (src) => src.caller_name || '',
+        phone_number: (src) => src.phone_number || '',
+        parts_needed: (src) => src.parts_needed || src.reason || ''
+      }
+    };
+
+    function cleanLabel(lbl) {
+      return (lbl || '').replace(/\s*\(required\)/gi, '').trim();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (activeFormKey === 'notes') activeFormKey = 'inbound';
+
+      google.script.run
+        .withSuccessHandler(initSchema)
+        .withFailureHandler(err => {
+          document.getElementById('dynamicFormContainer').innerHTML = 
+            `<div class="alert alert-danger col-12">Error loading schema: ${err.message}</div>`;
+        })
+        .getFormSchema();
+    });
+
+    function initSchema(schema) {
+      appSchema = schema;
+      populateDepartmentDropdown();
+      updateAgentUI();
+      switchForm(activeFormKey);
+    }
+
+    function populateDepartmentDropdown() {
+      const indexFields = appSchema['index'] || [];
+      const deptConfig = indexFields.find(f => f.id === 'department' || f.label.toLowerCase().includes('dept'));
+      
+      const deptSelect = document.getElementById('inputAgentDept');
+      deptSelect.innerHTML = '<option value="">-- Select Department --</option>';
+
+      let options = [];
+      if (deptConfig && deptConfig.options) {
+        options = deptConfig.options.split(',').map(s => s.trim()).filter(Boolean);
+      } else {
+        options = [
+          'Tech Support Level 1',
+          'Tech Support Level 2',
+          'Tech Support Level 3',
+          'Team Lead'
+        ];
+      }
+
+      options.forEach(opt => {
+        const optEl = document.createElement('option');
+        optEl.value = opt;
+        optEl.innerText = opt;
+        if (agentProfile.department === opt) optEl.selected = true;
+        deptSelect.appendChild(optEl);
+      });
+    }
+
+    function updateAgentUI() {
+      const displayHeader = document.getElementById('agentDisplayHeader');
+      const deptHeader = document.getElementById('deptDisplayHeader');
+
+      if (agentProfile.name && agentProfile.extension) {
+        displayHeader.innerText = `${agentProfile.name} (${agentProfile.extension})`;
+        deptHeader.innerText = agentProfile.department ? ` • ${agentProfile.department}` : '';
+        document.getElementById('agentBadgeInfo').innerText = `${agentProfile.name} • Ext: ${agentProfile.extension}`;
+      } else {
+        displayHeader.innerText = 'No Agent Logged In';
+        deptHeader.innerText = '';
+        openAgentModal();
+      }
+    }
+
+    function openAgentModal() {
+      populateDepartmentDropdown();
+      document.getElementById('inputAgentName').value = agentProfile.name;
+      document.getElementById('inputAgentExt').value = agentProfile.extension;
+      document.getElementById('inputAgentDept').value = agentProfile.department;
+      document.getElementById('agentModalNotice').innerHTML = '';
+
+      const modalEl = document.getElementById('agentModal');
+      const modal = new bootstrap.Modal(modalEl);
+      modal.show();
+    }
+
+    function saveAgentProfile() {
+      const name = document.getElementById('inputAgentName').value.trim();
+      const ext = document.getElementById('inputAgentExt').value.trim();
+      const dept = document.getElementById('inputAgentDept').value.trim();
+      const notice = document.getElementById('agentModalNotice');
+
+      if (!name || !ext || !dept) {
+        notice.innerHTML = '<div class="alert alert-danger py-1.5 small mb-0">Please enter Name, Extension, and Department.</div>';
+        return;
+      }
+
+      agentProfile.name = name;
+      agentProfile.extension = ext;
+      agentProfile.department = dept;
+
+      localStorage.setItem('agent_name', name);
+      localStorage.setItem('agent_ext', ext);
+      localStorage.setItem('agent_dept', dept);
+
+      updateAgentUI();
+      updatePeekBox();
+
+      const modalEl = document.getElementById('agentModal');
+      const modalInstance = bootstrap.Modal.getInstance(modalEl);
+      if (modalInstance) modalInstance.hide();
+    }
+
+    function syncCrossFormData(targetFormKey) {
+      const sourceKey = (activeFormKey === 'inbound' || activeFormKey === 'outbound')
+        ? activeFormKey
+        : (formData.inbound && Object.keys(formData.inbound).length > 0 ? 'inbound' : 'outbound');
+
+      const sourceData = formData[sourceKey] || {};
+      if (Object.keys(sourceData).length === 0) return;
+
+      if (!formData[targetFormKey]) formData[targetFormKey] = {};
+      const mapping = CROSS_FORM_MAP[targetFormKey];
+      if (!mapping) return;
+
+      Object.entries(mapping).forEach(([targetId, evaluator]) => {
+        if (!formData[targetFormKey][targetId] || formData[targetFormKey][targetId].trim() === '') {
+          const val = evaluator(sourceData);
+          if (val && val.trim() !== '') {
+            formData[targetFormKey][targetId] = val.trim();
+          }
+        }
+      });
+    }
+
+    function switchForm(formKey) {
+      if (['residential', 'dealer', 'addendum', 'parts'].includes(formKey)) {
+        syncCrossFormData(formKey);
+      }
+
+      activeFormKey = formKey;
+
+      document.querySelectorAll('#pageTabs .nav-link').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-form') === formKey);
+      });
+
+      const custRow = document.getElementById('customerTypeRow');
+      if (formKey === 'inbound' || formKey === 'outbound') {
+        custRow.classList.remove('d-none');
+      } else {
+        custRow.classList.add('d-none');
+      }
+
+      document.getElementById('activeFormTitle').innerHTML = 
+        `<i class="fa-solid fa-pen-to-square me-1.5 text-primary"></i> ${formKey.toUpperCase()} FORM`;
+
+      hideValidationAlert();
+      updateUndoClearUI();
+      renderDynamicInputs(formKey);
+      updatePeekBox();
+    }
+
+    function setCustomerType(type) {
+      customerType = type;
+      renderDynamicInputs(activeFormKey);
+      updatePeekBox();
+    }
+
+    function hideValidationAlert() {
+      const alertEl = document.getElementById('validationAlert');
+      if (alertEl) alertEl.classList.add('d-none');
+      const verEl = document.getElementById('field_verification');
+      if (verEl) verEl.classList.remove('verification-invalid');
+    }
+
+    function showValidationAlert(msg) {
+      const alertEl = document.getElementById('validationAlert');
+      const textEl = document.getElementById('validationAlertText');
+      if (alertEl && textEl) {
+        textEl.innerText = msg;
+        alertEl.classList.remove('d-none');
+      }
+      const verEl = document.getElementById('field_verification');
+      if (verEl) {
+        verEl.classList.add('verification-invalid');
+        verEl.focus();
+      }
+    }
+
+    function renderDynamicInputs(formKey) {
+      const container = document.getElementById('dynamicFormContainer');
+      container.innerHTML = '';
+
+      const fieldsArray = appSchema[formKey];
+      if (!fieldsArray || !Array.isArray(fieldsArray) || fieldsArray.length === 0) {
+        container.innerHTML = '<div class="col-12 text-muted">No fields configured for this tab in Google Sheets.</div>';
+        return;
+      }
+
+      if (!formData[formKey]) formData[formKey] = {};
+      const currentValues = formData[formKey];
+
+      const isOutbound = formKey === 'outbound';
+      const callAnsweredNo = isOutbound && String(currentValues.call_answered || '').trim().toLowerCase() === 'no';
+      const scheduledServiceYes = String(currentValues.scheduled_service || '').trim().toLowerCase() === 'yes';
+      const isVideoOnly = String(currentValues.service_type || '').trim().toLowerCase() === 'video only';
+
+      let fieldCount = 0;
+
+      fieldsArray.forEach((config) => {
+        if (config.visible === false || String(config.visible).toUpperCase() === 'FALSE') return;
+
+        const internalId = config.id;
+        const currentVal = currentValues[internalId] ?? '';
+        const fieldType = (config.type || 'Text').toLowerCase();
+
+        // Visibility rules
+        if (internalId === 'company_name' && customerType === 'Residential') return;
+
+        if (isOutbound) {
+          if (callAnsweredNo) {
+            const allowedUnanswered = ['phone_number', 'caller_name', 'company_name', 'call_answered', 'voicemail_left'];
+            if (!allowedUnanswered.includes(internalId)) return;
+          } else {
+            if (internalId === 'voicemail_left') return;
+          }
+        }
+
+        if ((internalId === 'fee_waived' || internalId === 'submission_id') && !scheduledServiceYes) {
+          return;
+        }
+
+        if (internalId === 'panel_type' && isVideoOnly) return;
+
+        const colDiv = document.createElement('div');
+        colDiv.className = fieldType === 'textarea' ? 'col-12 mt-2' : 'col-lg-4 col-md-6';
+
+        const label = document.createElement('label');
+        label.className = 'form-label-compact';
+        label.innerText = cleanLabel(config.label || internalId);
+
+        if (internalId.toLowerCase().includes('verification')) {
+          const badge = document.createElement('span');
+          badge.className = 'required-badge';
+          badge.innerText = 'Required';
+          label.appendChild(badge);
+        } else if (internalId === 'submission_id' && scheduledServiceYes) {
+          const badge = document.createElement('span');
+          badge.className = 'required-badge';
+          badge.innerText = 'Required';
+          label.appendChild(badge);
+        }
+
+        colDiv.appendChild(label);
+
+        let availableOptions = (config.options || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (internalId === 'service_type' && customerType === 'Residential') {
+          availableOptions = availableOptions.filter(o => o.toLowerCase() !== 'fire system');
+        }
+
+        if (fieldType === 'textarea') {
+          const ta = document.createElement('textarea');
+          ta.className = 'form-control form-control-compact';
+          ta.rows = 3;
+          ta.value = currentVal;
+          ta.placeholder = `Enter ${(config.label || internalId).toLowerCase()}...`;
+          ta.oninput = (e) => {
+            currentValues[internalId] = e.target.value;
+            updatePeekBox();
+          };
+          colDiv.appendChild(ta);
+        } else if (fieldType === 'dropdown') {
+          const sel = document.createElement('select');
+          sel.id = `field_${internalId}`;
+          sel.className = `form-select form-select-compact ${internalId.includes('verification') ? 'verification-field' : ''}`;
+          sel.innerHTML = `<option value="">-- Select --</option>`;
+
+          availableOptions.forEach(opt => {
+            const optEl = document.createElement('option');
+            optEl.value = opt;
+            optEl.innerText = opt;
+            if (opt === currentVal) optEl.selected = true;
+            sel.appendChild(optEl);
+          });
+
+          sel.onchange = (e) => {
+            currentValues[internalId] = e.target.value;
+            if (internalId.includes('verification') && e.target.value) {
+              hideValidationAlert();
+            }
+            if (internalId === 'service_type') {
+              renderDynamicInputs(formKey);
+            }
+            updatePeekBox();
+          };
+          colDiv.appendChild(sel);
+        } else if (fieldType === 'radio') {
+          const radioGroup = document.createElement('div');
+          radioGroup.className = 'btn-group w-100';
+          radioGroup.setAttribute('role', 'group');
+
+          availableOptions.forEach((opt, oIdx) => {
+            const radioId = `${internalId}_${oIdx}`;
+            const inputRadio = document.createElement('input');
+            inputRadio.type = 'radio';
+            inputRadio.className = 'btn-check';
+            inputRadio.name = internalId;
+            inputRadio.id = radioId;
+            inputRadio.autocomplete = 'off';
+            if (String(currentVal).trim().toLowerCase() === opt.toLowerCase()) inputRadio.checked = true;
+
+            inputRadio.onchange = () => {
+              currentValues[internalId] = opt;
+              if (internalId === 'call_answered' || internalId === 'scheduled_service' || internalId === 'service_type') {
+                renderDynamicInputs(formKey);
+              }
+              updatePeekBox();
+            };
+
+            const radioLabel = document.createElement('label');
+            radioLabel.className = 'btn btn-outline-secondary btn-sm py-1';
+            radioLabel.htmlFor = radioId;
+            radioLabel.innerText = opt;
+
+            radioGroup.appendChild(inputRadio);
+            radioGroup.appendChild(radioLabel);
+          });
+          colDiv.appendChild(radioGroup);
+        } else {
+          const inp = document.createElement('input');
+          inp.type = 'text';
+          inp.className = 'form-control form-control-compact';
+          inp.value = currentVal;
+          inp.placeholder = `Enter ${(config.label || internalId).toLowerCase()}...`;
+          inp.oninput = (e) => {
+            currentValues[internalId] = e.target.value;
+            updatePeekBox();
+          };
+          colDiv.appendChild(inp);
+        }
+
+        container.appendChild(colDiv);
+        fieldCount++;
+      });
+
+      document.getElementById('fieldsCountBadge').innerText = `${fieldCount} Active Fields`;
+    }
+
+    // Exact Clean Copy Format following strict spreadsheet row order with blank line breaks
+    function buildFormattedNote() {
+      const formKey = activeFormKey;
+      const fieldsArray = appSchema[formKey] || [];
+      const values = formData[formKey] || {};
+
+      let lines = [];
+
+      const isOutbound = formKey === 'outbound';
+      const callAnsweredNo = isOutbound && String(values.call_answered || '').trim().toLowerCase() === 'no';
+
+      if (callAnsweredNo) {
+        lines.push(`OBC to: ${values.phone_number && values.phone_number.trim() ? values.phone_number.trim() : 'N/A'}`);
+        lines.push(`MEMBER NAME: ${values.caller_name && values.caller_name.trim() ? values.caller_name.trim() : 'N/A'}`);
+        lines.push(`CALL ANSWERED?: No`);
+        lines.push(`VOICEMAIL LEFT?: ${values.voicemail_left && values.voicemail_left.trim() ? values.voicemail_left.trim() : 'N/A'}`);
+      } else {
+        const scheduledServiceYes = String(values.scheduled_service || '').trim().toLowerCase() === 'yes';
+        const isVideoOnly = String(values.service_type || '').trim().toLowerCase() === 'video only';
+
+        // Loops sequentially through fieldsArray matching exact row 2, row 3, row 4... of the spreadsheet tab
+        fieldsArray.forEach((config) => {
+          if (config.visible === false || String(config.visible).toUpperCase() === 'FALSE') return;
+          const id = config.id;
+
+          // Standard logic omissions
+          if (id === 'company_name' && customerType === 'Residential') return;
+          if (isOutbound && id === 'voicemail_left') return;
+          if ((id === 'fee_waived' || id === 'submission_id') && !scheduledServiceYes) return;
+          if (id === 'panel_type' && isVideoOnly) return;
+
+          // BREAK 1: Always insert a blank line before RESOLUTION / TROUBLESHOOTING
+          if (id === 'resolution' || id === 'troubleshooting') {
+            lines.push('');
+          }
+
+          const val = values[id];
+          lines.push(`${cleanLabel(config.label || id)}: ${val && val.trim() ? val.trim() : 'N/A'}`);
+        });
+
+        // BREAK 2: Always insert a blank line between RESOLUTION and the 3-Line Agent Footer
+        lines.push('');
+      }
+
+      // Clean 3-Line Agent Footer
+      lines.push(`AGENT: ${agentProfile.name || 'N/A'}`);
+      lines.push(`EXT: ${agentProfile.extension || 'N/A'}`);
+      lines.push(`DEPT: ${agentProfile.department || 'N/A'}`);
+
+      return lines.join('\n');
+    }
+
+    function updatePeekBox() {
+      const peekBox = document.getElementById('peekNoteBox');
+      if (peekBox) peekBox.value = buildFormattedNote();
+    }
+
+    function copyToClipboard(text) {
+      const el = document.createElement('textarea');
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+
+    // Direct Copy to Clipboard with Mandatory Verification Check & Undo Copy support
+    function copyNoteDirectly() {
+      const formKey = activeFormKey;
+      const currentValues = formData[formKey] || {};
+
+      // VALIDATION: Verification Type is mandatory on Inbound or Outbound (when answered)
+      const isCallForm = formKey === 'inbound' || formKey === 'outbound';
+      const callAnsweredNo = formKey === 'outbound' && String(currentValues.call_answered || '').trim().toLowerCase() === 'no';
+
+      if (isCallForm && !callAnsweredNo) {
+        const verificationVal = String(currentValues.verification || '').trim();
+        if (!verificationVal) {
+          showValidationAlert('⚠️ VERIFICATION TYPE is required before copying the note!');
+          return;
+        }
+      }
+
+      hideValidationAlert();
+
+      const newNoteText = buildFormattedNote();
+
+      // Cache previous note for Undo Copy
+      if (currentCopiedNote) {
+        previousCopiedNote = currentCopiedNote;
+      }
+      currentCopiedNote = newNoteText;
+
+      copyToClipboard(newNoteText);
+
+      const topBtn = document.getElementById('topCopyBtn');
+      const bottomBtn = document.getElementById('bottomCopyBtn');
+
+      if (topBtn) {
+        topBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Copied!';
+        topBtn.classList.replace('btn-aaa', 'btn-success');
+      }
+      if (bottomBtn) {
+        bottomBtn.innerHTML = '<i class="fa-solid fa-check me-1.5"></i> Copied to Clipboard!';
+        bottomBtn.classList.replace('btn-aaa', 'btn-success');
+      }
+
+      setTimeout(() => {
+        if (topBtn) {
+          topBtn.innerHTML = '<i class="fa-regular fa-copy me-1"></i> Copy Note';
+          topBtn.classList.replace('btn-success', 'btn-aaa');
+        }
+        if (bottomBtn) {
+          bottomBtn.innerHTML = '<i class="fa-regular fa-copy me-1.5"></i> Copy Note to Clipboard';
+          bottomBtn.classList.replace('btn-success', 'btn-aaa');
+        }
+      }, 2500);
+    }
+
+    // Undo Copy Action: Restores previous copied note to clipboard
+    function undoCopyAction() {
+      if (previousCopiedNote) {
+        copyToClipboard(previousCopiedNote);
+        currentCopiedNote = previousCopiedNote;
+        previousCopiedNote = null;
+
+        const notice = document.getElementById('statusMessage');
+        if (notice) {
+          notice.innerHTML = '<i class="fa-solid fa-rotate-left text-success me-1"></i> Previous note restored to clipboard!';
+          setTimeout(() => {
+            notice.innerHTML = '<i class="fa-solid fa-bolt text-warning me-1"></i> Caller details auto-sync across all ticket tabs';
+          }, 3500);
+        }
+      } else {
+        // Clear copied state
+        currentCopiedNote = null;
+        const notice = document.getElementById('statusMessage');
+        if (notice) {
+          notice.innerHTML = '<i class="fa-solid fa-info-circle text-primary me-1"></i> Copy state reset.';
+          setTimeout(() => {
+            notice.innerHTML = '<i class="fa-solid fa-bolt text-warning me-1"></i> Caller details auto-sync across all ticket tabs';
+          }, 3000);
+        }
+      }
+    }
+
+    function clearActiveForm() {
+      lastClearedCache = {
+        formKey: activeFormKey,
+        data: JSON.parse(JSON.stringify(formData[activeFormKey] || {}))
+      };
+
+      formData[activeFormKey] = {};
+      if (activeFormKey === 'outbound') {
+        formData.outbound.call_answered = 'Yes';
+        formData.outbound.privacy_script = 'Yes';
+      }
+
+      hideValidationAlert();
+      updateUndoClearUI();
+      renderDynamicInputs(activeFormKey);
+      updatePeekBox();
+    }
+
+    function undoClearForm() {
+      if (lastClearedCache.formKey === activeFormKey && lastClearedCache.data) {
+        formData[activeFormKey] = JSON.parse(JSON.stringify(lastClearedCache.data));
+        lastClearedCache = { formKey: null, data: null };
+        updateUndoClearUI();
+        renderDynamicInputs(activeFormKey);
+        updatePeekBox();
+      }
+    }
+
+    function updateUndoClearUI() {
+      const show = lastClearedCache.formKey === activeFormKey && lastClearedCache.data && Object.keys(lastClearedCache.data).length > 0;
+      const topBtn = document.getElementById('topUndoClearBtn');
+      const bottomBtn = document.getElementById('bottomUndoClearBtn');
+
+      if (topBtn) {
+        if (show) topBtn.classList.remove('d-none');
+        else topBtn.classList.add('d-none');
+      }
+      if (bottomBtn) {
+        if (show) bottomBtn.classList.remove('d-none');
+        else bottomBtn.classList.add('d-none');
+      }
+    }
+
+    function quickFillSample() {
+      const fieldsArray = appSchema[activeFormKey] || [];
+      if (!formData[activeFormKey]) formData[activeFormKey] = {};
+
+      fieldsArray.forEach((config) => {
+        if (config.type.toLowerCase() === 'dropdown' || config.type.toLowerCase() === 'radio') {
+          const opts = (config.options || '').split(',').map(s => s.trim()).filter(Boolean);
+          formData[activeFormKey][config.id] = opts[0] || 'Passcode/Invoice Verified';
+        } else {
+          formData[activeFormKey][config.id] = 'Sample Verified Data';
+        }
+      });
+      hideValidationAlert();
+      renderDynamicInputs(activeFormKey);
+      updatePeekBox();
+    }
+
+    function formatTimer(s) {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}`;
+    }
+
+    function toggleTimer() {
+      const btn = document.getElementById('toggleTimerBtn');
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+      } else {
+        timerInterval = setInterval(() => {
+          timerSeconds++;
+          document.getElementById('timerDisplay').innerText = formatTimer(timerSeconds);
+          updatePeekBox();
+        }, 1000);
+        btn.innerHTML = '<i class="fa-solid fa-pause text-warning"></i>';
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerSeconds = 0;
+      document.getElementById('timerDisplay').innerText = '00:00';
+      document.getElementById('toggleTimerBtn').innerHTML = '<i class="fa-solid fa-play"></i>';
+      updatePeekBox();
+    }
+
+    function runZipSearch() {
+      const zip = document.getElementById('inputZipSearch').value.trim();
+      const res = document.getElementById('zipSearchResult');
+      if (!zip) return;
+      res.innerHTML = '<div class="text-muted small">Searching coverage sheets...</div>';
+      google.script.run
+        .withSuccessHandler(data => {
+          res.innerHTML = `<div class="alert alert-info py-2 small mt-2">${data.message || 'Complete'}</div>`;
+        })
+        .withFailureHandler(err => {
+          res.innerHTML = `<div class="alert alert-danger py-2 small mt-2">${err.message}</div>`;
+        })
+        .checkZipCode(zip);
+    }
+
+    function submitAgentFeedback() {
+      const payload = {
+        name: agentProfile.name,
+        extension: agentProfile.extension,
+        department: agentProfile.department,
+        category: document.getElementById('feedbackCategory').value,
+        applicableForm: document.getElementById('feedbackForm').value,
+        comments: document.getElementById('feedbackDetails').value
+      };
+      const notice = document.getElementById('feedbackNotice');
+      notice.innerHTML = '<div class="text-muted small">Submitting...</div>';
+      google.script.run
+        .withSuccessHandler(res => {
+          notice.innerHTML = `<div class="alert alert-success py-2 small mt-2">${res.message}</div>`;
+          document.getElementById('feedbackDetails').value = '';
+        })
+        .withFailureHandler(err => {
+          notice.innerHTML = `<div class="alert alert-danger py-2 small mt-2">${err.message}</div>`;
+        })
+        .submitFeedback(payload);
+    }
+  </script>
+</body>
+</html>
