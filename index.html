@@ -642,6 +642,11 @@
       return true;
     }
 
+    function isServiceOptionAllowed(fieldId, option) {
+      return fieldId !== 'service_type' || customerType !== 'Residential' ||
+        String(option).trim().toLowerCase() !== 'fire system';
+    }
+
     function renderActiveForm() {
   const container = document.getElementById('dynamicFormContainer');
   const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
@@ -654,7 +659,8 @@
     const fieldId = field.id || field['Internal ID'] || field.internalId;
     if (!shouldShowNoteField(field, targetKey, currentVals)) return;
 
-    const val = currentVals[fieldId] || '';
+    const storedValue = currentVals[fieldId] || '';
+    const val = isServiceOptionAllowed(fieldId, storedValue) ? storedValue : '';
     
     // Robust field type resolution supporting multiple naming conventions
 
@@ -663,7 +669,8 @@
     
     // Robust options resolution
     const rawOptions = field.options || field.Options || field['Options'] || '';
-    const opts = rawOptions.split(',').map(s => s.trim()).filter(Boolean);
+    const opts = rawOptions.split(',').map(s => s.trim()).filter(Boolean)
+      .filter(option => isServiceOptionAllowed(fieldId, option));
 
     const isSpanningTextarea = fType === 'textarea';
     const label = field.label || field['Display Label'] || field.displayLabel || fieldId;
@@ -728,7 +735,9 @@
         const id = field.id || field['Internal ID'] || field.internalId;
         if (!shouldShowNoteField(field, key, vals)) return;
         const label = String(field.label || field['Display Label'] || field.displayLabel || id).trim().replace(/:\s*$/, '').toUpperCase();
-        const value = vals[id] == null ? '' : String(vals[id]).trim();
+        const storedValue = vals[id] == null ? '' : String(vals[id]).trim();
+        const value = isServiceOptionAllowed(id, storedValue) ? storedValue : '';
+        if (id === 'resolution' && lines.length && lines[lines.length - 1] !== '') lines.push('');
         lines.push(label + ': ' + (value || 'N/A'));
       });
       if (lines.length) lines.push('');
