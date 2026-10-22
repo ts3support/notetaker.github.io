@@ -15,32 +15,12 @@
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   
-    .privacy-label-wrap { position: relative; width: fit-content; }
-    .privacy-label {
-      position: relative; display: inline-flex; align-items: center; gap: 8px;
-      padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;
-      background: #fff; color: #003b8f; font-size: 12px; font-weight: 700;
-      cursor: help;
-    }
-    .privacy-label:focus-visible { outline: 2px solid #003b8f; outline-offset: 3px; }
-    .privacy-help { font-size: 16px; line-height: 1; }
-    .privacy-tooltip {
-      display: none; position: absolute; left: 0; top: 100%; z-index: 60;
-      width: min(560px, calc(100vw - 48px)); max-height: 65vh; overflow-y: auto;
-      padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px;
-      background: #fff; color: #1e293b; box-shadow: 0 12px 30px rgba(15,23,42,.2);
-      font-size: 13px; font-weight: 400; line-height: 1.6; text-align: left;
-      cursor: text;
-    }
-    .privacy-tooltip strong {
-      display: block; margin-top: 14px; margin-bottom: 4px;
-      color: #003b8f; font-size: 11px; letter-spacing: .04em;
-    }
-    .privacy-tooltip strong:first-child { margin-top: 0; }
-    .privacy-label:hover .privacy-tooltip,
-    .privacy-label:focus .privacy-tooltip,
-    .privacy-label:focus-within .privacy-tooltip { display: block; }
-  </style>
+#privacyScriptTooltip { position: fixed; z-index: 9999; width: min(560px, calc(100vw - 24px)); max-height: 60vh; overflow: auto; padding: 16px; background: white; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 30px #0f172a33; font-size: 13px; line-height: 1.6; }
+#privacyScriptTooltip[hidden] { display: none; }
+#privacyScriptTooltip strong { display:block; margin:12px 0 4px; color:#003b8f; font-size:11px; }
+#privacyScriptTooltip strong:first-child { margin-top:0; }
+[data-privacy-hover]:focus-visible { outline: 2px solid #003b8f; outline-offset: 3px; }
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
@@ -158,24 +138,6 @@
 
   <!-- MAIN FULL-WIDTH 3-COLUMN WORKSPACE -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-4">
-
-    <div class="privacy-label-wrap">
-      <label class="privacy-label" tabindex="0" aria-describedby="privacyScriptTooltip">
-        PRIVACY SCRIPT:
-        <span class="privacy-help" aria-label="Privacy script details">ⓘ</span>
-        <span class="privacy-tooltip" id="privacyScriptTooltip" role="tooltip">
-          <strong>DIRECT-DIAL INBOUND / OUTBOUND</strong>
-          “This call may be recorded and your personal information shared with our service providers. To learn more, visit our privacy policy at AAA.com”
-          <strong>TRANSLATIONS</strong>
-          “This call may be recorded and during this call your personal information may be shared with our service providers to provide you with language translations and services. To learn more, visit our privacy policy at AAA.com”
-          <strong>SPANISH</strong>
-          Esta llamada puede ser grabada y su información personal compartida con nuestros proveedores de servicios. Para saber más, visite nuestra política de privacidad en AAA.com”
-          <strong>IVR</strong>
-          “This call may be recorded for quality and training purposes. During this call, AAA may collect personal information from you and may need to share this information with third parties to provide you with services or help fulfill your request. To learn more, please visit AAA.com to view our privacy policy.”
-        </span>
-      </label>
-    </div>
-
     
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       
@@ -784,9 +746,10 @@
     const isSpanningTextarea = fType === 'textarea';
     const label = field.label || field['Display Label'] || field.displayLabel || fieldId;
 
-    html += `<div class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
+    const isPrivacyField = /privacy/i.test(String(fieldId) + ' ' + String(label));
+    html += `<div ${isPrivacyField ? 'data-privacy-hover tabindex="0" aria-describedby="privacyScriptTooltip"' : ''} class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
       <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
-        <span>${label}</span>
+        <span>${label}${isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
         ${fieldId === 'submission_id' ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
       </label>`;
 
@@ -1502,5 +1465,44 @@ function handleFieldInput(fieldId, val) {
       ];
     }
   </script>
+<div id="privacyScriptTooltip" role="tooltip" hidden><strong>DIRECT-DIAL INBOUND / OUTBOUND</strong><p>“This call may be recorded and your personal information shared with our service providers. To learn more, visit our privacy policy at AAA.com”</p><strong>TRANSLATIONS</strong><p>“This call may be recorded and during this call your personal information may be shared with our service providers to provide you with language translations and services. To learn more, visit our privacy policy at AAA.com”</p><strong>SPANISH</strong><p>Esta llamada puede ser grabada y su información personal compartida con nuestros proveedores de servicios. Para saber más, visite nuestra política de privacidad en AAA.com”</p><strong>IVR</strong><p>“This call may be recorded for quality and training purposes. During this call, AAA may collect personal information from you and may need to share this information with third parties to provide you with services or help fulfill your request. To learn more, please visit AAA.com to view our privacy policy.”</p></div>
+<script>
+(() => {
+  const tip = document.getElementById('privacyScriptTooltip');
+  let timer;
+  function show(field) {
+    clearTimeout(timer);
+    tip.hidden = false;
+    const r = field.getBoundingClientRect();
+    const width = tip.offsetWidth;
+    const height = tip.offsetHeight;
+    tip.style.left = Math.max(12, Math.min(r.left, innerWidth - width - 12)) + 'px';
+    const below = r.bottom + 6;
+    tip.style.top = Math.max(12, Math.min(below + height <= innerHeight - 12 ? below : r.top - height - 6, innerHeight - height - 12)) + 'px';
+  }
+  function hideLater() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (!tip.matches(':hover') && !document.querySelector('[data-privacy-hover]:hover') && !document.activeElement?.closest('[data-privacy-hover]')) tip.hidden = true;
+    }, 180);
+  }
+  document.addEventListener('pointerover', e => {
+    const field = e.target.closest('[data-privacy-hover]');
+    if (field) show(field);
+    else if (tip.contains(e.target)) clearTimeout(timer);
+  });
+  document.addEventListener('pointerout', hideLater);
+  document.addEventListener('focusin', e => {
+    const field = e.target.closest('[data-privacy-hover]');
+    if (field) show(field);
+  });
+  document.addEventListener('focusout', hideLater);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { clearTimeout(timer); tip.hidden = true; }
+  });
+  window.addEventListener('resize', () => { tip.hidden = true; });
+  window.addEventListener('scroll', e => { if (!tip.contains(e.target)) tip.hidden = true; }, true);
+})();
+</script>
 </body>
 </html>
