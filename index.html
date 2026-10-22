@@ -20,6 +20,7 @@
 #privacyScriptTooltip strong{display:block;margin:12px 0 4px;color:#003b8f;font-size:11px}
 #privacyScriptTooltip strong:first-child{margin-top:0}
 [data-privacy-hover]:focus-visible{outline:2px solid #003b8f;outline-offset:3px}
+[aria-invalid="true"]{outline:2px solid #e2231a!important;outline-offset:2px}
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
@@ -220,7 +221,7 @@
         <span class="text-[11px] text-slate-500">Ready to paste into Salesforce / CRM.</span>
         <div class="flex gap-2">
           <button type="button" onclick="closeNotePreviewModal()" class="px-3 py-1.5 text-xs text-slate-600 bg-slate-200 hover:bg-slate-300 rounded font-bold">Close</button>
-          <button type="button" onclick="copyGeneratedNote(); closeNotePreviewModal();" class="px-4 py-1.5 text-xs bg-[#003b8f] text-white rounded font-bold hover:bg-[#002b6b]">Copy & Close</button>
+          <button type="button" onclick="if (copyGeneratedNote()) closeNotePreviewModal();" class="px-4 py-1.5 text-xs bg-[#003b8f] text-white rounded font-bold hover:bg-[#002b6b]">Copy & Close</button>
         </div>
       </div>
     </div>
@@ -556,9 +557,59 @@
     }
 
     // HELPER: GET ORDERED FIELDS (GUARANTEES SHEET ROW ORDER)
+    function settingEnabled(value, fallback = false) {
+      if (typeof value === 'boolean') return value;
+      const text = String(value ?? '').trim().toLowerCase();
+      if (['yes', 'true'].includes(text)) return true;
+      if (['no', 'false'].includes(text)) return false;
+      return fallback;
+    }
+
+    function dependencyRule(field) {
+      const raw = String(field.dependsOn ?? field['Depends on'] ?? '').trim();
+      if (!raw) return null;
+      const match = raw.match(/^([^=:\s]+)\s*=\s*(.*?)\s*:\s*(required|visible)\s*$/i);
+      if (!match) {
+        console.warn('Unsupported Depends on rule:', raw);
+        return null;
+      }
+      return { source: match[1], expected: match[2].trim().toLowerCase(), action: match[3].toLowerCase() };
+    }
+
+    function dependencyMatches(rule, values) {
+      return String(values[rule.source] ?? '').trim().toLowerCase() === rule.expected;
+    }
+
+    function fieldIsRequired(field, values) {
+      const rule = dependencyRule(field);
+      return settingEnabled(field.required ?? field.Required, false) ||
+        Boolean(rule && rule.action === 'required' && dependencyMatches(rule, values));
+    }
+
+    function fieldIdOf(field) {
+      return field.id || field['Internal ID'] || field.internalId;
+    }
+
+    function validateActiveForm() {
+      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      const values = formValues[activeFormKey] || {};
+      const missing = getOrderedFields(key).filter(field => {
+        if (!shouldShowNoteField(field, key, values) || !fieldIsRequired(field, values)) return false;
+        const id = fieldIdOf(field);
+        const value = String(values[id] ?? '').trim();
+        return !value || !isServiceOptionAllowed(id, value);
+      });
+      document.querySelectorAll('#dynamicFormContainer [aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+      if (!missing.length) return true;
+      alert('Please complete the required fields before copying:\n\n' + missing.map(f => '• ' + (f.label || f['Display Label'] || fieldIdOf(f))).join('\n'));
+      const first = document.getElementById('formField_' + fieldIdOf(missing[0]));
+      if (first) { first.setAttribute('aria-invalid', 'true'); first.focus(); first.scrollIntoView({block:'center', behavior:'smooth'}); }
+      return false;
+    }
+
     function getOrderedFields(targetKey) {
       const ordered = formSchema && formSchema[targetKey + '_order'];
-      if (Array.isArray(ordered) && ordered.length > 0) return ordered;
+      if (Array.isArray(ordered)) return ordered;
       const fields = formSchema && formSchema[targetKey];
       if (Array.isArray(fields)) return fields;
       if (fields && typeof fields === 'object') {
@@ -660,7 +711,9 @@
         function shouldShowNoteField(field, targetKey, values) {
       const id = field.id || field['Internal ID'] || field.internalId;
       const visible = field.visible !== undefined ? field.visible : field['Visible'];
-      if (visible === false || String(visible).trim().toUpperCase() === 'FALSE') return false;
+      if (!settingEnabled(visible, true)) return false;
+      const rule = dependencyRule(field);
+      if (rule && rule.action === 'visible' && !dependencyMatches(rule, values)) return false;
 
       // Only show NON-COMM field if the agent extension is in Settings!B2 (Project 2026 Extensions)
       if (id === 'non_comm' && !specialEmailAccessAllowed) return false;
@@ -673,8 +726,9 @@
       // Scheduling workflow overrides the unanswered-call field filter.
       if (id === 'scheduled_service') return true;
       if (id === 'warranty') return scheduled;
-      if (id === 'fee_waived') return scheduled && notUnderWarranty;
-      if (id === 'submission_id') return scheduled && notUnderWarranty && requiresSubmission;
+      // These fields now use sheet visibility and conditional required rules.
+      if (id === 'fee_waived' || id === 'submission_id') return true;
+
 
       if (targetKey === 'outbound' && normalized('call_answered') === 'no') {
         return ['obc_to', 'phone_number', 'outboundPhone', 'caller_name', 'name_contact',
@@ -691,74 +745,106 @@
     }
 
     function renderActiveForm() {
-  const container = document.getElementById('dynamicFormContainer');
-  const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
-  
-  const fieldsList = getOrderedFields(targetKey);
-  const currentVals = formValues[activeFormKey] || {};
-  let html = '';
-
-  fieldsList.forEach(field => {
-    const fieldId = field.id || field['Internal ID'] || field.internalId;
-    if (!shouldShowNoteField(field, targetKey, currentVals)) return;
-
-    const storedValue = currentVals[fieldId] || '';
-    const val = isServiceOptionAllowed(fieldId, storedValue) ? storedValue : '';
-    
-    // Robust field type resolution supporting multiple naming conventions
-
-    const rawType = field.type || field.fieldType || field['Field Type'] || 'Text';
-    const fType = rawType.toString().trim().toLowerCase();
-    
-    // Robust options resolution
-    const rawOptions = field.options || field.Options || field['Options'] || '';
-    const opts = rawOptions.split(',').map(s => s.trim()).filter(Boolean)
-      .filter(option => isServiceOptionAllowed(fieldId, option));
-
-    const isSpanningTextarea = fType === 'textarea';
-    const label = field.label || field['Display Label'] || field.displayLabel || fieldId;
-
-    const isPrivacyField = /privacy/i.test(String(fieldId) + ' ' + String(label));
-    html += `<div ${isPrivacyField ? 'data-privacy-hover tabindex="0" aria-describedby="privacyScriptTooltip"' : ''} class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
-      <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
-        <span>${label}${isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
-        ${fieldId === 'submission_id' ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
-      </label>`;
-
-    if (fType === 'textarea') {
-      html += `<textarea rows="3" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">${val}</textarea>`;
-    } else if (fType === 'dropdown') {
-      html += `<select onchange="handleFieldInput('${fieldId}', this.value)" class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition cursor-pointer">
-        <option value="">-- Select --</option>`;
-      opts.forEach(opt => {
-        html += `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>`;
+      const container = document.getElementById('dynamicFormContainer');
+      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      const values = formValues[activeFormKey] || {};
+      const oldFocus = document.activeElement;
+      const focusId = oldFocus && container.contains(oldFocus) ? oldFocus.id : '';
+      const selection = focusId && typeof oldFocus.selectionStart === 'number'
+        ? [oldFocus.selectionStart, oldFocus.selectionEnd] : null;
+      container.replaceChildren();
+      getOrderedFields(key).forEach(field => {
+        if (!shouldShowNoteField(field, key, values)) return;
+        const id = fieldIdOf(field);
+        const labelText = field.label || field['Display Label'] || field.displayLabel || id;
+        const type = String(field.type || field.fieldType || field['Field Type'] || 'text').trim().toLowerCase();
+        const required = fieldIsRequired(field, values);
+        const stored = String(values[id] ?? '');
+        const value = isServiceOptionAllowed(id, stored) ? stored : '';
+        const rawOptions = field.options || field.Options || '';
+        const options = (Array.isArray(rawOptions) ? rawOptions : String(rawOptions).split(','))
+          .map(x => String(x).trim()).filter(Boolean).filter(x => isServiceOptionAllowed(id, x));
+        const wrapper = document.createElement('div');
+        wrapper.className = 'space-y-1 ' + (type === 'textarea' ? 'col-span-1 md:col-span-2 lg:col-span-3' : '');
+        wrapper.dataset.fieldId = id;
+        const heading = document.createElement('div');
+        heading.className = 'text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between';
+        const label = document.createElement('label');
+        label.htmlFor = 'formField_' + id;
+        label.textContent = labelText;
+        heading.appendChild(label);
+        if (/privacy/i.test(id + ' ' + labelText)) {
+          wrapper.dataset.privacyHover = '';
+          wrapper.tabIndex = 0;
+          wrapper.setAttribute('aria-describedby', 'privacyScriptTooltip');
+          label.appendChild(document.createTextNode(' ⓘ'));
+        }
+        if (required) {
+          const badge = document.createElement('span');
+          badge.textContent = '* Required';
+          badge.className = 'text-rose-600 font-extrabold text-[10px]';
+          heading.appendChild(badge);
+        }
+        wrapper.appendChild(heading);
+        const baseClass = 'w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition';
+        if (type === 'radio') {
+          const group = document.createElement('div');
+          group.className = 'flex flex-wrap gap-2 pt-0.5';
+          group.id = 'formField_' + id;
+          group.tabIndex = -1;
+          group.setAttribute('role', 'radiogroup');
+          group.setAttribute('aria-label', labelText);
+          group.setAttribute('aria-required', String(required));
+          options.forEach((option, index) => {
+            const choice = document.createElement('label');
+            choice.className = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-semibold cursor-pointer transition ' + (value === option ? 'bg-[#003b8f] text-white border-[#003b8f]' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50');
+            const input = document.createElement('input');
+            input.type = 'radio'; input.name = id; input.value = option;
+            input.id = 'formField_' + id + '_' + index;
+            input.checked = value === option; input.required = required;
+            input.className = 'sr-only';
+            input.addEventListener('change', () => handleFieldInput(id, input.value));
+            choice.append(input, document.createTextNode(option));
+            group.appendChild(choice);
+          });
+          wrapper.appendChild(group);
+        } else {
+          const input = document.createElement(type === 'textarea' ? 'textarea' : type === 'dropdown' || type === 'select' ? 'select' : 'input');
+          input.id = 'formField_' + id;
+          input.className = baseClass;
+          input.required = required;
+          input.setAttribute('aria-required', String(required));
+          if (input.tagName === 'SELECT') {
+            input.add(new Option('-- Select --', ''));
+            options.forEach(option => input.add(new Option(option, option)));
+            input.value = value;
+            input.addEventListener('change', () => handleFieldInput(id, input.value));
+          } else {
+            if (type === 'textarea') input.rows = 3;
+            else input.type = ['email', 'tel', 'number', 'date'].includes(type) ? type : 'text';
+            input.placeholder = 'Enter ' + labelText + '...';
+            input.value = value;
+            input.addEventListener('input', () => handleFieldInput(id, input.value));
+          }
+          wrapper.appendChild(input);
+        }
+        container.appendChild(wrapper);
       });
-      html += `</select>`;
-    } else if (fType === 'radio') {
-      html += `<div class="flex flex-wrap gap-2 pt-0.5">`;
-      opts.forEach(opt => {
-        const isSelected = val === opt;
-        html += `
-          <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-semibold cursor-pointer transition ${
-            isSelected 
-              ? 'bg-[#003b8f] text-white border-[#003b8f]' 
-              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-          }">
-            <input type="radio" name="${fieldId}" value="${opt}" ${isSelected ? 'checked' : ''} onchange="handleFieldInput('${fieldId}', this.value)" class="hidden">
-            <span>${opt}</span>
-          </label>`;
-      });
-      html += `</div>`;
-    } else {
-      html += `<input type="text" value="${val}" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">`;
+      if (!container.children.length) {
+        const empty = document.createElement('div');
+        empty.className = 'col-span-full text-xs text-slate-400 py-4';
+        empty.textContent = 'No fields configured.';
+        container.appendChild(empty);
+      }
+      updateUndoClearButtons();
+      const restored = focusId ? document.getElementById(focusId) : null;
+      if (restored) {
+        restored.focus({preventScroll:true});
+        if (selection && typeof restored.setSelectionRange === 'function') {
+          try { restored.setSelectionRange(selection[0], selection[1]); } catch (e) {}
+        }
+      }
     }
-
-    html += `</div>`;
-  });
-
-  container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
-  updateUndoClearButtons();
-}
 
 function handleFieldInput(fieldId, val) {
   if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
@@ -778,7 +864,8 @@ function handleFieldInput(fieldId, val) {
   const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
 
   const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
-  if (type === 'radio' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','non_comm'].includes(fieldId)) renderActiveForm();
+  const isDependencySource = getOrderedFields(key).some(f => dependencyRule(f)?.source === fieldId);
+  if (isDependencySource || type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','non_comm'].includes(fieldId)) renderActiveForm();
 }
     // NOTE COMPILED TEXT BUILDER (FOLLOWS SHEET ROW ORDER)
     function buildCompiledNoteText() {
@@ -791,6 +878,7 @@ function handleFieldInput(fieldId, val) {
         const label = String(field.label || field['Display Label'] || field.displayLabel || id).trim().replace(/:\s*$/, '').toUpperCase();
         const storedValue = vals[id] == null ? '' : String(vals[id]).trim();
         const value = isServiceOptionAllowed(id, storedValue) ? storedValue : '';
+        if (!value && !settingEnabled(field.copyIfBlank ?? field['Copy if Blank'], false)) return;
         if (id === 'resolution' && lines.length && lines[lines.length - 1] !== '') lines.push('');
         lines.push(label + ': ' + (value || 'N/A'));
       });
@@ -800,6 +888,7 @@ function handleFieldInput(fieldId, val) {
     }
 
     function copyGeneratedNote() {
+      if (!validateActiveForm()) return;
       const compiled = buildCompiledNoteText();
       const el = document.createElement('textarea');
       el.value = compiled;
@@ -820,6 +909,7 @@ function handleFieldInput(fieldId, val) {
         btmBtn.innerHTML = originalBtm;
         btmBtn.className = 'px-5 py-2 bg-[#003b8f] hover:bg-[#002b6b] text-white text-xs font-extrabold uppercase tracking-wide rounded-lg transition shadow-sm flex items-center gap-2';
       }, 2500);
+      return true;
     }
 
     function openNotePreviewModal() {
@@ -868,35 +958,16 @@ function handleFieldInput(fieldId, val) {
     // AUTO-SYNC NOTE FIELDS TO EMAIL TEMPLATES ENGINE
     // ========================================================
     function syncFieldsFromNoteForm(showToast) {
-      const noteVals = noteSourceValues();
-
-      // 1. Caller / Member Name
-      const callerName = noteVals.caller_name || 
-                         noteVals.name_contact || 
-                         noteVals.name || 
-                         noteVals.contact_name || '';
-
-      // 2. System Number (Only System Number)
-      const sysNum = noteVals.system_number || '';
-
-      // 3. Case Number (STRICTLY sf_case or case_number — never Submission ID, System #, or AR #)
-      const caseNum = noteVals.sf_case || 
-                      noteVals.case_number || '';
-
+      const values = noteSourceValues();
+      const name = values.caller_name || '';
+      const system = values.system_number || '';
       const nameInput = document.getElementById('emailVarName');
-      const sysInput = document.getElementById('emailVarSys');
-      const caseInput = document.getElementById('emailVarCase');
-
-      if (nameInput && callerName) nameInput.value = callerName;
-      if (sysInput && sysNum) sysInput.value = sysNum;
-      if (caseInput) caseInput.value = caseNum; // Only populated if an actual Case # exists!
-
+      const systemInput = document.getElementById('emailVarSys');
+      if (nameInput && name) nameInput.value = name;
+      if (systemInput && system) systemInput.value = system;
+      // Case # is manual-only; leave its input untouched.
       updateTemplatePreview();
-
-      if (showToast) {
-
-        alert(`Synced from note:\n• Member: ${callerName || 'N/A'}\n• System #: ${sysNum || 'N/A'}\n• Case #: ${caseNum || 'N/A'}`);
-      }
+      if (showToast) alert('Synced Member and System #. Case # remains manual entry.');
     }
 
     function openEmailModal() {
@@ -1182,7 +1253,10 @@ function handleFieldInput(fieldId, val) {
     function replaceTemplateVariables(text, knownValues, customValues) {
       return String(text || '').replace(/\[([^\[\]\r\n]+)\]/g, function (placeholder, name) {
         const key = normalizeTemplatePlaceholder(name);
-        if (Object.prototype.hasOwnProperty.call(knownValues, key)) return String(knownValues[key] ?? '');
+        if (Object.prototype.hasOwnProperty.call(knownValues, key)) {
+          const value = String(knownValues[key] ?? '');
+          return value.trim() ? value : placeholder;
+        }
         const value = customValues.get(key);
         return value !== undefined && String(value).trim() !== '' ? String(value) : placeholder;
       });
@@ -1248,9 +1322,7 @@ function handleFieldInput(fieldId, val) {
       const sysVal = (document.getElementById('emailVarSys')?.value || '').trim() || 
                      noteVals.system_number || 'N/A';
 
-      const caseVal = (document.getElementById('emailVarCase')?.value || '').trim() || 
-
-                      noteVals.sf_case || noteVals.case_number || noteVals.submission_id || '[Case #]';
+      const caseVal = (document.getElementById('emailVarCase')?.value || '').trim();
       const arVal = noteVals.ar_number || 'N/A';
       const phoneVal = noteVals.phone_number || '';
       const knownValues = {};
@@ -1332,18 +1404,25 @@ function handleFieldInput(fieldId, val) {
 
     function populateHelpfulLinks(links) {
       const list = document.getElementById('linksList');
-      if (!links || links.length === 0) {
-        list.innerHTML = '<div class="px-3 py-2 text-slate-400 text-xs">No links found.</div>';
+      list.replaceChildren();
+      if (!Array.isArray(links) || !links.length) {
+        list.textContent = 'No links found.';
         return;
       }
-      let html = '';
-      links.forEach(l => {
-        html += `<a href="${l.url}" target="_blank" class="block px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 font-medium flex items-center justify-between">
-          <span>${l.name}</span>
-          <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400"></i>
-        </a>`;
+      links.forEach(link => {
+        let url;
+        try { url = new URL(link.url); } catch (e) { return; }
+        if (!['https:', 'http:'].includes(url.protocol)) return;
+        const anchor = document.createElement('a');
+        anchor.href = url.href; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
+        anchor.className = 'block px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 font-medium';
+        anchor.textContent = link.name || 'Open link';
+        if (link.popup === 'chatbot') anchor.addEventListener('click', event => {
+          event.preventDefault();
+          window.open(url.href, '_blank', 'popup=yes,width=520,height=720,resizable=yes,scrollbars=yes,noopener');
+        });
+        list.appendChild(anchor);
       });
-      list.innerHTML = html;
     }
 
     function openZipModal() { document.getElementById('zipModal').classList.remove('hidden'); }
