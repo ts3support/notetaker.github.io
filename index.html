@@ -14,13 +14,7 @@
     ::-webkit-scrollbar-track { background: #f1f5f9; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-  
-#privacyScriptTooltip { position: fixed; z-index: 9999; width: min(560px, calc(100vw - 24px)); max-height: 60vh; overflow: auto; padding: 16px; background: white; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 30px #0f172a33; font-size: 13px; line-height: 1.6; }
-#privacyScriptTooltip[hidden] { display: none; }
-#privacyScriptTooltip strong { display:block; margin:12px 0 4px; color:#003b8f; font-size:11px; }
-#privacyScriptTooltip strong:first-child { margin-top:0; }
-[data-privacy-hover]:focus-visible { outline: 2px solid #003b8f; outline-offset: 3px; }
-</style>
+  </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
@@ -165,31 +159,6 @@
               <i class="fa-solid fa-building mr-1"></i> Commercial
             </button>
           </div>
-        </div>
-      </div>
-
-      <!-- TOP ACTION TOOLBAR -->
-      <div class="px-5 py-3 border-b border-slate-100 bg-white flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <h2 id="activeFormTitle" class="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-            <i class="fa-solid fa-pen-to-square text-[#003b8f]"></i> Inbound Note Taker
-          </h2>
-          <span class="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">3-Column Grid • Sheet Ordered</span>
-        </div>
-
-        <!-- Primary Action Deck -->
-        <div class="flex items-center flex-wrap gap-2">
-          <button type="button" onclick="copyGeneratedNote()" id="topCopyBtn" class="px-4 py-2 bg-[#003b8f] hover:bg-[#002b6b] text-white text-xs font-bold rounded-lg transition shadow-sm flex items-center gap-1.5">
-            <i class="fa-solid fa-copy"></i>
-            <span>Copy Note to Clipboard</span>
-          </button>
-          <button type="button" onclick="openNotePreviewModal()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition border border-slate-300 flex items-center gap-1.5" title="Preview Formatted Output">
-            <i class="fa-solid fa-eye"></i>
-            <span>Preview Note</span>
-          </button>
-          <button type="button" onclick="clearCurrentForm()" class="px-2.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg transition">
-            <i class="fa-solid fa-rotate-left mr-1"></i> Clear
-          </button><button type="button" data-undo-clear onclick="undoClearCurrentForm()" disabled class="px-3 py-1.5 text-xs font-semibold border rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">Undo Clear</button>
         </div>
       </div>
 
@@ -653,7 +622,6 @@
 
       if (formKey === 'notes') {
         document.getElementById('notesModeControls').classList.remove('hidden');
-        document.getElementById('activeFormTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-[#003b8f]"></i> ${callType} Note Taker`;
       } else {
         document.getElementById('notesModeControls').classList.add('hidden');
         const titles = {
@@ -662,7 +630,6 @@
           addendum: 'Addendum Request Ticket',
           parts: 'Parts Order Ticket'
         };
-        document.getElementById('activeFormTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-[#003b8f]"></i> ${titles[formKey] || 'Form'}`;
       }
 
       renderActiveForm();
@@ -672,7 +639,6 @@
       callType = type;
       document.getElementById('callTypeInbound').className = type === 'Inbound' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
       document.getElementById('callTypeOutbound').className = type === 'Outbound' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
-      document.getElementById('activeFormTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-[#003b8f]"></i> ${callType} Note Taker`;
       saveFormDrafts();
       renderActiveForm();
     }
@@ -746,10 +712,9 @@
     const isSpanningTextarea = fType === 'textarea';
     const label = field.label || field['Display Label'] || field.displayLabel || fieldId;
 
-    const isPrivacyField = /privacy/i.test(String(fieldId) + ' ' + String(label));
-    html += `<div ${isPrivacyField ? 'data-privacy-hover tabindex="0" aria-describedby="privacyScriptTooltip"' : ''} class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
+    html += `<div class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
       <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
-        <span>${label}${isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
+        <span>${label}</span>
         ${fieldId === 'submission_id' ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
       </label>`;
 
@@ -836,21 +801,15 @@ function handleFieldInput(fieldId, val) {
       document.execCommand('copy');
       document.body.removeChild(el);
 
-      const topBtn = document.getElementById('topCopyBtn');
       const btmBtn = document.getElementById('bottomCopyBtn');
 
-      const originalTop = topBtn.innerHTML;
       const originalBtm = btmBtn.innerHTML;
 
-      topBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copied to Clipboard!</span>';
-      topBtn.className = 'px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg transition shadow-sm flex items-center gap-1.5';
 
       btmBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copied to Clipboard!</span>';
       btmBtn.className = 'px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold uppercase tracking-wide rounded-lg transition shadow-sm flex items-center gap-2';
 
       setTimeout(() => {
-        topBtn.innerHTML = originalTop;
-        topBtn.className = 'px-4 py-2 bg-[#003b8f] hover:bg-[#002b6b] text-white text-xs font-bold rounded-lg transition shadow-sm flex items-center gap-1.5';
         btmBtn.innerHTML = originalBtm;
         btmBtn.className = 'px-5 py-2 bg-[#003b8f] hover:bg-[#002b6b] text-white text-xs font-extrabold uppercase tracking-wide rounded-lg transition shadow-sm flex items-center gap-2';
       }, 2500);
@@ -1465,44 +1424,5 @@ function handleFieldInput(fieldId, val) {
       ];
     }
   </script>
-<div id="privacyScriptTooltip" role="tooltip" hidden><strong>DIRECT-DIAL INBOUND / OUTBOUND</strong><p>“This call may be recorded and your personal information shared with our service providers. To learn more, visit our privacy policy at AAA.com”</p><strong>TRANSLATIONS</strong><p>“This call may be recorded and during this call your personal information may be shared with our service providers to provide you with language translations and services. To learn more, visit our privacy policy at AAA.com”</p><strong>SPANISH</strong><p>Esta llamada puede ser grabada y su información personal compartida con nuestros proveedores de servicios. Para saber más, visite nuestra política de privacidad en AAA.com”</p><strong>IVR</strong><p>“This call may be recorded for quality and training purposes. During this call, AAA may collect personal information from you and may need to share this information with third parties to provide you with services or help fulfill your request. To learn more, please visit AAA.com to view our privacy policy.”</p></div>
-<script>
-(() => {
-  const tip = document.getElementById('privacyScriptTooltip');
-  let timer;
-  function show(field) {
-    clearTimeout(timer);
-    tip.hidden = false;
-    const r = field.getBoundingClientRect();
-    const width = tip.offsetWidth;
-    const height = tip.offsetHeight;
-    tip.style.left = Math.max(12, Math.min(r.left, innerWidth - width - 12)) + 'px';
-    const below = r.bottom + 6;
-    tip.style.top = Math.max(12, Math.min(below + height <= innerHeight - 12 ? below : r.top - height - 6, innerHeight - height - 12)) + 'px';
-  }
-  function hideLater() {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (!tip.matches(':hover') && !document.querySelector('[data-privacy-hover]:hover') && !document.activeElement?.closest('[data-privacy-hover]')) tip.hidden = true;
-    }, 180);
-  }
-  document.addEventListener('pointerover', e => {
-    const field = e.target.closest('[data-privacy-hover]');
-    if (field) show(field);
-    else if (tip.contains(e.target)) clearTimeout(timer);
-  });
-  document.addEventListener('pointerout', hideLater);
-  document.addEventListener('focusin', e => {
-    const field = e.target.closest('[data-privacy-hover]');
-    if (field) show(field);
-  });
-  document.addEventListener('focusout', hideLater);
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { clearTimeout(timer); tip.hidden = true; }
-  });
-  window.addEventListener('resize', () => { tip.hidden = true; });
-  window.addEventListener('scroll', e => { if (!tip.contains(e.target)) tip.hidden = true; }, true);
-})();
-</script>
 </body>
 </html>
