@@ -14,7 +14,13 @@
     ::-webkit-scrollbar-track { background: #f1f5f9; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-  </style>
+  
+#privacyScriptTooltip{position:fixed;z-index:9999;width:min(560px,calc(100vw - 24px));max-height:60vh;overflow:auto;padding:16px;background:white;color:#1e293b;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 12px 30px #0f172a33;font-size:13px;line-height:1.6}
+#privacyScriptTooltip[hidden]{display:none}
+#privacyScriptTooltip strong{display:block;margin:12px 0 4px;color:#003b8f;font-size:11px}
+#privacyScriptTooltip strong:first-child{margin-top:0}
+[data-privacy-hover]:focus-visible{outline:2px solid #003b8f;outline-offset:3px}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
@@ -712,9 +718,10 @@
     const isSpanningTextarea = fType === 'textarea';
     const label = field.label || field['Display Label'] || field.displayLabel || fieldId;
 
-    html += `<div class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
+    const isPrivacyField = /privacy/i.test(String(fieldId) + ' ' + String(label));
+    html += `<div ${isPrivacyField ? 'data-privacy-hover tabindex="0" aria-describedby="privacyScriptTooltip"' : ''} class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
       <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
-        <span>${label}</span>
+        <span>${label}${isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
         ${fieldId === 'submission_id' ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
       </label>`;
 
@@ -1424,5 +1431,39 @@ function handleFieldInput(fieldId, val) {
       ];
     }
   </script>
-</body>
+<div id="privacyScriptTooltip" role="tooltip" hidden><strong>DIRECT-DIAL INBOUND / OUTBOUND</strong><p>“This call may be recorded and your personal information shared with our service providers. To learn more, visit our privacy policy at AAA.com”</p><strong>TRANSLATIONS</strong><p>“This call may be recorded and during this call your personal information may be shared with our service providers to provide you with language translations and services. To learn more, visit our privacy policy at AAA.com”</p><strong>SPANISH</strong><p>Esta llamada puede ser grabada y su información personal compartida con nuestros proveedores de servicios. Para saber más, visite nuestra política de privacidad en AAA.com”</p><strong>IVR</strong><p>“This call may be recorded for quality and training purposes. During this call, AAA may collect personal information from you and may need to share this information with third parties to provide you with services or help fulfill your request. To learn more, please visit AAA.com to view our privacy policy.”</p></div><script>
+(() => {
+  const tip = document.getElementById('privacyScriptTooltip');
+  let timer;
+  function show(field) {
+    clearTimeout(timer);
+    tip.hidden = false;
+    const r = field.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(12, Math.min(r.left, innerWidth - w - 12)) + 'px';
+    tip.style.top = Math.max(12, Math.min(r.bottom + h + 6 < innerHeight ? r.bottom + 6 : r.top - h - 6, innerHeight - h - 12)) + 'px';
+  }
+  function hideLater() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (!tip.matches(':hover') && !document.querySelector('[data-privacy-hover]:hover') && !document.activeElement?.closest('[data-privacy-hover]')) tip.hidden = true;
+    }, 180);
+  }
+  document.addEventListener('pointerover', e => {
+    const field = e.target.closest('[data-privacy-hover]');
+    if (field) show(field);
+    else if (tip.contains(e.target)) clearTimeout(timer);
+  });
+  document.addEventListener('pointerout', hideLater);
+  document.addEventListener('focusin', e => {
+    const field = e.target.closest('[data-privacy-hover]');
+    if (field) show(field);
+  });
+  document.addEventListener('focusout', hideLater);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { clearTimeout(timer); tip.hidden = true; }
+  });
+  window.addEventListener('resize', () => { tip.hidden = true; });
+  window.addEventListener('scroll', e => { if (!tip.contains(e.target)) tip.hidden = true; }, true);
+})();
+</script></body>
 </html>
