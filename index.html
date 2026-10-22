@@ -557,54 +557,75 @@
     }
 
     // HELPER: GET ORDERED FIELDS (GUARANTEES SHEET ROW ORDER)
-    function settingEnabled(value, fallback = false) {
-      if (typeof value === 'boolean') return value;
+    function schemaFlag(value, fallback = false) {
+      if (value === true || value === false) return value;
       const text = String(value ?? '').trim().toLowerCase();
       if (['yes', 'true'].includes(text)) return true;
       if (['no', 'false'].includes(text)) return false;
       return fallback;
     }
 
-    function dependencyRule(field) {
-      const raw = String(field.dependsOn ?? field['Depends on'] ?? '').trim();
+    function parseFieldDependency(field) {
+      const raw = String(field.dependsOn ?? '').trim();
       if (!raw) return null;
       const match = raw.match(/^([^=:\s]+)\s*=\s*(.*?)\s*:\s*(required|visible)\s*$/i);
-      if (!match) {
-        console.warn('Unsupported Depends on rule:', raw);
-        return null;
-      }
-      return { source: match[1], expected: match[2].trim().toLowerCase(), action: match[3].toLowerCase() };
+      return match ? {source: match[1], expected: match[2].trim().toLowerCase(), action: match[3].toLowerCase()} : {invalid: true, raw};
     }
 
-    function dependencyMatches(rule, values) {
-      return String(values[rule.source] ?? '').trim().toLowerCase() === rule.expected;
+    function dependencyIsMatched(rule, values) {
+      return !rule.invalid && String(values[rule.source] ?? '').trim().toLowerCase() === rule.expected;
     }
 
-    function fieldIsRequired(field, values) {
-      const rule = dependencyRule(field);
-      return settingEnabled(field.required ?? field.Required, false) ||
-        Boolean(rule && rule.action === 'required' && dependencyMatches(rule, values));
+    function fieldRequiredNow(field, values) {
+      const rule = parseFieldDependency(field);
+      return schemaFlag(field.required ?? field.Required, false) ||
+        Boolean(rule && !rule.invalid && rule.action === 'required' && dependencyIsMatched(rule, values));
     }
 
-    function fieldIdOf(field) {
-      return field.id || field['Internal ID'] || field.internalId;
-    }
-
-    function validateActiveForm() {
+    function validateRequiredFieldsBeforeCopy() {
       const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      if (!formSchema || !Array.isArray(formSchema[key + '_order'])) {
+        alert('NOTHING WAS COPIED. Form settings have not loaded. Please wait and try again.');
+        return false;
+      }
+      const fields = formSchema[key + '_order'];
+      if (!fields.length) {
+        alert('NOTHING WAS COPIED. No fields are configured for this form.');
+        return false;
+      }
       const values = formValues[activeFormKey] || {};
-      const missing = getOrderedFields(key).filter(field => {
-        if (!shouldShowNoteField(field, key, values) || !fieldIsRequired(field, values)) return false;
-        const id = fieldIdOf(field);
+      const missing = [];
+      let firstId = '';
+      fields.forEach(field => {
+        const id = field.id || field['Internal ID'] || field.internalId;
+        if (!schemaFlag(field.visible, true)) return;
+        const label = field.label || field['Display Label'] || id;
+        const rule = parseFieldDependency(field);
+        if (rule && rule.invalid) {
+          missing.push(label + ' — invalid Depends on rule: ' + rule.raw);
+          return;
+        }
+        const conditionalRequired = rule && rule.action === 'required' && dependencyIsMatched(rule, values);
+        if (rule && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return;
+        if (!conditionalRequired && !shouldShowNoteField(field, key, values)) return;
+        if (!fieldRequiredNow(field, values)) return;
         const value = String(values[id] ?? '').trim();
-        return !value || !isServiceOptionAllowed(id, value);
+        if (!value || !isServiceOptionAllowed(id, value)) {
+          missing.push(label);
+          if (!firstId) firstId = id;
+        }
       });
-      document.querySelectorAll('#dynamicFormContainer [aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
-      if (!missing.length) return true;
-      alert('Please complete the required fields before copying:\n\n' + missing.map(f => '• ' + (f.label || f['Display Label'] || fieldIdOf(f))).join('\n'));
-      const first = document.getElementById('formField_' + fieldIdOf(missing[0]));
-      if (first) { first.setAttribute('aria-invalid', 'true'); first.focus(); first.scrollIntoView({block:'center', behavior:'smooth'}); }
-      return false;
+      if (missing.length) {
+        alert('NOTHING WAS COPIED.\n\nComplete these required fields or correct their settings:\n\n' + missing.map(label => '• ' + label).join('\n'));
+        const wrapper = Array.from(document.querySelectorAll('#dynamicFormContainer [data-field-id]')).find(el => el.dataset.fieldId === firstId);
+        if (wrapper) {
+          wrapper.scrollIntoView({block:'center', behavior:'smooth'});
+          const input = wrapper.querySelector('input,select,textarea');
+          if (input) { input.setAttribute('aria-invalid','true'); input.focus({preventScroll:true}); }
+        }
+        return false;
+      }
+      return true;
     }
 
     function getOrderedFields(targetKey) {
@@ -711,9 +732,9 @@
         function shouldShowNoteField(field, targetKey, values) {
       const id = field.id || field['Internal ID'] || field.internalId;
       const visible = field.visible !== undefined ? field.visible : field['Visible'];
-      if (!settingEnabled(visible, true)) return false;
-      const rule = dependencyRule(field);
-      if (rule && rule.action === 'visible' && !dependencyMatches(rule, values)) return false;
+      if (!schemaFlag(visible, true)) return false;
+      const rule = parseFieldDependency(field);
+      if (rule && !rule.invalid && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return false;
 
       // Only show NON-COMM field if the agent extension is in Settings!B2 (Project 2026 Extensions)
       if (id === 'non_comm' && !specialEmailAccessAllowed) return false;
@@ -726,7 +747,7 @@
       // Scheduling workflow overrides the unanswered-call field filter.
       if (id === 'scheduled_service') return true;
       if (id === 'warranty') return scheduled;
-      // These fields now use sheet visibility and conditional required rules.
+      // Sheet visibility governs these fields; :required never hides them.
       if (id === 'fee_waived' || id === 'submission_id') return true;
 
 
@@ -745,106 +766,74 @@
     }
 
     function renderActiveForm() {
-      const container = document.getElementById('dynamicFormContainer');
-      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
-      const values = formValues[activeFormKey] || {};
-      const oldFocus = document.activeElement;
-      const focusId = oldFocus && container.contains(oldFocus) ? oldFocus.id : '';
-      const selection = focusId && typeof oldFocus.selectionStart === 'number'
-        ? [oldFocus.selectionStart, oldFocus.selectionEnd] : null;
-      container.replaceChildren();
-      getOrderedFields(key).forEach(field => {
-        if (!shouldShowNoteField(field, key, values)) return;
-        const id = fieldIdOf(field);
-        const labelText = field.label || field['Display Label'] || field.displayLabel || id;
-        const type = String(field.type || field.fieldType || field['Field Type'] || 'text').trim().toLowerCase();
-        const required = fieldIsRequired(field, values);
-        const stored = String(values[id] ?? '');
-        const value = isServiceOptionAllowed(id, stored) ? stored : '';
-        const rawOptions = field.options || field.Options || '';
-        const options = (Array.isArray(rawOptions) ? rawOptions : String(rawOptions).split(','))
-          .map(x => String(x).trim()).filter(Boolean).filter(x => isServiceOptionAllowed(id, x));
-        const wrapper = document.createElement('div');
-        wrapper.className = 'space-y-1 ' + (type === 'textarea' ? 'col-span-1 md:col-span-2 lg:col-span-3' : '');
-        wrapper.dataset.fieldId = id;
-        const heading = document.createElement('div');
-        heading.className = 'text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between';
-        const label = document.createElement('label');
-        label.htmlFor = 'formField_' + id;
-        label.textContent = labelText;
-        heading.appendChild(label);
-        if (/privacy/i.test(id + ' ' + labelText)) {
-          wrapper.dataset.privacyHover = '';
-          wrapper.tabIndex = 0;
-          wrapper.setAttribute('aria-describedby', 'privacyScriptTooltip');
-          label.appendChild(document.createTextNode(' ⓘ'));
-        }
-        if (required) {
-          const badge = document.createElement('span');
-          badge.textContent = '* Required';
-          badge.className = 'text-rose-600 font-extrabold text-[10px]';
-          heading.appendChild(badge);
-        }
-        wrapper.appendChild(heading);
-        const baseClass = 'w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition';
-        if (type === 'radio') {
-          const group = document.createElement('div');
-          group.className = 'flex flex-wrap gap-2 pt-0.5';
-          group.id = 'formField_' + id;
-          group.tabIndex = -1;
-          group.setAttribute('role', 'radiogroup');
-          group.setAttribute('aria-label', labelText);
-          group.setAttribute('aria-required', String(required));
-          options.forEach((option, index) => {
-            const choice = document.createElement('label');
-            choice.className = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-semibold cursor-pointer transition ' + (value === option ? 'bg-[#003b8f] text-white border-[#003b8f]' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50');
-            const input = document.createElement('input');
-            input.type = 'radio'; input.name = id; input.value = option;
-            input.id = 'formField_' + id + '_' + index;
-            input.checked = value === option; input.required = required;
-            input.className = 'sr-only';
-            input.addEventListener('change', () => handleFieldInput(id, input.value));
-            choice.append(input, document.createTextNode(option));
-            group.appendChild(choice);
-          });
-          wrapper.appendChild(group);
-        } else {
-          const input = document.createElement(type === 'textarea' ? 'textarea' : type === 'dropdown' || type === 'select' ? 'select' : 'input');
-          input.id = 'formField_' + id;
-          input.className = baseClass;
-          input.required = required;
-          input.setAttribute('aria-required', String(required));
-          if (input.tagName === 'SELECT') {
-            input.add(new Option('-- Select --', ''));
-            options.forEach(option => input.add(new Option(option, option)));
-            input.value = value;
-            input.addEventListener('change', () => handleFieldInput(id, input.value));
-          } else {
-            if (type === 'textarea') input.rows = 3;
-            else input.type = ['email', 'tel', 'number', 'date'].includes(type) ? type : 'text';
-            input.placeholder = 'Enter ' + labelText + '...';
-            input.value = value;
-            input.addEventListener('input', () => handleFieldInput(id, input.value));
-          }
-          wrapper.appendChild(input);
-        }
-        container.appendChild(wrapper);
+  const container = document.getElementById('dynamicFormContainer');
+  const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
+  
+  const fieldsList = getOrderedFields(targetKey);
+  const currentVals = formValues[activeFormKey] || {};
+  let html = '';
+
+  fieldsList.forEach(field => {
+    const fieldId = field.id || field['Internal ID'] || field.internalId;
+    if (!shouldShowNoteField(field, targetKey, currentVals)) return;
+
+    const storedValue = currentVals[fieldId] || '';
+    const val = isServiceOptionAllowed(fieldId, storedValue) ? storedValue : '';
+    
+    // Robust field type resolution supporting multiple naming conventions
+
+    const rawType = field.type || field.fieldType || field['Field Type'] || 'Text';
+    const fType = rawType.toString().trim().toLowerCase();
+    
+    // Robust options resolution
+    const rawOptions = field.options || field.Options || field['Options'] || '';
+    const opts = rawOptions.split(',').map(s => s.trim()).filter(Boolean)
+      .filter(option => isServiceOptionAllowed(fieldId, option));
+
+    const isSpanningTextarea = fType === 'textarea';
+    const label = field.label || field['Display Label'] || field.displayLabel || fieldId;
+
+    const isPrivacyField = /privacy/i.test(String(fieldId) + ' ' + String(label));
+    html += `<div data-field-id="${fieldId}" ${isPrivacyField ? 'data-privacy-hover tabindex="0" aria-describedby="privacyScriptTooltip"' : ''} class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
+      <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
+        <span>${label}${isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
+        ${fieldRequiredNow(field, currentVals) ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
+      </label>`;
+
+    if (fType === 'textarea') {
+      html += `<textarea rows="3" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">${val}</textarea>`;
+    } else if (fType === 'dropdown') {
+      html += `<select onchange="handleFieldInput('${fieldId}', this.value)" class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition cursor-pointer">
+        <option value="">-- Select --</option>`;
+      opts.forEach(opt => {
+        html += `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>`;
       });
-      if (!container.children.length) {
-        const empty = document.createElement('div');
-        empty.className = 'col-span-full text-xs text-slate-400 py-4';
-        empty.textContent = 'No fields configured.';
-        container.appendChild(empty);
-      }
-      updateUndoClearButtons();
-      const restored = focusId ? document.getElementById(focusId) : null;
-      if (restored) {
-        restored.focus({preventScroll:true});
-        if (selection && typeof restored.setSelectionRange === 'function') {
-          try { restored.setSelectionRange(selection[0], selection[1]); } catch (e) {}
-        }
-      }
+      html += `</select>`;
+    } else if (fType === 'radio') {
+      html += `<div class="flex flex-wrap gap-2 pt-0.5">`;
+      opts.forEach(opt => {
+        const isSelected = val === opt;
+        html += `
+          <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-semibold cursor-pointer transition ${
+            isSelected 
+              ? 'bg-[#003b8f] text-white border-[#003b8f]' 
+              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+          }">
+            <input type="radio" name="${fieldId}" value="${opt}" ${isSelected ? 'checked' : ''} onchange="handleFieldInput('${fieldId}', this.value)" class="hidden">
+            <span>${opt}</span>
+          </label>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<input type="text" value="${val}" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">`;
     }
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
+  updateUndoClearButtons();
+}
 
 function handleFieldInput(fieldId, val) {
   if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
@@ -864,9 +853,15 @@ function handleFieldInput(fieldId, val) {
   const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
 
   const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
-  const isDependencySource = getOrderedFields(key).some(f => dependencyRule(f)?.source === fieldId);
-  if (isDependencySource || type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','non_comm'].includes(fieldId)) renderActiveForm();
+  if (type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','non_comm'].includes(fieldId)) renderActiveForm();
 }
+
+    document.addEventListener('change', function(event) {
+      const wrapper = event.target.closest('#dynamicFormContainer [data-field-id]');
+      if (!wrapper) return;
+      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      if (getOrderedFields(key).some(field => parseFieldDependency(field)?.source === wrapper.dataset.fieldId)) renderActiveForm();
+    });
     // NOTE COMPILED TEXT BUILDER (FOLLOWS SHEET ROW ORDER)
     function buildCompiledNoteText() {
       const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
@@ -878,7 +873,7 @@ function handleFieldInput(fieldId, val) {
         const label = String(field.label || field['Display Label'] || field.displayLabel || id).trim().replace(/:\s*$/, '').toUpperCase();
         const storedValue = vals[id] == null ? '' : String(vals[id]).trim();
         const value = isServiceOptionAllowed(id, storedValue) ? storedValue : '';
-        if (!value && !settingEnabled(field.copyIfBlank ?? field['Copy if Blank'], false)) return;
+        if (!value && !schemaFlag(field.copyIfBlank ?? field['Copy if Blank'], false)) return;
         if (id === 'resolution' && lines.length && lines[lines.length - 1] !== '') lines.push('');
         lines.push(label + ': ' + (value || 'N/A'));
       });
@@ -888,27 +883,28 @@ function handleFieldInput(fieldId, val) {
     }
 
     function copyGeneratedNote() {
-      if (!validateActiveForm()) return;
+      if (!validateRequiredFieldsBeforeCopy()) return false;
       const compiled = buildCompiledNoteText();
-      const el = document.createElement('textarea');
-      el.value = compiled;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
-
-      const btmBtn = document.getElementById('bottomCopyBtn');
-
-      const originalBtm = btmBtn.innerHTML;
-
-
-      btmBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copied to Clipboard!</span>';
-      btmBtn.className = 'px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold uppercase tracking-wide rounded-lg transition shadow-sm flex items-center gap-2';
-
-      setTimeout(() => {
-        btmBtn.innerHTML = originalBtm;
-        btmBtn.className = 'px-5 py-2 bg-[#003b8f] hover:bg-[#002b6b] text-white text-xs font-extrabold uppercase tracking-wide rounded-lg transition shadow-sm flex items-center gap-2';
-      }, 2500);
+      const textarea = document.createElement('textarea');
+      textarea.value = compiled;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      let copied = false;
+      try { copied = document.execCommand('copy'); }
+      catch (err) { console.error('Clipboard copy failed:', err); }
+      finally { textarea.remove(); }
+      if (!copied) {
+        alert('The browser could not copy the note. Nothing new was copied.');
+        return false;
+      }
+      const button = document.getElementById('bottomCopyBtn');
+      if (button) {
+        const original = button.innerHTML;
+        button.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copied to Clipboard!</span>';
+        setTimeout(() => { button.innerHTML = original; }, 2500);
+      }
       return true;
     }
 
@@ -959,13 +955,11 @@ function handleFieldInput(fieldId, val) {
     // ========================================================
     function syncFieldsFromNoteForm(showToast) {
       const values = noteSourceValues();
-      const name = values.caller_name || '';
-      const system = values.system_number || '';
       const nameInput = document.getElementById('emailVarName');
-      const systemInput = document.getElementById('emailVarSys');
-      if (nameInput && name) nameInput.value = name;
-      if (systemInput && system) systemInput.value = system;
-      // Case # is manual-only; leave its input untouched.
+      const sysInput = document.getElementById('emailVarSys');
+      if (nameInput && values.caller_name) nameInput.value = values.caller_name;
+      if (sysInput && values.system_number) sysInput.value = values.system_number;
+      // Never populate or clear the manually entered Case #.
       updateTemplatePreview();
       if (showToast) alert('Synced Member and System #. Case # remains manual entry.');
     }
@@ -1405,14 +1399,11 @@ function handleFieldInput(fieldId, val) {
     function populateHelpfulLinks(links) {
       const list = document.getElementById('linksList');
       list.replaceChildren();
-      if (!Array.isArray(links) || !links.length) {
-        list.textContent = 'No links found.';
-        return;
-      }
+      if (!Array.isArray(links) || !links.length) { list.textContent = 'No links found.'; return; }
       links.forEach(link => {
         let url;
-        try { url = new URL(link.url); } catch (e) { return; }
-        if (!['https:', 'http:'].includes(url.protocol)) return;
+        try { url = new URL(link.url); } catch (err) { return; }
+        if (!['http:', 'https:'].includes(url.protocol)) return;
         const anchor = document.createElement('a');
         anchor.href = url.href; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
         anchor.className = 'block px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 font-medium';
