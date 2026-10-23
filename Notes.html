@@ -642,7 +642,26 @@
     // FORM SCHEMA & 3-COLUMN RENDERER IN EXACT SHEET ROW ORDER
     function handleSchemaLoaded(schema) {
       formSchema = schema || {};
+      const allowed = (
+        Array.isArray(formSchema.authorizedExtensions)
+          ? formSchema.authorizedExtensions.flat(Infinity)
+          : [formSchema.authorizedExtensions]
+      )
+        .filter(value => value != null)
+        .map(value => String(value).trim())
+        .filter(Boolean);
+      const extension = String(currentAgent.extension || '').trim();
+      console.log('NON-COMM diagnostic', {
+        extensionUsedByApp: extension,
+        savedPhone: localStorage.getItem('phone'),
+        savedExtension: localStorage.getItem('extension'),
+        authorizedExtensions: allowed,
+        extensionMatches: extension !== '' && allowed.includes(extension),
+        inboundNonComm: formSchema.inbound?.non_comm,
+        outboundNonComm: formSchema.outbound?.non_comm
+      });
       applySpecialEmailAccess();
+      console.log('NON-COMM access result', { specialEmailAccessAllowed });
       renderActiveForm();
     }
 
