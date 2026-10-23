@@ -647,6 +647,8 @@
     }
 
     function handleSchemaFallback(err) {
+      console.error('Failed to load form schema:', err);
+      specialEmailAccessAllowed = false;
       renderActiveForm();
     }
 
@@ -736,7 +738,7 @@
       const rule = parseFieldDependency(field);
       if (rule && !rule.invalid && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return false;
 
-      // Only show NON-COMM field if the agent extension is in Settings!B2 (Project 2026 Extensions)
+      // Only show NON-COMM field if the agent extension is in Settings!B3 (Project 2026 Extensions)
       if (id === 'non_comm' && !specialEmailAccessAllowed) return false;
 
       const normalized = key => String(values[key] || '').trim().toLowerCase();
@@ -1104,9 +1106,11 @@ function handleFieldInput(fieldId, val) {
       const ext = String(currentAgent.extension || '').trim();
       specialEmailAccessAllowed = ext !== '' && allowed.includes(ext);
       const button = document.getElementById('btnEmailTabSpecial');
+      if (button) {
       button.style.display = specialEmailAccessAllowed ? '' : 'none';
       button.textContent = specialEmailAccessAllowed ? 'Special Emails (Project 2026)' : '';
       button.className = 'px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900';
+      }
       const select = document.getElementById('feedbackSection');
       if (select) {
         Array.from(select.options).filter(o => o.value === 'Special Emails').forEach(o => o.remove());
