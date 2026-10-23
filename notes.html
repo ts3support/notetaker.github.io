@@ -1,746 +1,328 @@
-// ==========================================
-// CONFIGURATION & HELPER UTILITIES
-// ==========================================
-
-/**
- * Returns the active spreadsheet, falling back to its ID
- * when the script runs without an active spreadsheet.
- */
-function getAppSpreadsheet() {
-  const spreadsheetId = '1a3qJOmQbn2eywwOEjA_vhLY3yCFU3j3qHrQ9hEvyEDo';
-
-  try {
-    return SpreadsheetApp.getActiveSpreadsheet() ||
-      SpreadsheetApp.openById(spreadsheetId);
-  } catch (err) {
-    return SpreadsheetApp.openById(spreadsheetId);
-  }
-}
-
-/**
- * Converts spreadsheet settings into booleans.
- *
- * Supported enabled values:
- *   true, TRUE, Yes
- *
- * Supported disabled values:
- *   false, FALSE, No
- *
- * Blank or unrecognized values use defaultValue.
- */
-function isEnabledSetting(value, defaultValue) {
-  const fallback = defaultValue === true;
-
-  if (value === true) return true;
-  if (value === false) return false;
-
-  const normalized = String(
-    value === undefined || value === null ? '' : value
-  ).trim().toLowerCase();
-
-  if (normalized === 'true' || normalized === 'yes') {
-    return true;
-  }
-
-  if (normalized === 'false' || normalized === 'no') {
-    return false;
-  }
-
-  return fallback;
-}
-
-/**
- * Converts a spreadsheet value into trimmed text.
- * Preserves numeric zero.
- */
-function cleanSettingText(value) {
-  return value === undefined || value === null
-    ? ''
-    : String(value).trim();
-}
-
-/**
- * Reads the authorized extensions from Settings!B2.
- */
-function getAuthorizedExtensions_(ss) {
-  const spreadsheet = ss || getAppSpreadsheet();
-  const settingsSheet = spreadsheet.getSheetByName('Settings');
-
-  if (!settingsSheet) return [];
-
-  return cleanSettingText(
-    settingsSheet.getRange('B2').getValue()
-  )
-    .split(',')
-    .map(function(extension) {
-      return extension.trim();
-    })
-    .filter(Boolean);
-}
-
-// ==========================================
-// WEB APP ROUTING LOGIC (SETUP A)
-// ==========================================
-
-function doGet(e) {
-  const pageName = cleanSettingText(
-    e && e.parameter ? e.parameter.page : ''
-  ).toLowerCase();
-
-  const pages = {
-    login: 'login',
-    notes: 'index',
-    index: 'index'
-  };
-
-  const page = pages[pageName] || 'login';
-
-  let template;
-
-  try {
-    template = HtmlService.createTemplateFromFile(page);
-  } catch (err) {
-    const capitalized =
-      page.charAt(0).toUpperCase() + page.slice(1);
-
-    template = HtmlService.createTemplateFromFile(capitalized);
-  }
-
-  template.appUrl = ScriptApp.getService().getUrl();
-
-  return template
-    .evaluate()
-    .setTitle('Note Taker - AAA Smart Home')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-// ==========================================
-// STANDARD EMAIL TEMPLATES
-// WHOLE TEAM - GOOGLE DOC
-// ==========================================
-
-/**
- * Fetches the standard email templates Google Doc as HTML.
- */
-function getEmailTemplatesHtml() {
-  const docId = '1CJtJskbXT-fY2qNfna9W-i-x3rlJl404W4bgMoKFm0c';
-
-  try {
-    // Explicit call ensures the Drive OAuth scope is requested.
-    DriveApp.getFileById(docId);
-
-    const url =
-      'https://docs.google.com/feeds/download/documents/export/Export' +
-      '?id=' + docId +
-      '&exportFormat=html';
-
-    const options = {
-      headers: {
-        Authorization: 'Bearer ' + ScriptApp.getOAuthToken()
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const code = response.getResponseCode();
-
-    if (code === 200) {
-      return response.getContentText();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notes App - Login</title>
+  <style>
+    :root {
+      --aaa-blue: #003b8f;
+      --aaa-blue-dark: #002d6a;
+      --aaa-red: #e2231a;
+      --aaa-page: #e7f6fc;
+      --aaa-card: #ffffff;
+      --aaa-text: #252a34;
+      --aaa-muted: #66727d;
+      --aaa-border: #c8dce7;
     }
-
-    return `
-      <div style="padding:16px; color:#b91c1c; font-family:sans-serif;">
-        <strong>Error Loading Templates:</strong>
-        Server returned HTTP status ${code}.
-        Please verify document permissions for:
-        <code>${docId}</code>.
-      </div>
-    `;
-  } catch (err) {
-    Logger.log('Error loading standard email templates: ' + err);
-
-    return `
-      <div style="padding:16px; color:#b91c1c; font-family:sans-serif;">
-        <strong>Error Loading Email Templates:</strong>
-        ${escapeHtml_(err.message || String(err))}
-      </div>
-    `;
-  }
-}
-
-/**
- * Escapes plain text before inserting it into HTML.
- */
-function escapeHtml_(value) {
-  return String(value === undefined || value === null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// ==========================================
-// RESTRICTED SPECIAL EMAIL TEMPLATES
-// ==========================================
-
-/**
- * Reads templates from the Special Emails sheet.
- *
- * Checks the supplied extension against Settings!B2.
- */
-function getSpecialEmailTemplates(userExtension) {
-  try {
-    const ss = getAppSpreadsheet();
-    const authorizedExts = getAuthorizedExtensions_(ss);
-    const cleanUserExt = cleanSettingText(userExtension);
-
-    if (!authorizedExts.includes(cleanUserExt)) {
-      return [];
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--aaa-page);
+      color: var(--aaa-text);
     }
+    .aaa-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 25px;
+      padding: 18px 30px;
+      color: #ffffff;
+      background: var(--aaa-blue);
+      border-bottom: 5px solid var(--aaa-red);
+      box-shadow: 0 3px 12px rgba(0, 45, 106, 0.20);
+    }
+    .header-left { display: flex; align-items: center; gap: 24px; }
+    .aaa-logo { width: 175px; min-width: 175px; max-height: 82px; object-fit: contain; }
+    .header-text h1 { margin: 0; color: #ffffff; font-size: 36px; line-height: 1.05; }
+    .header-text p { margin: 8px 0 0; color: rgba(255, 255, 255, 0.84); font-size: 18px; }
+    .header-status {
+      min-width: 195px;
+      padding: 12px 15px;
+      color: rgba(255, 255, 255, 0.86);
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 12px;
+      font-size: 14px;
+      text-align: right;
+    }
+    .header-status strong { display: block; margin-top: 4px; color: #ffffff; font-size: 16px; }
+    .page-content { flex: 1; padding: 30px 14px; }
+    .container {
+      width: 100%;
+      max-width: 420px;
+      margin: 30px auto;
+      padding: 24px;
+      border-top: 6px solid var(--aaa-red);
+      border-right: 1px solid var(--aaa-border);
+      border-bottom: 1px solid var(--aaa-border);
+      border-left: 1px solid var(--aaa-border);
+      border-radius: 10px;
+      background: var(--aaa-card);
+      box-shadow: 0 8px 25px rgba(0, 59, 143, 0.14);
+    }
+    .container h2 { margin: 0; color: var(--aaa-blue); font-size: 24px; text-align: center; }
+    .subtitle { margin: 8px 0 22px; color: var(--aaa-muted); font-size: 14px; line-height: 1.4; text-align: center; }
+    .field { margin-bottom: 14px; }
+    label { display: block; margin-bottom: 4px; color: var(--aaa-blue); font-size: 13px; font-weight: bold; }
+    input, select {
+      width: 100%; height: 38px; padding: 7px 9px;
+      border: 1px solid var(--aaa-border); border-radius: 5px;
+      background: #ffffff; color: var(--aaa-text); font-size: 14px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    input:focus, select:focus {
+      outline: none; border-color: var(--aaa-blue);
+      box-shadow: 0 0 0 3px rgba(0, 59, 143, 0.12);
+    }
+    .input-error {
+      border-color: #b42318 !important;
+      background-color: #fef3f2 !important;
+    }
+    button {
+      width: 100%; min-height: 40px; padding: 9px 12px; border: 0;
+      border-bottom: 3px solid var(--aaa-blue-dark); border-radius: 5px;
+      background: var(--aaa-blue); color: #ffffff; font-size: 13px; font-weight: bold; cursor: pointer;
+    }
+    button:hover { background: var(--aaa-blue-dark); }
+    #status { min-height: 18px; margin-top: 12px; color: #b42318; font-size: 12px; font-weight: bold; text-align: center; }
+    .page-footer { padding: 18px 24px; color: var(--aaa-muted); background: var(--aaa-page); font-size: 12px; text-align: center; }
+    .page-footer strong { color: var(--aaa-blue); }
+    .admin-link { color: var(--aaa-muted); text-decoration: none; cursor: pointer; }
+    .admin-link:hover { text-decoration: underline; }
+    @media (max-width: 560px) {
+      .aaa-header { padding: 14px; }
+      .header-left { gap: 14px; }
+      .aaa-logo { width: 94px; min-width: 94px; max-height: 54px; }
+      .header-text h1 { font-size: 22px; }
+      .header-text p { margin-top: 5px; font-size: 13px; }
+      .header-status { display: none; }
+      .page-content { padding: 20px 10px; }
+      .container { margin: 20px auto; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="aaa-header">
+    <div class="header-left">
+      <img class="aaa-logo" src="https://lh3.googleusercontent.com/d/1DapvV4CJHEmIOJifIUfCTO5Q1Jq0N9Oh" alt="AAA Smart Home Logo">
+      <div class="header-text">
+        <h1>NOTES APP</h1>
+        <p>Note Taking and Scheduling Tool</p>
+      </div>
+    </div>
+    <div class="header-status">
+      <span>Secure Agent Access</span>
+      <strong>Internal Use Only</strong>
+    </div>
+  </header>
 
-    const sheet = ss.getSheetByName('Special Emails');
+  <main class="page-content">
+    <section class="container">
+      <h2>AGENT LOGIN</h2>
+      <p class="subtitle">Enter your information to begin.</p>
 
-    if (!sheet) return [];
-
-    const data = sheet.getDataRange().getValues();
-
-    if (data.length <= 1) return [];
-
-    const templates = [];
-
-    for (let i = 1; i < data.length; i++) {
-      const templateId = cleanSettingText(data[i][0]);
-      const brand = cleanSettingText(data[i][1]);
-      const subject = cleanSettingText(data[i][2]);
-      const body = cleanSettingText(data[i][3]);
-
-      if (!templateId && !brand) continue;
-
-      const displayName = `🔒 Project 2026 - ${brand}`;
-
-      const formattedBody = body
-        .split(/\r?\n\r?\n/)
-        .map(function(paragraph) {
-          return '<p>' +
-            escapeHtml_(paragraph).replace(/\r?\n/g, '<br>') +
-            '</p>';
-        })
-        .join('<br>');
-
-      const fullHtml = `
-        <div style="font-family:Arial,sans-serif; line-height:1.5;">
-          <p>
-            <strong>SUBJECT: ${escapeHtml_(subject)}</strong>
-          </p>
-          <br>
-          ${formattedBody}
+      <form id="startForm" onsubmit="return false;">
+        <div class="field" data-internal-id="agent_name">
+          <label for="name">AGENT NAME *</label>
+          <input type="text" id="name" required autocomplete="name" oninput="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
         </div>
-      `;
 
-      templates.push({
-        id: templateId,
-        brand: brand,
-        subject: subject,
-        name: displayName,
-        html: fullHtml,
-        body: body
-      });
-    }
+        <div class="field" data-internal-id="extension">
+          <label for="phone">EXTENSION *</label>
+          <input type="text" id="phone" required autocomplete="off" oninput="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
+        </div>
 
-    return templates;
-  } catch (err) {
-    Logger.log('Error in getSpecialEmailTemplates: ' + err);
-    return [];
-  }
-}
+        <div class="field" data-internal-id="department">
+          <label for="dept">DEPARTMENT *</label>
+          <select id="dept" required onchange="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
+            <option value="">Select Department...</option>
+            <option value="Tech Support Level 1">Tech Support Level 1</option>
+            <option value="Tech Support Level 2">Tech Support Level 2</option>
+            <option value="Tech Support Level 3">Tech Support Level 3</option>
+            <option value="Team Lead">Team Lead</option>
+          </select>
+        </div>
 
-// ==========================================
-// DYNAMIC HELPFUL LINKS
-// ==========================================
+        <button type="button" onclick="saveData()">SAVE & CONTINUE</button>
+        <div id="status"></div>
+      </form>
+    </section>
 
-function getHelpfulLinksFromDoc() {
-  const docId = '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU';
+    <!-- ADMIN TOOLS -->
+    <section id="adminTools" class="container" style="display: none; margin-top: 0; padding-top: 15px; border-top: 4px solid var(--aaa-muted);">
+      <h3 style="margin: 0 0 15px; color: var(--aaa-muted); font-size: 14px; text-align: center;">ADMIN TOOLS</h3>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button type="button" onclick="window.open('https://docs.google.com/spreadsheets/d/1a3qJOmQbn2eywwOEjA_vhLY3yCFU3j3qHrQ9hEvyEDo/edit', '_blank')" style="background-color: #f1f3f4; color: var(--aaa-text); border: 1px solid #ccc; border-bottom: 2px solid #bbb; padding: 8px; font-size: 11px;">
+          ⚙️ NOTES APP BASE
+        </button>
+      </div>
+    </section>
+  </main>
 
-  const viewAllLink = {
-    name: '📄 VIEW ALL LINKS',
-    url: 'https://docs.google.com/document/d/' + docId + '/edit',
-    popup: ''
-  };
+  <footer class="page-footer">
+    <strong>AAA Smart Home Security</strong> • NOTES APP • Internal Use Only
+    <br><br>
+    <a class="admin-link" onclick="promptAdminAccess()">Admin Access</a>
+  </footer>
 
-  try {
-    const doc = DocumentApp.openById(docId);
+  <!-- ADMIN LOGIN MODAL -->
+  <div id="adminLoginModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999999; align-items:center; justify-content:center; font-family: Arial, sans-serif;">
+    <div style="background:#fff; padding:25px; border-radius:8px; width:320px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: center;">
+      <h3 style="margin-top:0; color: var(--aaa-blue);">🔒 Admin Access</h3>
+      <p style="font-size: 13px; color: #555; margin-bottom: 15px;">Please enter the admin passcode.</p>
+      <input type="password" id="adminPasscodeInput" placeholder="Enter Passcode..." style="width: 100%; padding: 10px; margin-bottom: 15px; border: 2px solid #ccc; border-radius: 4px; font-size: 16px; text-align: center;">
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button type="button" onclick="closeAdminLogin()" style="padding: 10px 15px; cursor: pointer; background: #eee; border: 1px solid #ccc; border-radius: 4px; width: 50%; color: #333;">Cancel</button>
+        <button type="button" id="adminLoginBtn" onclick="verifyAdminPasscode()" style="padding: 10px 15px; cursor: pointer; background: var(--aaa-blue); color: white; border: none; border-radius: 4px; font-weight: bold; width: 50%;">Unlock</button>
+      </div>
+      <div id="adminLoginError" style="margin-top: 15px; font-size: 13px; font-weight: bold; color: var(--aaa-red); display: none;">Incorrect passcode.</div>
+    </div>
+  </div>
 
-    const top10Names = [
-      'Tech Support Opportunities',
-      'Chatbot',
-      'Common Parts List',
-      'Test Mode SOP',
-      'DS Zip Codes',
-      'Tech Support Tier I Guide',
-      'Known Issues Tracker',
-      'Waived Fee Guideline',
-      'Call Routing Guide',
-      'Actual/Incident Form'
-    ];
+  <script>
+    function saveData() {
+      const nameInput = document.getElementById('name');
+      const phoneInput = document.getElementById('phone');
+      const deptSelect = document.getElementById('dept');
+      const status = document.getElementById('status');
 
-    const extractedLinks = {};
+      const name = nameInput.value.trim();
+      const phone = phoneInput.value.trim();
+      const dept = deptSelect.value.trim();
 
-    function extractLink(textObj) {
-      const rawText = textObj.getText();
-      const displayText = rawText.trim();
+      // Reset any existing error states
+      nameInput.classList.remove('input-error');
+      phoneInput.classList.remove('input-error');
+      deptSelect.classList.remove('input-error');
+      status.textContent = '';
 
-      if (!displayText) return;
-
-      for (let i = 0; i < rawText.length; i++) {
-        const url = textObj.getLinkUrl(i);
-
-        if (url) {
-          extractedLinks[displayText] = url;
-          break;
-        }
+      // Validate all 3 fields
+      let missingFields = [];
+      if (!name) {
+        nameInput.classList.add('input-error');
+        missingFields.push('Agent Name');
       }
-    }
-
-    doc.getBody().getParagraphs().forEach(function(paragraph) {
-      extractLink(paragraph.editAsText());
-    });
-
-    doc.getBody().getTables().forEach(function(table) {
-      for (let r = 0; r < table.getNumRows(); r++) {
-        const row = table.getRow(r);
-
-        for (let c = 0; c < row.getNumCells(); c++) {
-          extractLink(row.getCell(c).editAsText());
-        }
+      if (!phone) {
+        phoneInput.classList.add('input-error');
+        missingFields.push('Extension');
       }
-    });
-
-    const finalLinks = [];
-
-    top10Names.forEach(function(name) {
-      let foundUrl = null;
-
-      for (const key in extractedLinks) {
-        if (key.toLowerCase().includes(name.toLowerCase())) {
-          foundUrl = extractedLinks[key];
-          break;
-        }
+      if (!dept) {
+        deptSelect.classList.add('input-error');
+        missingFields.push('Department');
       }
 
-      if (foundUrl) {
-        finalLinks.push({
-          name: name,
-          url: foundUrl,
-          popup: name.toLowerCase() === 'chatbot' ? 'chatbot' : ''
-        });
+      if (missingFields.length > 0) {
+        status.textContent = 'Please complete all required fields: ' + missingFields.join(', ') + '.';
+        return;
+      }
+
+      // Save to localStorage
+      localStorage.setItem('name', name);
+      localStorage.setItem('phone', phone);
+      localStorage.setItem('dept', dept);
+
+      // Route to index.html
+      window.top.location.href = '<?= appUrl ?>?page=notes';
+    }
+
+    window.addEventListener('load', function () {
+      document.getElementById('name').value = localStorage.getItem('name') || '';
+      document.getElementById('phone').value = localStorage.getItem('phone') || '';
+      const savedDept = localStorage.getItem('dept') || '';
+
+      if (window.google && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(function(schema) {
+          const indexSchema = (schema && schema.index) ? schema.index : {};
+
+          if (indexSchema.agent_name) {
+            const el = document.querySelector('[data-internal-id="agent_name"]');
+            if (el) {
+              if (indexSchema.agent_name.label) el.querySelector('label').textContent = indexSchema.agent_name.label + ' *';
+              if (String(indexSchema.agent_name.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
+            }
+          }
+
+          if (indexSchema.extension) {
+            const el = document.querySelector('[data-internal-id="extension"]');
+            if (el) {
+              if (indexSchema.extension.label) el.querySelector('label').textContent = indexSchema.extension.label + ' *';
+              if (String(indexSchema.extension.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
+            }
+          }
+
+          if (indexSchema.department) {
+            const el = document.querySelector('[data-internal-id="department"]');
+            if (el) {
+              if (indexSchema.department.label) el.querySelector('label').textContent = indexSchema.department.label + ' *';
+              if (String(indexSchema.department.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
+
+              if (indexSchema.department.options) {
+                const deptSelect = document.getElementById('dept');
+                const options = indexSchema.department.options.split(',').map(s => s.trim()).filter(Boolean);
+                let optionsHtml = '<option value="">Select Department...</option>';
+                options.forEach(function(opt) {
+                  const selected = (opt === savedDept) ? ' selected' : '';
+                  optionsHtml += `<option value="${opt}"${selected}>${opt}</option>`;
+                });
+                deptSelect.innerHTML = optionsHtml;
+              }
+            }
+          }
+        }).getFormSchema();
       }
     });
 
-    finalLinks.push(viewAllLink);
-
-    return finalLinks;
-  } catch (err) {
-    Logger.log('Error extracting helpful links: ' + err);
-    return [viewAllLink];
-  }
-}
-
-// ==========================================
-// ZIP CODE SEARCH
-// ==========================================
-
-function checkZipCode(zip) {
-  const cleanZip = cleanSettingText(zip);
-
-  if (!cleanZip) {
-    return {
-      found: false,
-      message: 'No zip code provided.'
-    };
-  }
-
-  const ssId = '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw';
-
-  try {
-    const ss = SpreadsheetApp.openById(ssId);
-
-    let textFinder = ss
-      .createTextFinder(cleanZip)
-      .matchEntireCell(true);
-
-    let results = textFinder.findAll();
-
-    if (results.length === 0) {
-      textFinder = ss.createTextFinder(cleanZip);
-
-      results = textFinder.findAll().filter(function(range) {
-        return cleanSettingText(range.getValue()) === cleanZip;
-      });
+    function promptAdminAccess() {
+      document.getElementById('adminLoginModal').style.display = 'flex';
+      document.getElementById('adminPasscodeInput').value = '';
+      document.getElementById('adminLoginError').style.display = 'none';
+      setTimeout(() => document.getElementById('adminPasscodeInput').focus(), 100);
     }
 
-    if (results.length === 0) {
-      return {
-        found: false,
-        message: '❌ No Tech Available'
-      };
+    function closeAdminLogin() {
+      document.getElementById('adminLoginModal').style.display = 'none';
     }
 
-    let isProZip = false;
-    let isDSZip = false;
+    function verifyAdminPasscode() {
+      const passcode = document.getElementById('adminPasscodeInput').value.trim();
+      const errorDiv = document.getElementById('adminLoginError');
+      const btn = document.getElementById('adminLoginBtn');
+      if (!passcode) return;
 
-    for (let i = 0; i < results.length; i++) {
-      const range = results[i];
-      const sheet = range.getSheet();
-      const tabName = sheet.getName();
-      const col = range.getColumn();
+      btn.textContent = "Checking...";
+      btn.disabled = true;
+      errorDiv.style.display = 'none';
 
-      if (tabName.includes('Official Pro Zips')) {
-        isProZip = true;
-      } else if (
-        tabName.includes('Official DS (Upgrade & Service)')
-      ) {
-        const header = cleanSettingText(
-          sheet.getRange(1, col).getValue()
-        ).toUpperCase();
-
-        if (!header.includes('NO TECH')) {
-          isDSZip = true;
-        }
-      }
+      google.script.run
+        .withSuccessHandler(function(correctPasscode) {
+          btn.textContent = "Unlock";
+          btn.disabled = false;
+          if (passcode === String(correctPasscode).trim()) {
+            document.getElementById('adminLoginModal').style.display = 'none';
+            document.getElementById('adminTools').style.display = 'block';
+            setTimeout(() => {
+              const toolsSection = document.getElementById('adminTools');
+              window.scrollTo({ top: toolsSection.getBoundingClientRect().top + window.scrollY, behavior: 'smooth' });
+            }, 150);
+          } else {
+            errorDiv.style.display = 'block';
+            document.getElementById('adminPasscodeInput').value = '';
+            document.getElementById('adminPasscodeInput').focus();
+          }
+        })
+        .withFailureHandler(function(error) {
+          btn.textContent = "Unlock";
+          btn.disabled = false;
+          alert("Error connecting to server.");
+        })
+        .getAdminPasscode();
     }
-
-    if (isProZip) {
-      return {
-        found: true,
-        message: '✅ In Footprint'
-      };
-    }
-
-    if (isDSZip) {
-      return {
-        found: true,
-        message: '✅ Dealer Service'
-      };
-    }
-
-    return {
-      found: false,
-      message: '❌ No Tech Available'
-    };
-  } catch (err) {
-    return {
-      found: false,
-      message: 'Error searching zip codes: ' +
-        (err.message || String(err))
-    };
-  }
-}
-
-// ==========================================
-// DYNAMIC FORM SCHEMA
-// PRESERVES EXACT SHEET ROW ORDER
-// ==========================================
-
-/**
- * Sheet columns:
- *
- * A: Internal ID
- * B: Display Label
- * C: Field Type
- * D: Options
- * E: Visible
- * F: Required
- * G: Depends on
- * H: Copy if Blank
- *
- * Example dependency:
- *   fee_waived=yes:required
- *
- * Dependency text is passed unchanged to index.html.
- * The frontend must interpret and apply the rule.
- */
-function getFormSchema() {
-  const ss = getAppSpreadsheet();
-
-  const tabNames = [
-    'Inbound',
-    'Outbound',
-    'Residential',
-    'Dealer',
-    'Addendum',
-    'Parts',
-    'Index'
-  ];
-
-  const schema = {};
-
-  tabNames.forEach(function(tabName) {
-    const key = tabName.toLowerCase();
-    const sheet = ss.getSheetByName(tabName);
-
-    schema[key] = {};
-    schema[key + '_order'] = [];
-
-    if (!sheet) return;
-
-    const data = sheet.getDataRange().getValues();
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const id = cleanSettingText(row[0]);
-
-      if (!id) continue;
-
-      const rawType =
-        cleanSettingText(row[2]).toLowerCase() || 'text';
-
-      const isVisible = isEnabledSetting(row[4], true);
-      const isRequired = isEnabledSetting(row[5], false);
-      const isCopyBlank = isEnabledSetting(row[7], false);
-
-      const fieldObj = {
-        id: id,
-        label: cleanSettingText(row[1]) || id,
-        type: rawType,
-        options: cleanSettingText(row[3]),
-
-        // Keep the existing string format for frontend compatibility.
-        visible: isVisible ? 'TRUE' : 'FALSE',
-
-        required: isRequired,
-
-        // Preserve expressions such as fee_waived=yes:required.
-        dependsOn: cleanSettingText(row[6]),
-
-        copyIfBlank: isCopyBlank,
-        rowOrder: i
-      };
-
-      schema[key][id] = fieldObj;
-      schema[key + '_order'].push(fieldObj);
-    }
-  });
-
-  try {
-    schema.authorizedExtensions = getAuthorizedExtensions_(ss);
-  } catch (err) {
-    Logger.log('Error reading authorized extensions: ' + err);
-    schema.authorizedExtensions = [];
-  }
-
-  return schema;
-}
-
-// ==========================================
-// ADMIN PASSCODE
-// ==========================================
-
-function getAdminPasscode() {
-  try {
-    const ss = getAppSpreadsheet();
-    const settingsSheet = ss.getSheetByName('Settings');
-
-    if (settingsSheet) {
-      const passcode = cleanSettingText(
-        settingsSheet.getRange('B1').getValue()
-      );
-
-      return passcode || '8454';
-    }
-  } catch (err) {
-    Logger.log('Error reading admin passcode: ' + err);
-  }
-
-  return '8454';
-}
-
-// ==========================================
-// FEEDBACK SUBMISSION
-// ==========================================
-
-function submitFeedback(data) {
-  try {
-    data = data || {};
-
-    const ss = getAppSpreadsheet();
-    let feedbackSheet = ss.getSheetByName('Feedback');
-
-    if (!feedbackSheet) {
-      feedbackSheet = ss.insertSheet('Feedback');
-
-      feedbackSheet.appendRow([
-        'Timestamp',
-        'Agent Name',
-        'Extension',
-        'Department',
-        'Category',
-        'Applicable Form',
-        'Details / Comments'
-      ]);
-
-      feedbackSheet
-        .getRange(1, 1, 1, 7)
-        .setFontWeight('bold')
-        .setBackground('#f3f3f3');
-
-      feedbackSheet.setFrozenRows(1);
-    }
-
-    feedbackSheet.appendRow([
-      new Date(),
-      data.name || '',
-      data.phone || data.extension || '',
-      data.dept || '',
-      data.category || '',
-      data.section || data.applicableForm || '',
-      data.details || data.comments || ''
-    ]);
-
-    return {
-      success: true,
-      message: 'Thank you! Your feedback has been submitted.'
-    };
-  } catch (err) {
-    return {
-      success: false,
-      message: 'Failed to submit feedback: ' + String(err)
-    };
-  }
-}
-
-// ==========================================
-// CHANGE LOG
-// RETURNS ONLY VISIBLE ROWS
-// ==========================================
-
-function getChangeLog() {
-  try {
-    const ss = getAppSpreadsheet();
-    const sheet = ss.getSheetByName('Change Log');
-
-    if (!sheet) return [];
-
-    const data = sheet.getDataRange().getValues();
-
-    if (data.length <= 1) return [];
-
-    const tz = ss.getSpreadsheetTimeZone();
-
-    const visibleRows = data.slice(1).filter(function(row) {
-      const isVisible = isEnabledSetting(row[5], false);
-      const hasContent = row[0] || row[3];
-
-      return isVisible && Boolean(hasContent);
-    });
-
-    return visibleRows.map(function(row) {
-      return {
-        date: row[0] instanceof Date
-          ? Utilities.formatDate(row[0], tz, 'yyyy-MM-dd')
-          : cleanSettingText(row[0]),
-
-        version: cleanSettingText(row[1]),
-        form: cleanSettingText(row[2]),
-        description: cleanSettingText(row[3]),
-        updatedBy: cleanSettingText(row[4])
-      };
-    });
-  } catch (err) {
-    Logger.log('Error reading change log: ' + err);
-    return [];
-  }
-}
-
-// ==========================================
-// AUTOMATIC CHANGE LOG TRIGGER
-// ==========================================
-
-function onEdit(e) {
-  if (!e || !e.range) return;
-
-  const sheet = e.range.getSheet();
-  const sheetName = sheet.getName();
-
-  const excludedTabs = [
-    'Change Log',
-    'Feedback',
-    'Special Emails'
-  ];
-
-  if (excludedTabs.includes(sheetName)) return;
-
-  // Do not log edits that begin in the header row.
-  if (e.range.getRow() === 1) return;
-
-  const ss = e.source || getAppSpreadsheet();
-  const logSheet = ss.getSheetByName('Change Log');
-
-  if (!logSheet) return;
-
-  const timestamp = Utilities.formatDate(
-    new Date(),
-    ss.getSpreadsheetTimeZone(),
-    'yyyy-MM-dd'
-  );
-
-  const user = Session.getActiveUser().getEmail() || 'Admin';
-  const cellNotation = e.range.getA1Notation();
-
-  let fieldIdentifier = '';
-
-  try {
-    const row = e.range.getRow();
-
-    const idVal = cleanSettingText(
-      sheet.getRange(row, 1).getValue()
-    );
-
-    const labelVal = cleanSettingText(
-      sheet.getRange(row, 2).getValue()
-    );
-
-    fieldIdentifier = labelVal || idVal || `Row ${row}`;
-  } catch (err) {
-    fieldIdentifier = `Row ${e.range.getRow()}`;
-  }
-
-  let description;
-
-  if (
-    e.range.getNumRows() > 1 ||
-    e.range.getNumColumns() > 1
-  ) {
-    // Bulk edit events do not provide complete old/new cell values.
-    description =
-      `Updated range ${cellNotation} beginning at ` +
-      `[${fieldIdentifier}]. Multiple cells were edited; ` +
-      'individual old/new values are not available.';
-  } else {
-    const oldValue = e.oldValue !== undefined
-      ? `"${e.oldValue}"`
-      : '(blank)';
-
-    const newValue = e.value !== undefined
-      ? `"${e.value}"`
-      : '(blank)';
-
-    description =
-      `Updated [${fieldIdentifier}] in ${cellNotation}: ` +
-      `changed from ${oldValue} to ${newValue}`;
-  }
-
-  logSheet.insertRowBefore(2);
-
-  // Add checkbox validation before writing TRUE into the cell.
-  logSheet.getRange(2, 6).insertCheckboxes();
-
-  logSheet.getRange(2, 1, 1, 6).setValues([[
-    timestamp,
-    'v1.x',
-    sheetName,
-    description,
-    user,
-    true
-  ]]);
-}
+  </script>
+</body>
+</html>
