@@ -60,7 +60,7 @@ function cleanSettingText(value) {
 }
 
 /**
- * Reads the authorized extensions from Settings!B2.
+ * Reads the authorized extensions from Settings!B3
  */
 function getAuthorizedExtensions_(ss) {
   const spreadsheet = ss || getAppSpreadsheet();
@@ -69,7 +69,7 @@ function getAuthorizedExtensions_(ss) {
   if (!settingsSheet) return [];
 
   return cleanSettingText(
-    settingsSheet.getRange('B2').getValue()
+    settingsSheet.getRange('B3').getValue()
   )
     .split(',')
     .map(function(extension) {
@@ -187,7 +187,7 @@ function escapeHtml_(value) {
 /**
  * Reads templates from the Special Emails sheet.
  *
- * Checks the supplied extension against Settings!B2.
+ * Checks the supplied extension against Settings!B3.
  */
 function getSpecialEmailTemplates(userExtension) {
   try {
