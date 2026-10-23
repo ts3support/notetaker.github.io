@@ -1,20 +1,17 @@
+function getSheetByNameInsensitive_(ss, name) {
+  const wanted = String(name).trim().toLowerCase();
+  return ss.getSheets().find(function(sheet) {
+    return sheet.getName().trim().toLowerCase() === wanted;
+  }) || null;
+}
+
 // ==========================================
 // CONFIGURATION & HELPER UTILITIES
 // ==========================================
 
-/**
- * Returns the active spreadsheet, falling back to its ID
- * when the script runs without an active spreadsheet.
- */
+/** Opens the configuration spreadsheet explicitly. */
 function getAppSpreadsheet() {
-  const spreadsheetId = '12PryLL5_hTQGkcijr-pcrtMltG1KPmgyK_xAPUjOXfY';
-
-  try {
-    return SpreadsheetApp.getActiveSpreadsheet() ||
-      SpreadsheetApp.openById(spreadsheetId);
-  } catch (err) {
-    return SpreadsheetApp.openById(spreadsheetId);
-  }
+  return SpreadsheetApp.openById('12PryLL5_hTQGkcijr-pcrtMltG1KPmgyK_xAPUjOXfY');
 }
 
 /**
@@ -64,7 +61,7 @@ function cleanSettingText(value) {
  */
 function getAuthorizedExtensions_(ss) {
   const spreadsheet = ss || getAppSpreadsheet();
-  const settingsSheet = spreadsheet.getSheetByName('Settings');
+  const settingsSheet = getSheetByNameInsensitive_(spreadsheet, 'Settings');
 
   if (!settingsSheet) return [];
 
@@ -89,8 +86,8 @@ function doGet(e) {
 
   const pages = {
     login: 'login',
-    notes: 'index',
-    index: 'index'
+    notes: 'Notes',
+    index: 'Notes'
   };
 
   const page = pages[pageName] || 'login';
@@ -199,7 +196,7 @@ function getSpecialEmailTemplates(userExtension) {
       return [];
     }
 
-    const sheet = ss.getSheetByName('Special Emails');
+    const sheet = getSheetByNameInsensitive_(ss, 'Special Emails');
 
     if (!sheet) return [];
 
@@ -439,7 +436,7 @@ function checkZipCode(zip) {
 
 // ==========================================
 // DYNAMIC FORM SCHEMA
-// FULLY DYNAMIC BASED ON SPREADSHEET TABS
+// SUPPORTED FORM TABS ONLY
 // ==========================================
 
 /**
@@ -462,7 +459,10 @@ function checkZipCode(zip) {
  */
 function getFormSchema() {
   const ss = getAppSpreadsheet();
-  const sheets = ss.getSheets();
+  const supportedTabs = ['index', 'inbound', 'outbound', 'residential', 'dealer', 'addendum', 'parts'];
+  const sheets = ss.getSheets().filter(function(sheet) {
+    return supportedTabs.includes(sheet.getName().trim().toLowerCase());
+  });
   const schema = {};
 
   // Tabs to exclude from form processing logic
@@ -540,7 +540,7 @@ function getFormSchema() {
 function getAdminPasscode() {
   try {
     const ss = getAppSpreadsheet();
-    const settingsSheet = ss.getSheetByName('Settings');
+    const settingsSheet = getSheetByNameInsensitive_(ss, 'Settings');
 
     if (settingsSheet) {
       const passcode = cleanSettingText(
@@ -565,7 +565,7 @@ function submitFeedback(data) {
     data = data || {};
 
     const ss = getAppSpreadsheet();
-    let feedbackSheet = ss.getSheetByName('Feedback');
+    let feedbackSheet = getSheetByNameInsensitive_(ss, 'Feedback');
 
     if (!feedbackSheet) {
       feedbackSheet = ss.insertSheet('Feedback');
@@ -618,7 +618,7 @@ function submitFeedback(data) {
 function getChangeLog() {
   try {
     const ss = getAppSpreadsheet();
-    const sheet = ss.getSheetByName('Change Log');
+    const sheet = getSheetByNameInsensitive_(ss, 'Change Log');
 
     if (!sheet) return [];
 
@@ -675,7 +675,7 @@ function onEdit(e) {
   if (e.range.getRow() === 1) return;
 
   const ss = e.source || getAppSpreadsheet();
-  const logSheet = ss.getSheetByName('Change Log');
+  const logSheet = getSheetByNameInsensitive_(ss, 'Change Log');
 
   if (!logSheet) return;
 
