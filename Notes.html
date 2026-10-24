@@ -22,6 +22,50 @@
 [data-privacy-hover]:focus-visible{outline:2px solid #003b8f;outline-offset:3px}
 [aria-invalid="true"]{outline:2px solid #e2231a!important;outline-offset:2px}
 </style>
+
+<style id="uniform-notes-mode-buttons">
+  #notesModeControls { align-items: start; }
+  #notesModeControls > div { min-width: 0; }
+  #notesModeControls > div > label,
+  #nonCommModeControl [data-field-id="non_comm"] > label {
+    display: block;
+    margin: 0 0 4px;
+    min-height: 16px;
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+  #nonCommModeControl [data-field-id="non_comm"] > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding-top: 0;
+    margin-top: 0;
+  }
+  #notesModeControls button,
+  #nonCommModeControl [data-field-id="non_comm"] > div > label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    margin: 0;
+    box-sizing: border-box;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 20px;
+    font-weight: 700;
+    text-align: center;
+  }
+  #nonCommModeControl [data-field-id="non_comm"] > div > label:focus-within {
+    outline: 2px solid #003b8f;
+    outline-offset: 2px;
+  }
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
@@ -793,14 +837,8 @@ function dependencyIsMatched(rule, values) {
   const container = document.getElementById('dynamicFormContainer');
   const nonCommHost = document.getElementById('nonCommModeControl');
   const modeControls = document.getElementById('notesModeControls');
-  if (nonCommHost) {
-    nonCommHost.replaceChildren();
-    nonCommHost.style.display = 'none';
-  }
-  if (modeControls) {
-    modeControls.classList.remove('sm:grid-cols-3');
-    modeControls.classList.add('sm:grid-cols-2');
-  }
+  if (nonCommHost) { nonCommHost.replaceChildren(); nonCommHost.style.display = 'none'; }
+  if (modeControls) { modeControls.classList.remove('sm:grid-cols-3'); modeControls.classList.add('sm:grid-cols-2'); }
   if (schemaLoadState === 'loading') {
     container.innerHTML = '<div class="col-span-full py-4 text-sm text-slate-500" role="status">Loading form configuration from the spreadsheet…</div>';
     return;
@@ -872,16 +910,12 @@ function dependencyIsMatched(rule, values) {
   });
 
   container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
-  // Relocate the schema-rendered control; preserve its type, options and handlers.
   if (activeFormKey === 'notes' && nonCommHost && schemaLoadState === 'ready') {
     const nonCommField = container.querySelector('[data-field-id="non_comm"]');
     if (nonCommField) {
       nonCommHost.appendChild(nonCommField);
       nonCommHost.style.display = '';
-      if (modeControls) {
-        modeControls.classList.remove('sm:grid-cols-2');
-        modeControls.classList.add('sm:grid-cols-3');
-      }
+      if (modeControls) { modeControls.classList.remove('sm:grid-cols-2'); modeControls.classList.add('sm:grid-cols-3'); }
     }
   }
   updateUndoClearButtons();
