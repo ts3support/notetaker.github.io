@@ -472,6 +472,7 @@
     let callType = 'Inbound';
     let customerType = 'Residential';
     let formSchema = {};
+    let schemaLoadState = 'loading';
     let formValues = {
       notes: {},
       residential: {},
@@ -503,6 +504,8 @@
       updateAgentUI();
       restoreFormDrafts();
 
+      schemaLoadState = 'loading';
+      renderActiveForm();
       google.script.run
         .withSuccessHandler(handleSchemaLoaded)
         .withFailureHandler(handleSchemaFallback)
@@ -583,6 +586,10 @@
     }
 
     function validateRequiredFieldsBeforeCopy() {
+      if (schemaLoadState !== 'ready') {
+        alert('NOTHING WAS COPIED. Spreadsheet configuration is unavailable. Reload and try again.');
+        return false;
+      }
       const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
       if (!formSchema || !Array.isArray(formSchema[key + '_order'])) {
         alert('NOTHING WAS COPIED. Form settings have not loaded. Please wait and try again.');
@@ -629,6 +636,8 @@
     }
 
     function getOrderedFields(targetKey) {
+      if (schemaLoadState === 'loading') return [];
+      if (schemaLoadState === 'failed') return getFallbackFieldsArray(targetKey);
       const ordered = formSchema && formSchema[targetKey + '_order'];
       if (Array.isArray(ordered)) return ordered;
       const fields = formSchema && formSchema[targetKey];
@@ -636,38 +645,28 @@
       if (fields && typeof fields === 'object') {
         return Object.entries(fields).map(([id, field]) => Object.assign({id: id}, field));
       }
-      return getFallbackFieldsArray(targetKey);
+      console.error('No spreadsheet configuration for form:', targetKey);
+      return [];
     }
 
     // FORM SCHEMA & 3-COLUMN RENDERER IN EXACT SHEET ROW ORDER
     function handleSchemaLoaded(schema) {
-      formSchema = schema || {};
-      const allowed = (
-        Array.isArray(formSchema.authorizedExtensions)
-          ? formSchema.authorizedExtensions.flat(Infinity)
-          : [formSchema.authorizedExtensions]
-      )
-        .filter(value => value != null)
-        .map(value => String(value).trim())
-        .filter(Boolean);
-      const extension = String(currentAgent.extension || '').trim();
-      console.log('NON-COMM diagnostic', {
-        extensionUsedByApp: extension,
-        savedPhone: localStorage.getItem('phone'),
-        savedExtension: localStorage.getItem('extension'),
-        authorizedExtensions: allowed,
-        extensionMatches: extension !== '' && allowed.includes(extension),
-        inboundNonComm: formSchema.inbound?.non_comm,
-        outboundNonComm: formSchema.outbound?.non_comm
-      });
+      if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+        handleSchemaFallback(new Error('Invalid spreadsheet configuration.'));
+        return;
+      }
+      formSchema = schema;
+      schemaLoadState = 'ready';
       applySpecialEmailAccess();
-      console.log('NON-COMM access result', { specialEmailAccessAllowed });
       renderActiveForm();
     }
 
     function handleSchemaFallback(err) {
-      console.error('Failed to load form schema:', err);
+      console.error('Spreadsheet configuration could not be loaded:', err);
+      formSchema = {};
+      schemaLoadState = 'failed';
       specialEmailAccessAllowed = false;
+      applySpecialEmailAccess();
       renderActiveForm();
     }
 
@@ -754,30 +753,14 @@
       const id = field.id || field['Internal ID'] || field.internalId;
       const visible = field.visible !== undefined ? field.visible : field['Visible'];
       if (!schemaFlag(visible, true)) return false;
-      const rule = parseFieldDependency(field);
-      if (rule && !rule.invalid && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return false;
-
-      // Only show NON-COMM field if the agent extension is in Settings!B3 (Project 2026 Extensions)
+      // Separate access restriction: list supplied by Code.gs from Settings!B3.
       if (id === 'non_comm' && !specialEmailAccessAllowed) return false;
-
-      const normalized = key => String(values[key] || '').trim().toLowerCase();
-      const scheduled = normalized('scheduled_service') === 'yes';
-      const notUnderWarranty = normalized('warranty') === 'no';
-      const requiresSubmission = ['yes', 'sup/incident', 'critical issues'].includes(normalized('fee_waived'));
-
-      // Scheduling workflow overrides the unanswered-call field filter.
-      if (id === 'scheduled_service') return true;
-      if (id === 'warranty') return scheduled;
-      // Sheet visibility governs these fields; :required never hides them.
-      if (id === 'fee_waived' || id === 'submission_id') return true;
-
-
-      if (targetKey === 'outbound' && normalized('call_answered') === 'no') {
-        return ['obc_to', 'phone_number', 'outboundPhone', 'caller_name', 'name_contact',
-          'name', 'member_name', 'call_answered', 'voicemail_left', 'attempt'].includes(id);
+      const rule = parseFieldDependency(field);
+      if (rule && rule.invalid) {
+        console.error('Invalid dependency for field:', id, rule.raw);
+        return false;
       }
-      if (id === 'company_name' && customerType === 'Residential') return false;
-      if (id === 'panel_type' && normalized('service_type') === 'video only') return false;
+      if (rule && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return false;
       return true;
     }
 
@@ -788,11 +771,17 @@
 
     function renderActiveForm() {
   const container = document.getElementById('dynamicFormContainer');
+  if (schemaLoadState === 'loading') {
+    container.innerHTML = '<div class="col-span-full py-4 text-sm text-slate-500" role="status">Loading form configuration from the spreadsheet…</div>';
+    return;
+  }
   const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
   
   const fieldsList = getOrderedFields(targetKey);
   const currentVals = formValues[activeFormKey] || {};
-  let html = '';
+  let html = schemaLoadState === 'failed'
+    ? '<div class="col-span-full rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">Default form — spreadsheet configuration unavailable. Fields may differ from your worksheet. Copying is disabled. Reload to retry.</div>'
+    : '';
 
   fieldsList.forEach(field => {
     const fieldId = field.id || field['Internal ID'] || field.internalId;
