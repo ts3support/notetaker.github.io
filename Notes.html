@@ -156,6 +156,8 @@
           </div>
         </div>
 
+        <div id="nonCommModeControl" style="display:none"></div>
+
         <div>
           <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Customer Type</label>
           <div class="grid grid-cols-2 gap-2">
@@ -789,6 +791,16 @@ function dependencyIsMatched(rule, values) {
 
     function renderActiveForm() {
   const container = document.getElementById('dynamicFormContainer');
+  const nonCommHost = document.getElementById('nonCommModeControl');
+  const modeControls = document.getElementById('notesModeControls');
+  if (nonCommHost) {
+    nonCommHost.replaceChildren();
+    nonCommHost.style.display = 'none';
+  }
+  if (modeControls) {
+    modeControls.classList.remove('sm:grid-cols-3');
+    modeControls.classList.add('sm:grid-cols-2');
+  }
   if (schemaLoadState === 'loading') {
     container.innerHTML = '<div class="col-span-full py-4 text-sm text-slate-500" role="status">Loading form configuration from the spreadsheet…</div>';
     return;
@@ -860,6 +872,18 @@ function dependencyIsMatched(rule, values) {
   });
 
   container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
+  // Relocate the schema-rendered control; preserve its type, options and handlers.
+  if (activeFormKey === 'notes' && nonCommHost && schemaLoadState === 'ready') {
+    const nonCommField = container.querySelector('[data-field-id="non_comm"]');
+    if (nonCommField) {
+      nonCommHost.appendChild(nonCommField);
+      nonCommHost.style.display = '';
+      if (modeControls) {
+        modeControls.classList.remove('sm:grid-cols-2');
+        modeControls.classList.add('sm:grid-cols-3');
+      }
+    }
+  }
   updateUndoClearButtons();
 }
 
@@ -885,7 +909,7 @@ function handleFieldInput(fieldId, val) {
 }
 
     document.addEventListener('change', function(event) {
-      const wrapper = event.target.closest('#dynamicFormContainer [data-field-id]');
+      const wrapper = event.target.closest('#dynamicFormContainer [data-field-id], #nonCommModeControl [data-field-id]');
       if (!wrapper) return;
       const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
       if (getOrderedFields(key).some(field => parseFieldDependency(field)?.source === wrapper.dataset.fieldId)) renderActiveForm();
