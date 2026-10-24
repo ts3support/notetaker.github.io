@@ -575,9 +575,13 @@
       return match ? {source: match[1], expected: match[2].trim().toLowerCase(), action: match[3].toLowerCase()} : {invalid: true, raw};
     }
 
-    function dependencyIsMatched(rule, values) {
-      return !rule.invalid && String(values[rule.source] ?? '').trim().toLowerCase() === rule.expected;
-    }
+function dependencyIsMatched(rule, values) {
+  if (rule.invalid) return false;
+  if (rule.source.toLowerCase() === 'customer_type') {
+    return String(customerType ?? '').trim().toLowerCase() === rule.expected;
+  }
+  return String(values[rule.source] ?? '').trim().toLowerCase() === rule.expected;
+}
 
     function fieldRequiredNow(field, values) {
       const rule = parseFieldDependency(field);
@@ -743,23 +747,37 @@
 
     function setCustomerType(type) {
       customerType = type;
-      document.getElementById('custTypeRes').className = type === 'Residential' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
-      document.getElementById('custTypeCom').className = type === 'Commercial' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
-      saveFormDrafts();
-      renderActiveForm();
+
+      const resBtn = document.getElementById('custTypeRes');
+      const comBtn = document.getElementById('custTypeCom');
+
+      if (resBtn) {
+        resBtn.className = type === 'Residential'
+          ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]'
+          : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+      }
+
+      if (comBtn) {
+        comBtn.className = type === 'Commercial'
+          ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]'
+          : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+      }
+
+      if (typeof saveFormDrafts === 'function') saveFormDrafts();
+      if (typeof renderActiveForm === 'function') renderActiveForm();
     }
 
-        function shouldShowNoteField(field, targetKey, values) {
-      const id = field.id || field['Internal ID'] || field.internalId;
-      const visible = field.visible !== undefined ? field.visible : field['Visible'];
-      if (!schemaFlag(visible, true)) return false;
-      // Separate access restriction: list supplied by Code.gs from Settings!B3.
-      if (id === 'non_comm' && !specialEmailAccessAllowed) return false;
-      const rule = parseFieldDependency(field);
-      if (rule && rule.invalid) {
-        console.error('Invalid dependency for field:', id, rule.raw);
-        return false;
-      }
+  function shouldShowNoteField(field, targetKey, values) {
+    const id = field.id || field['Internal ID'] || field.internalId;
+    const visible = field.visible !== undefined ? field.visible : field['Visible'];
+    if (!schemaFlag(visible, true)) return false;
+    // Separate access restriction: list supplied by Code.gs from Settings!B3.
+    if (id === 'non_comm' && !specialEmailAccessAllowed) return false;
+    const rule = parseFieldDependency(field);
+    if (rule && rule.invalid) {
+      console.error('Invalid dependency for field:', id, rule.raw);
+      return false;
+    }
       if (rule && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return false;
       return true;
     }
