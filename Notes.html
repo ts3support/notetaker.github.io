@@ -1,75 +1,4 @@
-
-
-
-Fri, Oct 23 6:41 PM
-i dont like the small size, can you make them all the same size button?
-
-
-
-Notes
-HTML
-Yes—the updated Notes.html is attached with matching sizes for all six top controls:
-
-Inbound / Outbound
-
-NON-COMM Yes / No
-
-Residential / Commercial
-
-Each button now fills half its control group, with matching padding, 13px text, and a 44px minimum height. NON-COMM remains between Call Direction and Customer Type.
-
-This builds on your latest uploaded frontend and preserves the schema-driven controls and existing behavior. The B3 restriction, automatic Reason text, and spreadsheet-first loading logic are unchanged.
-
-Replace the contents of Notes.html, save, and update the existing deployment. No Code.gs or spreadsheet changes are needed.
-
-JavaScript syntax checks passed; the visual layout still needs verification in your browser.
-
-the tab is labeled as retention
-
-retention section is only for retention and retention leads
-
-
-
-Notes
-HTML
-The updated Notes.html is attached. It adds a separate Retention navigation tab using the worksheet key retention.
-
-What’s included
-Retention appears only when the saved login department is Retention or Retention Lead, matching the department choices in your login file.
-
-Other departments cannot open it through the normal frontend navigation.
-
-Retention fields use the existing schema renderer, including field order, field type, Visible, Required, and dependsOn.
-
-Retention has its own draft values and clear/undo behavior.
-
-No automatic prefill from the other notes forms was added.
-
-Your latest uploaded frontend’s NON-COMM controls, matching button sizes, and spreadsheet-first loading behavior are preserved.
-
-Check Code.gs before deploying
-The frontend needs getFormSchema() to return:
-
-javascript
-schema.retention
-schema.retention_order
-If your current backend has a supportedTabs list, add 'retention' to that list. If it already discovers the retention worksheet, no backend change is needed.
-
-I have not changed or supplied a replacement spreadsheet ID.
-
-Install and test
-Replace the full contents of Notes.html, save, and update the existing deployment. Then test once as Retention or Retention Lead and once as a Tech Support department.
-
-JavaScript syntax and department-matching tests passed; live Apps Script testing is still needed.
-
-One limitation: this is a frontend department restriction based on saved login data, not server-enforced authorization. If Retention contains sensitive information, the backend must also validate access before returning that schema or data.
-
-Show me the updated Code.gs file for the retention backend
-How do I add server-enforced authorization for the retention tab
-Let's style the retention tab buttons to match the others
-Add a prefill option so retention notes copy over previous data
-Test the retention login restriction logic
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
   <base target="_top">
@@ -263,4 +192,1470 @@ Test the retention login restriction logic
       <!-- SUB-TOGGLE BAR: INBOUND/OUTBOUND + RESIDENTIAL/COMMERCIAL -->
       <div id="notesModeControls" class="bg-slate-50 border-b border-slate-200 px-5 py-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="text-[11px] font-bold te
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Call Direction</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="setCallType('Inbound')" id="callTypeInbound" class="py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]">
+              <i class="fa-solid fa-phone mr-1"></i> Inbound
+            </button>
+            <button type="button" onclick="setCallType('Outbound')" id="callTypeOutbound" class="py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100">
+              <i class="fa-solid fa-phone-flip mr-1"></i> Outbound
+            </button>
+          </div>
+        </div>
+
+        <div id="nonCommModeControl" style="display:none"></div>
+
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Customer Type</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="setCustomerType('Residential')" id="custTypeRes" class="py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]">
+              <i class="fa-solid fa-house mr-1"></i> Residential
+            </button>
+            <button type="button" onclick="setCustomerType('Commercial')" id="custTypeCom" class="py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100">
+              <i class="fa-solid fa-building mr-1"></i> Commercial
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DYNAMIC 3-COLUMN COMPACT FORM GRID (FOLLOWS SHEET ROW ORDER) -->
+      <div id="dynamicFormContainer" class="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="col-span-full py-16 text-center text-slate-400 text-xs">
+          <i class="fa-solid fa-circle-notch fa-spin text-xl text-[#003b8f] mb-2"></i>
+          <p>Connecting to Google Sheet Schema & Row Order...</p>
+        </div>
+      </div>
+
+      <!-- BOTTOM SUBMIT / COPY BAR -->
+      <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3 text-xs text-slate-500">
+          <span>Agent: <strong id="footerAgentDisplay" class="text-slate-800">--</strong></span>
+          <span>•</span>
+          <span>Extension: <strong id="footerExtDisplay" class="text-slate-800 font-mono">--</strong></span>
+          <span>•</span>
+          <span>Department: <strong id="footerDeptDisplay" class="text-slate-800">--</strong></span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="clearCurrentForm()" class="px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg transition">
+            <i class="fa-solid fa-rotate-left mr-1"></i> Clear All Fields
+          </button><button type="button" data-undo-clear onclick="undoClearCurrentForm()" disabled class="px-3 py-1.5 text-xs font-semibold border rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">Undo Clear</button>
+          <button type="button" onclick="copyGeneratedNote()" id="bottomCopyBtn" class="px-5 py-2 bg-[#003b8f] hover:bg-[#002b6b] text-white text-xs font-extrabold uppercase tracking-wide rounded-lg transition shadow-sm flex items-center gap-2">
+            <i class="fa-solid fa-copy"></i>
+            <span>Copy Note to Clipboard</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: NOTE PREVIEW (ON-DEMAND) -->
+  <!-- ======================================================== -->
+  <div id="notePreviewModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full flex flex-col overflow-hidden">
+      <div class="px-4 py-3 bg-[#003b8f] text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-file-lines text-amber-300"></i>
+          <h3 class="text-xs font-extrabold uppercase tracking-wide">Formatted Note Output</h3>
+        </div>
+        <button type="button" onclick="closeNotePreviewModal()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-4 bg-slate-900">
+        <textarea id="modalNoteOutput" readonly rows="16" class="w-full bg-transparent font-mono text-xs text-emerald-400 focus:text-white leading-relaxed resize-none outline-none select-all"></textarea>
+      </div>
+      <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <span class="text-[11px] text-slate-500">Ready to paste into Salesforce / CRM.</span>
+        <div class="flex gap-2">
+          <button type="button" onclick="closeNotePreviewModal()" class="px-3 py-1.5 text-xs text-slate-600 bg-slate-200 hover:bg-slate-300 rounded font-bold">Close</button>
+          <button type="button" onclick="if (copyGeneratedNote()) closeNotePreviewModal();" class="px-4 py-1.5 text-xs bg-[#003b8f] text-white rounded font-bold hover:bg-[#002b6b]">Copy & Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: INTERACTIVE EMAIL TEMPLATES (SELECT TO PREVIEW & COPY) -->
+  <!-- ======================================================== -->
+  <div id="emailTemplatesModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-6xl w-full h-[90vh] flex flex-col overflow-hidden">
+      
+      <!-- Header -->
+      <div style="background-color: #003b8f;" class="text-white px-5 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-envelope-open-text text-amber-300 text-base"></i>
+          <div>
+            <h3 class="text-sm font-bold uppercase tracking-wider">Tech Support Email Templates Hub</h3>
+            <p class="text-[11px] text-blue-100">Select any template on the left to preview and copy ready-to-send messages</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeEmailModal()" class="text-white/80 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Variables & Tier Switcher Bar -->
+      <div class="bg-slate-50 border-b border-slate-200 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
+        <div class="flex items-center gap-1 bg-slate-200/70 p-1 rounded-lg">
+          <button type="button" onclick="switchEmailTab('standard')" id="btnEmailTabStandard" class="px-3 py-1.5 rounded font-bold transition bg-white text-[#003b8f] shadow-sm">
+            <i class="fa-solid fa-users mr-1"></i> Standard Team Guides
+          </button>
+          <button type="button" onclick="switchEmailTab('special')" id="btnEmailTabSpecial" style="display:none;"></button>
+        </div>
+
+        <!-- Dynamic Replacement Variables (Auto-Synced from Note) -->
+        <div class="flex items-center flex-wrap gap-2.5">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-bold text-slate-500 uppercase">[Member Name]:</span>
+            <input type="text" id="emailVarName" placeholder="Valued Member" oninput="updateTemplatePreview()" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded outline-none focus:border-[#003b8f] w-28 sm:w-36 font-medium">
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-bold text-slate-500 uppercase">[System #]:</span>
+            <input type="text" id="emailVarSys" placeholder="ADC-883910" oninput="updateTemplatePreview()" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded outline-none focus:border-[#003b8f] font-mono w-24 sm:w-28">
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-bold text-slate-500 uppercase">[Case #]:</span>
+            <input type="text" id="emailVarCase" placeholder="CAS-098234" oninput="updateTemplatePreview()" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded outline-none focus:border-[#003b8f] font-mono w-24 sm:w-28">
+          </div>
+          <button type="button" onclick="syncFieldsFromNoteForm(true)" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded border border-slate-300 transition flex items-center gap-1 shadow-2xs" title="Re-sync latest details from note form">
+            <i class="fa-solid fa-arrows-rotate text-[#003b8f]"></i>
+            <span>Re-sync</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Split Layout: Left = Template Browser, Right = Interactive Preview & Copy Deck -->
+      <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-slate-100">
+        
+        <!-- LEFT COLUMN: TEMPLATE LIST CATALOG (col-span-5) -->
+        <div class="lg:col-span-5 border-r border-slate-200 bg-white flex flex-col h-full overflow-hidden">
+          
+          <!-- Search Toolbar -->
+          <div class="p-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <div class="relative flex-1">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+              <input type="text" id="searchTemplateInput" placeholder="Filter templates (e.g. PG9303, VDB780B, Doorbell, Panel, Wifi)..." oninput="filterTemplateList()" class="w-full text-xs pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none focus:border-[#003b8f]">
+            </div>
+            <span id="templateCountBadge" class="text-[11px] font-bold text-slate-500 bg-slate-200/60 px-2 py-1 rounded">0 Templates</span>
+          </div>
+
+          <!-- Clickable Template Cards List -->
+          <div id="templatesListContainer" class="flex-1 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
+            <div class="py-16 text-center text-slate-400 text-xs">
+              <i class="fa-solid fa-spinner fa-spin text-xl text-[#003b8f] mb-2"></i>
+              <p>Parsing email templates from Google Doc...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: FULL PREVIEW & ONE-CLICK COPY DECK (col-span-7) -->
+        <div class="lg:col-span-7 bg-white flex flex-col h-full overflow-hidden">
+          
+          <!-- Selected Template Header & Copy Buttons -->
+          <div class="p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="previewCategoryBadge" class="text-[10px] font-extrabold uppercase bg-blue-100 text-[#003b8f] px-2 py-0.5 rounded">Standard Template</span>
+                <span class="text-[11px] text-slate-400 font-mono" id="previewIdDisplay">TPL-01</span>
+              </div>
+              <h4 id="previewTitleDisplay" class="text-xs sm:text-sm font-bold text-slate-900 mt-1">Select a template on the left</h4>
+            </div>
+
+            <!-- Primary Copy Actions -->
+            <div class="flex items-center flex-wrap gap-1.5">
+              <button type="button" onclick="copyEmailSubject()" id="copySubjectBtn" class="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded border border-slate-300 transition flex items-center gap-1">
+                <i class="fa-solid fa-copy text-slate-400"></i>
+                <span>Copy Subject</span>
+              </button>
+              <button type="button" onclick="copyEmailBody()" id="copyBodyBtn" class="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded border border-slate-300 transition flex items-center gap-1">
+                <i class="fa-solid fa-copy text-slate-400"></i>
+                <span>Copy Body Only</span>
+              </button>
+              <button type="button" onclick="copyEntireEmail()" id="copyFullEmailBtn" class="px-3.5 py-1.5 bg-[#003b8f] hover:bg-[#002b6b] text-white text-xs font-bold rounded shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span>Copy Full Email</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Preview Content Body -->
+          <div class="flex-1 p-5 overflow-y-auto space-y-4">
+            
+            <!-- Subject Line Preview Card -->
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <i class="fa-solid fa-heading text-slate-400"></i> Subject Line
+              </div>
+              <div id="previewSubjectText" class="text-xs sm:text-sm font-bold text-slate-800 select-all">
+                --
+              </div>
+            </div>
+
+            <!-- Additional bracketed template variables -->
+            <section id="additionalTemplateFields" class="hidden p-3 bg-blue-50 border border-blue-100 rounded-lg space-y-2">
+              <h4 class="text-xs font-bold text-slate-800">Additional Template Fields</h4>
+              <p class="text-[11px] text-slate-500">Fill in the remaining bracketed items. Blank entries keep their placeholders.</p>
+              <div id="additionalTemplateInputs" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+            </section>
+
+            <!-- Email Body Preview Card -->
+            <div class="space-y-1">
+              <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Message Body</span>
+                <span class="text-[10px] text-emerald-600 font-semibold"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Variables Replaced in Real-Time</span>
+              </div>
+              <div class="p-4 bg-slate-900 text-slate-100 rounded-lg border border-slate-800">
+                <textarea id="previewBodyTextarea" readonly rows="14" class="w-full bg-transparent font-mono text-xs text-indigo-300 focus:text-white leading-relaxed resize-none outline-none select-all"></textarea>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Bottom Status Footer -->
+          <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
+            <span>Sender: <strong id="previewAgentSignoff">Current Agent</strong></span>
+            <button type="button" onclick="closeEmailModal()" class="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded">Close</button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: DEALER SERVICE ZIP LOOKUP -->
+  <!-- ======================================================== -->
+  <div id="zipModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-map-location-dot text-[#003b8f]"></i> Dealer Service Zip Code Lookup
+        </h3>
+        <button type="button" onclick="closeZipModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-600 block mb-1">Enter Customer Postal Zip Code:</label>
+        <div class="flex gap-2">
+          <input type="text" id="zipSearchInput" placeholder="e.g. 94105, 85001" onkeydown="if(event.key==='Enter') executeZipSearch()" class="flex-1 text-xs px-3 py-2 bg-slate-50 border border-slate-300 rounded outline-none focus:border-[#003b8f]">
+          <button type="button" onclick="executeZipSearch()" class="px-4 py-2 bg-[#003b8f] text-white text-xs font-bold rounded hover:bg-[#002b6b] transition">Search</button>
+        </div>
+      </div>
+      <div id="zipResultDisplay" class="hidden p-3 rounded border text-xs"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: FEEDBACK SUBMISSION -->
+  <!-- ======================================================== -->
+  <div id="feedbackModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-comment-dots text-[#003b8f]"></i> Submit Tool Feedback
+        </h3>
+        <button type="button" onclick="closeFeedbackModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Category:</label>
+          <select id="feedbackCategory" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded outline-none">
+            <option value="Feature Request">Feature Request</option>
+            <option value="Bug / Issue">Bug / Issue</option>
+            <option value="Field Request">Missing Form Field</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Applicable Form:</label>
+          <select id="feedbackSection" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded outline-none">
+            <option value="Inbound Note Taker">Inbound Note Taker</option>
+            <option value="Outbound Note Taker">Outbound Note Taker</option>
+            <option value="Residential Scheduling">Residential Scheduling</option>
+            <option value="Dealer Service">Dealer Service</option>
+            <option value="Parts Order">Parts Order</option>
+            <option value="Addendum Request">Addendum Request</option>
+
+          </select>
+        </div>
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Comments / Details:</label>
+          <textarea id="feedbackDetails" rows="4" placeholder="Describe what could be improved or added..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded outline-none"></textarea>
+        </div>
+      </div>
+      <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
+        <button type="button" onclick="submitFeedbackForm()" class="px-4 py-2 bg-[#003b8f] text-white text-xs font-bold rounded hover:bg-[#002b6b] transition">Submit Feedback</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: CHANGE LOG -->
+  <!-- ======================================================== -->
+  <div id="changeLogModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-xl w-full h-[70vh] flex flex-col p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-[#003b8f]"></i> System Change Log
+        </h3>
+        <button type="button" onclick="closeChangeLogModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="changeLogContent" class="flex-1 overflow-y-auto divide-y divide-slate-100 text-xs">
+        <div class="py-12 text-center text-slate-400">Loading Change Log records...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- JAVASCRIPT LOGIC -->
+  <!-- ======================================================== -->
+  <script>
+    let currentAgent = {
+      name: 'Support Agent',
+      extension: '1000',
+      department: 'Tech Support Level 2'
+    };
+
+    let activeFormKey = 'notes';
+    let callType = 'Inbound';
+    let customerType = 'Residential';
+    let formSchema = {};
+    let schemaLoadState = 'loading';
+    let formValues = {
+      notes: {},
+      residential: {},
+      dealer: {},
+      addendum: {},
+      parts: {},
+      retention: {}
+    };
+
+    // Parsed email templates catalog
+    let parsedStandardTemplates = [];
+    let specialTemplatesList = [];
+    let activeEmailTab = 'standard';
+    let activeSelectedTemplate = null;
+
+    let timerSeconds = 0;
+    let timerInterval = null;
+    let timerRunning = false;
+
+    // INITIALIZATION (READS SAVED CREDENTIALS FROM LOGIN.HTML)
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedName = localStorage.getItem('name');
+      const savedPhone = localStorage.getItem('phone');
+      const savedDept = localStorage.getItem('dept');
+
+      if (savedName) currentAgent.name = savedName;
+      if (savedPhone) currentAgent.extension = savedPhone;
+      if (savedDept) currentAgent.department = savedDept;
+
+      updateAgentUI();
+      applyRetentionAccess();
+      restoreFormDrafts();
+
+      schemaLoadState = 'loading';
+      renderActiveForm();
+      google.script.run
+        .withSuccessHandler(handleSchemaLoaded)
+        .withFailureHandler(handleSchemaFallback)
+        .getFormSchema();
+
+      google.script.run
+        .withSuccessHandler(populateHelpfulLinks)
+        .getHelpfulLinksFromDoc();
+
+      preloadEmailTemplates();
+    });
+
+    function canAccessRetention() {
+      const department = String(currentAgent.department || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      return department === 'retention' || department === 'retention lead';
+    }
+
+    function applyRetentionAccess() {
+      const allowed = canAccessRetention();
+      const button = document.getElementById('tab-retention');
+      if (button) button.style.display = allowed ? '' : 'none';
+      const select = document.getElementById('feedbackSection');
+      if (select) {
+        Array.from(select.options).filter(option => option.value === 'Retention').forEach(option => option.remove());
+        if (allowed) {
+          const option = document.createElement('option');
+          option.value = 'Retention'; option.textContent = 'Retention'; select.appendChild(option);
+        }
+      }
+    }
+
+    function updateAgentUI() {
+      document.getElementById('headerAgentDisplay').innerText = `currentAgent.name({currentAgent.extension})`;
+      document.getElementById('headerDeptDisplay').innerText = currentAgent.department;
+      document.getElementById('footerAgentDisplay').innerText = currentAgent.name;
+      document.getElementById('footerExtDisplay').innerText = currentAgent.extension;
+      document.getElementById('footerDeptDisplay').innerText = currentAgent.department;
+      document.getElementById('previewAgentSignoff').innerText = `currentAgent.name({currentAgent.extension})`;
+    }
+
+    function logoutToLogin() {
+      window.top.location.href = '<?= appUrl ?>?page=login';
+    }
+
+    // CALL TIMER
+    function toggleTimer() {
+      if (timerRunning) {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-play"></i>';
+        document.getElementById('timerToggleBtn').className = 'p-1 hover:text-emerald-300 text-emerald-400';
+      } else {
+        timerRunning = true;
+        timerInterval = setInterval(() => {
+          timerSeconds++;
+          const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+          const s = String(timerSeconds % 60).padStart(2, '0');
+          document.getElementById('callTimerDisplay').innerText = `m:{s}`;
+        }, 1000);
+        document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-pause"></i>';
+        document.getElementById('timerToggleBtn').className = 'p-1 hover:text-amber-300 text-amber-400';
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      timerSeconds = 0;
+      document.getElementById('callTimerDisplay').innerText = '00:00';
+      document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-play"></i>';
+    }
+
+    // HELPER: GET ORDERED FIELDS (GUARANTEES SHEET ROW ORDER)
+    function schemaFlag(value, fallback = false) {
+      if (value === true || value === false) return value;
+      const text = String(value ?? '').trim().toLowerCase();
+      if (['yes', 'true'].includes(text)) return true;
+      if (['no', 'false'].includes(text)) return false;
+      return fallback;
+    }
+
+    function parseFieldDependency(field) {
+      const raw = String(field.dependsOn ?? '').trim();
+      if (!raw) return null;
+      const match = raw.match(/^([^=:\s]+)\s*=\s*(.*?)\s*:\s*(required|visible)\s*$/i);
+      return match ? {source: match[1], expected: match[2].trim().toLowerCase(), action: match[3].toLowerCase()} : {invalid: true, raw};
+    }
+
+function dependencyIsMatched(rule, values) {
+  if (rule.invalid) return false;
+  if (rule.source.toLowerCase() === 'customer_type') {
+    return String(customerType ?? '').trim().toLowerCase() === rule.expected;
+  }
+  return String(values[rule.source] ?? '').trim().toLowerCase() === rule.expected;
+}
+
+    function fieldRequiredNow(field, values) {
+      const rule = parseFieldDependency(field);
+      return schemaFlag(field.required ?? field.Required, false) ||
+        Boolean(rule && !rule.invalid && rule.action === 'required' && dependencyIsMatched(rule, values));
+    }
+
+    function validateRequiredFieldsBeforeCopy() {
+      if (schemaLoadState !== 'ready') {
+        alert('NOTHING WAS COPIED. Spreadsheet configuration is unavailable. Reload and try again.');
+        return false;
+      }
+      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      if (!formSchema || !Array.isArray(formSchema[key + '_order'])) {
+        alert('NOTHING WAS COPIED. Form settings have not loaded. Please wait and try again.');
+        return false;
+      }
+      const fields = formSchema[key + '_order'];
+      if (!fields.length) {
+        alert('NOTHING WAS COPIED. No fields are configured for this form.');
+        return false;
+      }
+      const values = formValues[activeFormKey] || {};
+      const missing = [];
+      let firstId = '';
+      fields.forEach(field => {
+        const id = field.id || field['Internal ID'] || field.internalId;
+        if (!schemaFlag(field.visible, true)) return;
+        const label = field.label || field['Display Label'] || id;
+        const rule = parseFieldDependency(field);
+        if (rule && rule.invalid) {
+          missing.push(label + ' — invalid Depends on rule: ' + rule.raw);
+          return;
+        }
+        const conditionalRequired = rule && rule.action === 'required' && dependencyIsMatched(rule, values);
+        if (rule && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return;
+        if (!conditionalRequired && !shouldShowNoteField(field, key, values)) return;
+        if (!fieldRequiredNow(field, values)) return;
+        const value = String(values[id] ?? '').trim();
+        if (!value || !isServiceOptionAllowed(id, value)) {
+          missing.push(label);
+          if (!firstId) firstId = id;
+        }
+      });
+      if (missing.length) {
+        alert('NOTHING WAS COPIED.\n\nComplete these required fields or correct their settings:\n\n' + missing.map(label => '• ' + label).join('\n'));
+        const wrapper = Array.from(document.querySelectorAll('#dynamicFormContainer [data-field-id]')).find(el => el.dataset.fieldId === firstId);
+        if (wrapper) {
+          wrapper.scrollIntoView({block:'center', behavior:'smooth'});
+          const input = wrapper.querySelector('input,select,textarea');
+          if (input) { input.setAttribute('aria-invalid','true'); input.focus({preventScroll:true}); }
+        }
+        return false;
+      }
+      return true;
+    }
+
+    function getOrderedFields(targetKey) {
+      if (targetKey === 'retention' && !canAccessRetention()) return [];
+      if (schemaLoadState === 'loading') return [];
+      if (schemaLoadState === 'failed') return getFallbackFieldsArray(targetKey);
+      const ordered = formSchema && formSchema[targetKey + '_order'];
+      if (Array.isArray(ordered)) return ordered;
+      const fields = formSchema && formSchema[targetKey];
+      if (Array.isArray(fields)) return fields;
+      if (fields && typeof fields === 'object') {
+        return Object.entries(fields).map(([id, field]) => Object.assign({id: id}, field));
+      }
+      console.error('No spreadsheet configuration for form:', targetKey);
+      return [];
+    }
+
+    // FORM SCHEMA & 3-COLUMN RENDERER IN EXACT SHEET ROW ORDER
+    function handleSchemaLoaded(schema) {
+      if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+        handleSchemaFallback(new Error('Invalid spreadsheet configuration.'));
+        return;
+      }
+      formSchema = schema;
+      schemaLoadState = 'ready';
+      applySpecialEmailAccess();
+      renderActiveForm();
+    }
+
+    function handleSchemaFallback(err) {
+      console.error('Spreadsheet configuration could not be loaded:', err);
+      formSchema = {};
+      schemaLoadState = 'failed';
+      specialEmailAccessAllowed = false;
+      applySpecialEmailAccess();
+      renderActiveForm();
+    }
+
+    function noteSourceValues() {
+      const values = Object.assign({}, formValues.notes || {});
+      const first = ids => {
+        for (const id of ids) {
+          if (values[id] !== undefined && values[id] !== null && String(values[id]).trim() !== '') return values[id];
+        }
+        return '';
+      };
+      values.caller_name = first(['caller_name', 'member_name', 'name_contact', 'name', 'contact_name']);
+      values.phone_number = first(callType === 'Outbound'
+        ? ['obc_to', 'outboundPhone', 'phone_number', 'phone', 'contact_phone']
+        : ['phone_number', 'phone', 'contact_phone', 'obc_to']);
+      values.system_number = first(['system_number', 'systemNumber', 'system_id', 'adc_id']);
+      values.ar_number = first(['ar_number', 'ar', 'arNumber', 'account_number']);
+      return values;
+    }
+
+    function prefillTicketFromNotes(formKey) {
+      if (!['residential', 'dealer', 'addendum', 'parts'].includes(formKey)) return;
+      const source = noteSourceValues();
+      const destination = formValues[formKey] || (formValues[formKey] = {});
+      const aliases = {
+        member_name: 'caller_name', contact_name: 'caller_name', name: 'caller_name',
+        name_contact: 'caller_name', noteName: 'caller_name',
+        phone: 'phone_number', contact_phone: 'phone_number', obc_to: 'phone_number',
+        systemNumber: 'system_number', system_id: 'system_number', adc_id: 'system_number',
+        ar: 'ar_number', arNumber: 'ar_number', arNumberInput: 'ar_number', account_number: 'ar_number',
+        system_type: 'panel_type', systemType: 'panel_type'
+      };
+      getOrderedFields(formKey).forEach(function (field) {
+        const id = field.id || field['Internal ID'] || field.internalId;
+        if (!id) return;
+        // Existing destination values always take priority.
+        if (destination[id] !== undefined && destination[id] !== null && String(destination[id]).trim() !== '') return;
+        const value = source[id] !== undefined ? source[id] : source[aliases[id]];
+        if (value !== undefined && value !== null && String(value).trim() !== '') destination[id] = value;
+      });
+      saveFormDrafts();
+    }
+
+    function switchForm(formKey) {
+      if (formKey === 'retention' && !canAccessRetention()) {
+        alert('Retention is available only to Retention and Retention Lead departments.');
+        return;
+      }
+      prefillTicketFromNotes(formKey);
+      activeFormKey = formKey;
+      document.querySelectorAll('.form-tab').forEach(b => {
+        b.className = 'form-tab px-3 py-1.5 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
+      });
+      document.getElementById(`tab-${formKey}`).className = 'form-tab px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-[#003b8f] border-b-2 border-[#003b8f]';
+
+      if (formKey === 'notes') {
+        document.getElementById('notesModeControls').classList.remove('hidden');
+      } else {
+        document.getElementById('notesModeControls').classList.add('hidden');
+        const titles = {
+          residential: 'Residential Scheduling Ticket',
+          dealer: 'Dealer Service Ticket',
+          addendum: 'Addendum Request Ticket',
+          parts: 'Parts Order Ticket',
+          retention: 'Retention'
+        };
+      }
+
+      renderActiveForm();
+    }
+
+    function setCallType(type) {
+      callType = type;
+      document.getElementById('callTypeInbound').className = type === 'Inbound' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+      document.getElementById('callTypeOutbound').className = type === 'Outbound' ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]' : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+      saveFormDrafts();
+      renderActiveForm();
+    }
+
+    function setCustomerType(type) {
+      customerType = type;
+
+      const resBtn = document.getElementById('custTypeRes');
+      const comBtn = document.getElementById('custTypeCom');
+
+      if (resBtn) {
+        resBtn.className = type === 'Residential'
+          ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]'
+          : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+      }
+
+      if (comBtn) {
+        comBtn.className = type === 'Commercial'
+          ? 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-[#003b8f] text-white border-[#003b8f]'
+          : 'py-1.5 px-3 text-xs font-bold rounded border text-center transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+      }
+
+      if (typeof saveFormDrafts === 'function') saveFormDrafts();
+      if (typeof renderActiveForm === 'function') renderActiveForm();
+    }
+
+  function shouldShowNoteField(field, targetKey, values) {
+    const id = field.id || field['Internal ID'] || field.internalId;
+    const visible = field.visible !== undefined ? field.visible : field['Visible'];
+    if (!schemaFlag(visible, true)) return false;
+    // Separate access restriction: list supplied by Code.gs from Settings!B3.
+    if (id === 'non_comm' && !specialEmailAccessAllowed) return false;
+    const rule = parseFieldDependency(field);
+    if (rule && rule.invalid) {
+      console.error('Invalid dependency for field:', id, rule.raw);
+      return false;
+    }
+      if (rule && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return false;
+      return true;
+    }
+
+    function isServiceOptionAllowed(fieldId, option) {
+      return fieldId !== 'service_type' || customerType !== 'Residential' ||
+        String(option).trim().toLowerCase() !== 'fire system';
+    }
+
+    function renderActiveForm() {
+  const container = document.getElementById('dynamicFormContainer');
+  const nonCommHost = document.getElementById('nonCommModeControl');
+  const modeControls = document.getElementById('notesModeControls');
+  if (nonCommHost) { nonCommHost.replaceChildren(); nonCommHost.style.display = 'none'; }
+  if (modeControls) { modeControls.classList.remove('sm:grid-cols-3'); modeControls.classList.add('sm:grid-cols-2'); }
+  if (schemaLoadState === 'loading') {
+    container.innerHTML = '<div class="col-span-full py-4 text-sm text-slate-500" role="status">Loading form configuration from the spreadsheet…</div>';
+    return;
+  }
+  const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
+  
+  const fieldsList = getOrderedFields(targetKey);
+  const currentVals = formValues[activeFormKey] || {};
+  let html = schemaLoadState === 'failed'
+    ? '<div class="col-span-full rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">Default form — spreadsheet configuration unavailable. Fields may differ from your worksheet. Copying is disabled. Reload to retry.</div>'
+    : '';
+
+  fieldsList.forEach(field => {
+    const fieldId = field.id || field['Internal ID'] || field.internalId;
+    if (!shouldShowNoteField(field, targetKey, currentVals)) return;
+
+    const storedValue = currentVals[fieldId] || '';
+    const val = isServiceOptionAllowed(fieldId, storedValue) ? storedValue : '';
+    
+    // Robust field type resolution supporting multiple naming conventions
+
+    const rawType = field.type || field.fieldType || field['Field Type'] || 'Text';
+    const fType = rawType.toString().trim().toLowerCase();
+    
+    // Robust options resolution
+    const rawOptions = field.options || field.Options || field['Options'] || '';
+    const opts = rawOptions.split(',').map(s => s.trim()).filter(Boolean)
+      .filter(option => isServiceOptionAllowed(fieldId, option));
+
+    const isSpanningTextarea = fType === 'textarea';
+    const label = field.label || field['Display Label'] || field.displayLabel || fieldId;
+
+    const isPrivacyField = /privacy/i.test(String(fieldId) + ' ' + String(label));
+    html += `<div data-field-id="${fieldId}" ${isPrivacyField ? 'data-privacy-hover tabindex="0" aria-describedby="privacyScriptTooltip"' : ''} class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
+      <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
+        <span>label{isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
+        ${fieldRequiredNow(field, currentVals) ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
+      </label>`;
+
+    if (fType === 'textarea') {
+      html += `<textarea rows="3" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter label..."class="w-fulltext-xspx-3py-2bg-slate-50focus:bg-whiteborderborder-slate-300rounded-mdoutline-nonefocus:border-[#003b8f]focus:ring-1focus:ring-[#003b8f]transition">{val}</textarea>`;
+    } else if (fType === 'dropdown') {
+      html += `<select onchange="handleFieldInput('${fieldId}', this.value)" class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition cursor-pointer">
+        <option value="">-- Select --</option>`;
+      opts.forEach(opt => {
+        html += `<option value="${opt}" val===opt?'selected':''>{opt}</option>`;
+      });
+      html += `</select>`;
+    } else if (fType === 'radio') {
+      html += `<div class="flex flex-wrap gap-2 pt-0.5">`;
+      opts.forEach(opt => {
+        const isSelected = val === opt;
+        html += `
+          <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-semibold cursor-pointer transition ${
+            isSelected 
+              ? 'bg-[#003b8f] text-white border-[#003b8f]' 
+              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+          }">
+            <input type="radio" name="fieldId"value="{opt}" isSelected?'checked':''onchange="handleFieldInput('{fieldId}', this.value)" class="hidden">
+            <span>${opt}</span>
+          </label>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<input type="text" value="val"oninput="handleFieldInput('{fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">`;
+    }
+
+    html += `</div>`;
+  });
+
+  if (targetKey === 'retention' && schemaLoadState === 'ready' && !fieldsList.length) {
+    html = '<div class="col-span-full text-sm text-amber-800 p-3" role="alert">No Retention fields were returned. Check that Code.gs includes the retention worksheet in getFormSchema().</div>';
+  }
+  container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
+  if (activeFormKey === 'notes' && nonCommHost && schemaLoadState === 'ready') {
+    const nonCommField = container.querySelector('[data-field-id="non_comm"]');
+    if (nonCommField) {
+      nonCommHost.appendChild(nonCommField);
+      nonCommHost.style.display = '';
+      if (modeControls) { modeControls.classList.remove('sm:grid-cols-2'); modeControls.classList.add('sm:grid-cols-3'); }
+    }
+  }
+  updateUndoClearButtons();
+}
+
+function handleFieldInput(fieldId, val) {
+  if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
+  formValues[activeFormKey][fieldId] = val;
+
+  // Auto-fill Reason for Call when NON-COMM "Yes" is selected
+  if (fieldId === 'non_comm') {
+    if (String(val).trim().toLowerCase() === 'yes') {
+      formValues[activeFormKey]['reason'] = 'Non Communication Project (2026)';
+    } else if (String(val).trim().toLowerCase() === 'no' && formValues[activeFormKey]['reason'] === 'Non Communication Project (2026)') {
+      formValues[activeFormKey]['reason'] = '';
+    }
+  }
+
+  saveFormDrafts();
+  const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+  const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
+
+  const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
+  if (type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','non_comm'].includes(fieldId)) renderActiveForm();
+}
+
+    document.addEventListener('change', function(event) {
+      const wrapper = event.target.closest('#dynamicFormContainer [data-field-id], #nonCommModeControl [data-field-id]');
+      if (!wrapper) return;
+      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      if (getOrderedFields(key).some(field => parseFieldDependency(field)?.source === wrapper.dataset.fieldId)) renderActiveForm();
+    });
+    // NOTE COMPILED TEXT BUILDER (FOLLOWS SHEET ROW ORDER)
+    function buildCompiledNoteText() {
+      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      const vals = formValues[activeFormKey] || {};
+      const lines = [];
+      getOrderedFields(key).forEach(field => {
+        const id = field.id || field['Internal ID'] || field.internalId;
+        if (!shouldShowNoteField(field, key, vals)) return;
+        const label = String(field.label || field['Display Label'] || field.displayLabel || id).trim().replace(/:\s*$/, '').toUpperCase();
+        const storedValue = vals[id] == null ? '' : String(vals[id]).trim();
+        const value = isServiceOptionAllowed(id, storedValue) ? storedValue : '';
+        if (!value && !schemaFlag(field.copyIfBlank ?? field['Copy if Blank'], false)) return;
+        if (id === 'resolution' && lines.length && lines[lines.length - 1] !== '') lines.push('');
+        lines.push(label + ': ' + (value || 'N/A'));
+      });
+      if (lines.length) lines.push('');
+      lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extension || ''), 'DEPT: ' + (currentAgent.department || ''));
+      return lines.join('\n');
+    }
+
+    function copyGeneratedNote() {
+      if (!validateRequiredFieldsBeforeCopy()) return false;
+      const compiled = buildCompiledNoteText();
+      const textarea = document.createElement('textarea');
+      textarea.value = compiled;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      let copied = false;
+      try { copied = document.execCommand('copy'); }
+      catch (err) { console.error('Clipboard copy failed:', err); }
+      finally { textarea.remove(); }
+      if (!copied) {
+        alert('The browser could not copy the note. Nothing new was copied.');
+        return false;
+      }
+      const button = document.getElementById('bottomCopyBtn');
+      if (button) {
+        const original = button.innerHTML;
+        button.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copied to Clipboard!</span>';
+        setTimeout(() => { button.innerHTML = original; }, 2500);
+      }
+      return true;
+    }
+
+    function openNotePreviewModal() {
+      document.getElementById('modalNoteOutput').value = buildCompiledNoteText();
+      document.getElementById('notePreviewModal').classList.remove('hidden');
+    }
+    function closeNotePreviewModal() {
+      document.getElementById('notePreviewModal').classList.add('hidden');
+    }
+
+    let undoClearSnapshots = {};
+    function formDraftStorageKey() { return 'noteTaker_v2_drafts_' + (String(currentAgent.extension || '').trim() || 'unassigned'); }
+    function saveFormDrafts() {
+      try { localStorage.setItem(formDraftStorageKey(), JSON.stringify({version:1,values:formValues,undo:undoClearSnapshots,callType:callType,customerType:customerType})); }
+      catch (e) { console.warn('Draft storage unavailable; entries remain in memory.',e); }
+    }
+    function restoreFormDrafts() {
+      try {
+        const saved=JSON.parse(localStorage.getItem(formDraftStorageKey()) || 'null');
+        if (!saved || saved.version !== 1 || !saved.values) return;
+        Object.keys(formValues).forEach(key => {
+          if (saved.values[key] && typeof saved.values[key] === 'object' && !Array.isArray(saved.values[key])) formValues[key]=saved.values[key];
+          if (saved.undo && saved.undo[key] && typeof saved.undo[key] === 'object' && !Array.isArray(saved.undo[key])) undoClearSnapshots[key]=saved.undo[key];
+        });
+        setCallType(saved.callType === 'Outbound' ? 'Outbound' : 'Inbound');
+        setCustomerType(saved.customerType === 'Commercial' ? 'Commercial' : 'Residential');
+      } catch(e) { console.warn('Unable to restore drafts.',e); }
+    }
+    function updateUndoClearButtons() {
+      document.querySelectorAll('[data-undo-clear]').forEach(b => { b.disabled=!Object.prototype.hasOwnProperty.call(undoClearSnapshots,activeFormKey); });
+    }
+    function clearCurrentForm() {
+      const values=formValues[activeFormKey] || {};
+      if(Object.values(values).some(v => v !== '' && v !== null && v !== undefined)) undoClearSnapshots[activeFormKey]=JSON.parse(JSON.stringify(values));
+      formValues[activeFormKey]={}; saveFormDrafts(); renderActiveForm();
+    }
+    function undoClearCurrentForm() {
+      if(!Object.prototype.hasOwnProperty.call(undoClearSnapshots,activeFormKey)) return;
+      formValues[activeFormKey]=JSON.parse(JSON.stringify(undoClearSnapshots[activeFormKey]));
+      delete undoClearSnapshots[activeFormKey]; saveFormDrafts(); renderActiveForm();
+    }
+
+
+
+    // ========================================================
+    // AUTO-SYNC NOTE FIELDS TO EMAIL TEMPLATES ENGINE
+    // ========================================================
+    function syncFieldsFromNoteForm(showToast) {
+      const values = noteSourceValues();
+      const nameInput = document.getElementById('emailVarName');
+      const sysInput = document.getElementById('emailVarSys');
+      if (nameInput && values.caller_name) nameInput.value = values.caller_name;
+      if (sysInput && values.system_number) sysInput.value = values.system_number;
+      // Never populate or clear the manually entered Case #.
+      updateTemplatePreview();
+      if (showToast) alert('Synced Member and System #. Case # remains manual entry.');
+    }
+
+    function openEmailModal() {
+      // Auto-pull current note values
+      syncFieldsFromNoteForm(false);
+
+      document.getElementById('emailTemplatesModal').classList.remove('hidden');
+      loadSpecialEmails();
+      renderTemplateCardsList();
+    }
+
+    function closeEmailModal() { 
+      document.getElementById('emailTemplatesModal').classList.add('hidden'); 
+    }
+
+    function switchEmailTab(tab) {
+      if (tab === 'special' && !specialEmailAccessAllowed) tab = 'standard';
+      activeEmailTab = tab;
+      if (tab === 'standard') {
+        document.getElementById('btnEmailTabStandard').className = 'px-3 py-1.5 rounded font-bold transition bg-white text-[#003b8f] shadow-sm';
+        document.getElementById('btnEmailTabSpecial').className = 'px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900';
+      } else {
+        document.getElementById('btnEmailTabSpecial').className = 'px-3 py-1.5 rounded font-bold transition bg-white text-[#003b8f] shadow-sm';
+        document.getElementById('btnEmailTabStandard').className = 'px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900';
+      }
+      renderTemplateCardsList();
+    }
+
+    function preloadEmailTemplates() {
+      google.script.run
+        .withSuccessHandler((html) => {
+          rawDocHtml = html || '';
+          parseStandardTemplatesFromHtml(rawDocHtml);
+          renderTemplateCardsList();
+        })
+        .withFailureHandler((err) => {
+          console.error("Error preloading email templates:", err);
+          document.getElementById('templatesListContainer').innerHTML = `
+            <div class="p-4 text-xs text-rose-600">Failed to load templates: ${err.message}</div>
+          `;
+        })
+        .getEmailTemplatesHtml();
+    }
+
+    // Parses headings and body paragraphs from Google Doc export, skipping Index / TOC
+    function parseStandardTemplatesFromHtml(html) {
+      if (!html) return;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      const templates = [];
+      const headings = doc.querySelectorAll('h1, h2, h3, h4');
+
+      headings.forEach((h, index) => {
+        const title = h.innerText.trim();
+        const titleLower = title.toLowerCase();
+
+        // Skip "Index", "Template Index", or Table of Contents headings
+        if (
+          !title ||
+          title.length < 3 ||
+          titleLower === 'index' ||
+          titleLower.startsWith('index') ||
+          titleLower.includes('template index') ||
+          titleLower.includes('table of contents') ||
+          titleLower === 'aaa smart home support: index'
+        ) {
+          return;
+        }
+
+        let subject = '';
+        let bodyParts = [];
+        let curr = h.nextElementSibling;
+
+        // Traverse elements until next heading or hr
+        while (curr && !['H1','H2','H3','H4','HR'].includes(curr.tagName)) {
+          const txt = curr.innerText.trim();
+          if (txt.toLowerCase().startsWith('subject:')) {
+            subject = txt.substring(8).trim();
+          } else if (txt) {
+            bodyParts.push(txt);
+          }
+          curr = curr.nextElementSibling;
+        }
+
+        // Additional safeguard to skip if subject is just "Index"
+        if (subject && (subject.toLowerCase() === 'index' || subject.toLowerCase().includes('support: index'))) {
+          return;
+        }
+
+        if (bodyParts.length > 0) {
+          templates.push({
+            id: `STD-${templates.length + 1}`,
+            name: title.replace(/^#+\s*/, ''),
+            subject: subject || `AAA Smart Home Support: ${title}`,
+            body: bodyParts.join('\n\n'),
+            type: 'standard'
+          });
+        }
+      });
+
+      // Fallback if headings were simple paragraphs
+      if (templates.length === 0) {
+        templates.push(
+          {
+            id: 'STD-01',
+            name: 'Entry Sensor PG9303 Troubleshooting',
+            subject: 'AAA Smart Home Entry Sensor Troubleshooting Resources',
+            body: 'Hello [Member Name],\n\nThank you for contacting AAA Smart Home Security. Below are step-by-step troubleshooting resources for your Entry Sensor (PG9303).\n\nIf you have any further questions, please reference Case #[Case Number].\n\nBest regards,\nAAA Smart Home Technical Support',
+            type: 'standard'
+          },
+          {
+            id: 'STD-02',
+            name: 'ADC-VDB780B Battery Doorbell Camera Guide',
+            subject: 'AAA Smart Home Doorbell Camera Troubleshooting',
+            body: 'Hello [Member Name],\n\nHere are the instructions to charge and reconnect your ADC-VDB780B Battery Spotlight Doorbell Camera.\n\nCase Reference: [Case Number]\n\nBest regards,\nAAA Smart Home Technical Support',
+            type: 'standard'
+          },
+          {
+            id: 'STD-03',
+            name: 'Qolsys IQ Panel 4 User Guide',
+            subject: 'IQ Panel 4 System User Guide & Commands',
+            body: 'Hello [Member Name],\n\nPlease find the user guide and key commands for your Qolsys IQ Panel 4 system.\n\nFor support reference: [Case Number]\n\nBest regards,\nAAA Smart Home Technical Support',
+            type: 'standard'
+          }
+        );
+      }
+
+      parsedStandardTemplates = templates;
+      if (!activeSelectedTemplate && parsedStandardTemplates.length > 0) {
+        selectTemplate(parsedStandardTemplates[0]);
+      }
+    }
+
+    let specialEmailAccessAllowed = false;
+    function applySpecialEmailAccess() {
+      const raw = formSchema.authorizedExtensions;
+      const allowed = (Array.isArray(raw) ? raw.flat(Infinity) : [raw])
+        .filter(v => v != null).map(v => String(v).trim()).filter(Boolean);
+      const ext = String(currentAgent.extension || '').trim();
+      specialEmailAccessAllowed = ext !== '' && allowed.includes(ext);
+      const button = document.getElementById('btnEmailTabSpecial');
+      if (button) {
+      button.style.display = specialEmailAccessAllowed ? '' : 'none';
+      button.textContent = specialEmailAccessAllowed ? 'Special Emails (Project 2026)' : '';
+      button.className = 'px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900';
+      }
+      const select = document.getElementById('feedbackSection');
+      if (select) {
+        Array.from(select.options).filter(o => o.value === 'Special Emails').forEach(o => o.remove());
+        if (specialEmailAccessAllowed) {
+          const option=document.createElement('option'); option.value='Special Emails'; option.textContent='Special Emails';select.appendChild(option);
+        }
+      }
+      if (!specialEmailAccessAllowed) {
+        specialTemplatesList=[];
+        if(activeSelectedTemplate && activeSelectedTemplate.type === 'special') {
+          activeSelectedTemplate=null;
+          if(parsedStandardTemplates.length) selectTemplate(parsedStandardTemplates[0]);
+        }
+        if(activeEmailTab === 'special') switchEmailTab('standard');
+      }
+    }
+
+    function loadSpecialEmails() {
+      if (!specialEmailAccessAllowed) return;
+      google.script.run
+        .withSuccessHandler((templates) => {
+          if (!specialEmailAccessAllowed) return;
+          specialTemplatesList = (templates || []).map((t, idx) => ({
+            id: t.id || `SPEC-${idx + 1}`,
+            name: t.name || `🔒 Special Email - ${t.brand}`,
+            subject: t.subject || 'IMPORTANT NOTIFICATION',
+            body: t.body || '',
+            type: 'special'
+          }));
+          if (activeEmailTab === 'special') {
+            renderTemplateCardsList();
+          }
+        })
+        .getSpecialEmailTemplates(currentAgent.extension);
+    }
+
+    function renderTemplateCardsList() {
+      const container = document.getElementById('templatesListContainer');
+      const isSpecial = activeEmailTab === 'special';
+      const sourceList = isSpecial ? specialTemplatesList : parsedStandardTemplates;
+      const searchQ = (document.getElementById('searchTemplateInput')?.value || '').toLowerCase().trim();
+
+      if (isSpecial && !specialEmailAccessAllowed) {
+        switchEmailTab('standard');
+        return;
+      }
+
+      const filtered = sourceList.filter(t => {
+        if (!searchQ) return true;
+        return (t.name && t.name.toLowerCase().includes(searchQ)) ||
+               (t.subject && t.subject.toLowerCase().includes(searchQ)) ||
+               (t.body && t.body.toLowerCase().includes(searchQ));
+      });
+
+      document.getElementById('templateCountBadge').innerText = `${filtered.length} Templates`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="py-12 text-center text-slate-400 text-xs">
+            No templates matching "${searchQ}".
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      filtered.forEach((t) => {
+        const isSelected = activeSelectedTemplate && activeSelectedTemplate.name === t.name;
+        html += `
+          <div onclick="selectTemplateById('${escapeJs(t.name)}')" class="p-3 rounded-lg border cursor-pointer transition-all ${
+            isSelected 
+              ? 'bg-blue-50/80 border-[#003b8f] ring-1 ring-[#003b8f]/20 shadow-xs' 
+              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+          }">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  ${t.type === 'special' ? '<i class="fa-solid fa-lock text-amber-500 text-[10px]"></i>' : ''}
+                  <h5 class="text-xs font-bold text-slate-900 truncate">${t.name}</h5>
+                </div>
+                <p class="text-[11px] text-slate-500 truncate font-normal">${t.subject}</p>
+              </div>
+              <i class="fa-solid fa-chevron-right text-[10px] mt-1 ${isSelected ? 'text-[#003b8f]' : 'text-slate-300'}"></i>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      if (!activeSelectedTemplate && filtered.length > 0) {
+        selectTemplate(filtered[0]);
+      }
+    }
+
+    function filterTemplateList() {
+      renderTemplateCardsList();
+    }
+
+    function selectTemplateById(name) {
+      const sourceList = activeEmailTab === 'special' ? specialTemplatesList : parsedStandardTemplates;
+      const found = sourceList.find(t => t.name === name);
+      if (found) {
+        selectTemplate(found);
+        renderTemplateCardsList();
+      }
+    }
+
+    function selectTemplate(t) {
+      activeSelectedTemplate = t;
+      updateTemplatePreview();
+    }
+
+    // Custom values are kept per template for this page session, not written into source templates.
+    const extraTemplateValues = new Map();
+    let extraTemplatePanelSignature = null;
+
+    function normalizeTemplatePlaceholder(name) {
+      return String(name).trim().replace(/\s+/g, ' ').toLowerCase();
+    }
+
+    function templateVariableKey(template) {
+      return JSON.stringify([template.type, template.id, template.name, template.subject, template.body]);
+    }
+
+    function findExtraTemplatePlaceholders(template, knownValues) {
+      const found = new Map();
+      const text = String(template.subject || '') + '\n' + String(template.body || '');
+      for (const match of text.matchAll(/\[([^\[\]\r\n]+)\]/g)) {
+        const key = normalizeTemplatePlaceholder(match[1]);
+        if (key && !Object.prototype.hasOwnProperty.call(knownValues, key) && !found.has(key)) {
+          found.set(key, match[1].trim());
+        }
+      }
+      return Array.from(found, ([key, label]) => ({key, label}));
+    }
+
+    function replaceTemplateVariables(text, knownValues, customValues) {
+      return String(text || '').replace(/\[([^\[\]\r\n]+)\]/g, function (placeholder, name) {
+        const key = normalizeTemplatePlaceholder(name);
+        if (Object.prototype.hasOwnProperty.call(knownValues, key)) {
+          const value = String(knownValues[key] ?? '');
+          return value.trim() ? value : placeholder;
+        }
+        const value = customValues.get(key);
+        return value !== undefined && String(value).trim() !== '' ? String(value) : placeholder;
+      });
+    }
+
+    function renderAdditionalTemplateFields(knownValues) {
+      const panel = document.getElementById('additionalTemplateFields');
+      const container = document.getElementById('additionalTemplateInputs');
+      if (!activeSelectedTemplate) {
+        panel.classList.add('hidden');
+        container.replaceChildren();
+        extraTemplatePanelSignature = null;
+        return new Map();
+      }
+      const templateKey = templateVariableKey(activeSelectedTemplate);
+      if (!extraTemplateValues.has(templateKey)) extraTemplateValues.set(templateKey, new Map());
+      const values = extraTemplateValues.get(templateKey);
+      const fields = findExtraTemplatePlaceholders(activeSelectedTemplate, knownValues);
+      panel.classList.toggle('hidden', fields.length === 0);
+      const signature = JSON.stringify([templateKey, fields]);
+      // Keep the active input element in place during live preview updates.
+      if (signature !== extraTemplatePanelSignature) {
+        container.replaceChildren();
+        fields.forEach(function (field, index) {
+          const wrapper = document.createElement('div');
+          const label = document.createElement('label');
+          const input = document.createElement('input');
+          input.id = 'extraTemplateVariable_' + index;
+          input.type = 'text';
+          input.value = values.get(field.key) || '';
+          input.placeholder = '[' + field.label + ']';
+          input.className = 'w-full text-xs px-2 py-1.5 border border-slate-300 rounded outline-none focus:border-blue-700';
+          label.htmlFor = input.id;
+          label.textContent = field.label;
+          label.className = 'block text-[11px] font-bold text-slate-600 mb-1';
+          input.addEventListener('input', function () {
+            values.set(field.key, input.value);
+            updateTemplatePreview();
+          });
+          wrapper.append(label, input);
+          container.appendChild(wrapper);
+        });
+        extraTemplatePanelSignature = signature;
+      }
+      return values;
+    }
+
+    function updateTemplatePreview() {
+      if (!activeSelectedTemplate) {
+        document.getElementById('previewTitleDisplay').innerText = 'Select a template on the left';
+        document.getElementById('previewSubjectText').innerText = '--';
+        document.getElementById('previewBodyTextarea').value = '';
+        renderAdditionalTemplateFields({});
+        return;
+      }
+
+      const noteVals = noteSourceValues();
+
+      // Dynamic variable values with auto-fallback to note form fields
+      const nameVal = (document.getElementById('emailVarName')?.value || '').trim() || 
+                      noteVals.caller_name || noteVals.name_contact || noteVals.name || 'Valued Member';
+
+      const sysVal = (document.getElementById('emailVarSys')?.value || '').trim() || 
+                     noteVals.system_number || 'N/A';
+
+      const caseVal = (document.getElementById('emailVarCase')?.value || '').trim();
+      const arVal = noteVals.ar_number || 'N/A';
+      const phoneVal = noteVals.phone_number || '';
+      const knownValues = {};
+      const register = (names, value) => names.forEach(name => {
+        knownValues[normalizeTemplatePlaceholder(name)] = value;
+      });
+      register(['Member Name', 'Customer Name', 'Name'], nameVal);
+      register(['System Number', 'System #', 'System'], sysVal);
+      register(['Case Number', 'Case #', 'Case'], caseVal);
+      register(['AR Number', 'AR #', 'Account Number', 'Account #'], arVal);
+      register(['Phone Number', 'Phone #', 'Phone'], phoneVal);
+      register(['Agent Name'], currentAgent.name);
+      register(['Agent Extension', 'Extension'], currentAgent.extension);
+      register(['Department'], currentAgent.department);
+
+      const customValues = renderAdditionalTemplateFields(knownValues);
+      const renderedSubject = replaceTemplateVariables(activeSelectedTemplate.subject, knownValues, customValues);
+      const renderedBody = replaceTemplateVariables(activeSelectedTemplate.body, knownValues, customValues);
+
+      document.getElementById('previewIdDisplay').innerText = activeSelectedTemplate.id || 'TPL';
+      document.getElementById('previewTitleDisplay').innerText = activeSelectedTemplate.name;
+      document.getElementById('previewCategoryBadge').innerText = activeSelectedTemplate.type === 'special' 
+        ? '🔒 Project 2026 Special' 
+        : 'Standard Team Guide';
+      document.getElementById('previewCategoryBadge').className = activeSelectedTemplate.type === 'special' 
+        ? 'text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 px-2 py-0.5 rounded'
+        : 'text-[10px] font-extrabold uppercase bg-blue-100 text-[#003b8f] px-2 py-0.5 rounded';
+
+      document.getElementById('previewSubjectText').innerText = renderedSubject;
+      document.getElementById('previewBodyTextarea').value = renderedBody;
+    }
+
+    // ONE-CLICK COPY UTILITIES
+    function copyEmailSubject() {
+      const subj = document.getElementById('previewSubjectText').innerText;
+      copyStringToClipboard(subj, 'copySubjectBtn', 'Copied Subject!');
+    }
+
+    function copyEmailBody() {
+      const body = document.getElementById('previewBodyTextarea').value;
+      copyStringToClipboard(body, 'copyBodyBtn', 'Copied Body!');
+    }
+
+    function copyEntireEmail() {
+      const subj = document.getElementById('previewSubjectText').innerText;
+      const body = document.getElementById('previewBodyTextarea').value;
+      const fullText = `SUBJECT: ${subj}\n\n${body}`;
+      copyStringToClipboard(fullText, 'copyFullEmailBtn', 'Copied Full Message!');
+    }
+
+    function copyStringToClipboard(str, btnId, successMsg) {
+      const el = document.createElement('textarea');
+      el.value = str;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-check"></i> <span>${successMsg}</span>`;
+        btn.classList.add('bg-emerald-600', 'text-white');
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.classList.remove('bg-emerald-600', 'text-white');
+        }, 2200);
+      }
+    }
+
+    function escapeJs(str) {
+      return (str || '').replace(/'/g, "\\'").replace(/\n/g, "\\n");
+    }
+
+    // HELPFUL LINKS & DEALER ZIP
+    function toggleHelpfulLinks() {
+      document.getElementById('helpfulLinksMenu').classList.toggle('hidden');
+    }
+
+    function populateHelpfulLinks(links) {
+      const list = document.getElementById('linksList');
+      list.replaceChildren();
+      if (!Array.isArray(links) || !links.length) { list.textContent = 'No links found.'; return; }
+      links.forEach(link => {
+        let url;
+        try { url = new URL(link.url); } catch (err) { return; }
+        if (!['http:', 'https:'].includes(url.protocol)) return;
+        const anchor = document.createElement('a');
+        anchor.href = url.href; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
+        anchor.className = 'block px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 font-medium';
+        anchor.textContent = link.name || 'Open link';
+        if (link.popup === 'chatbot') anchor.addEventListener('click', event => {
+          event.preventDefault();
+          window.open(url.href, '_blank', 'popup=yes,width=520,height=720,resizable=yes,scrollbars=yes,noopener');
+        });
+        list.appendChild(anchor);
+      });
+    }
+
+    function openZipModal() { document.getElementById('zipModal').classList.remove('hidden'); }
+    function closeZipModal() { document.getElementById('zipModal').classList.add('hidden'); }
+    function executeZipSearch() {
+      const zip = document.getElementById('zipSearchInput').value.trim();
+      const resDiv = document.getElementById('zipResultDisplay');
+      if (!zip) return;
+      resDiv.classList.remove('hidden');
+      resDiv.className = 'p-3 rounded border text-xs bg-slate-50 text-slate-600';
+      resDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Searching zip database...';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          resDiv.className = `p-3 rounded border text-xs ${res.found ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`;
+          resDiv.innerHTML = `<strong>res.message</strong>forZip<code>{zip}</code>`;
+        })
+        .checkZipCode(zip);
+    }
+
+    // CHANGE LOG & FEEDBACK
+    function openChangeLogModal() {
+      document.getElementById('changeLogModal').classList.remove('hidden');
+      google.script.run.withSuccessHandler(renderChangeLog).getChangeLog();
+    }
+    function closeChangeLogModal() { document.getElementById('changeLogModal').classList.add('hidden'); }
+    function renderChangeLog(records) {
+      const container = document.getElementById('changeLogContent');
+      if (!records || records.length === 0) {
+        container.innerHTML = '<div class="py-12 text-center text-slate-400 text-xs">No change log records logged yet.</div>';
+        return;
+      }
+      let html = '';
+      records.forEach(r => {
+        html += `<div class="py-2.5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-[#003b8f]">${r.version || 'v1.x'} - ${r.form || 'General'}</span>
+            <span class="text-[11px] text-slate-400">${r.date}</span>
+          </div>
+          <p class="text-slate-700">${r.description}</p>
+          <div class="text-[10px] text-slate-400 mt-0.5">Editor: ${r.updatedBy || 'Admin'}</div>
+        </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function openFeedbackModal() { document.getElementById('feedbackModal').classList.remove('hidden'); }
+    function closeFeedbackModal() { document.getElementById('feedbackModal').classList.add('hidden'); }
+    function submitFeedbackForm() {
+      const data = {
+        name: currentAgent.name,
+        extension: currentAgent.extension,
+        dept: currentAgent.department,
+        category: document.getElementById('feedbackCategory').value,
+        section: document.getElementById('feedbackSection').value,
+        details: document.getElementById('feedbackDetails').value.trim()
+      };
+      if (!data.details) return alert('Please enter comments or details.');
+
+      google.script.run
+        .withSuccessHandler(res => {
+          alert(res.message);
+          document.getElementById('feedbackDetails').value = '';
+          closeFeedbackModal();
+        })
+        .submitFeedback(data);
+    }
+
+    // Fallback Array of Fields
+    function getFallbackFieldsArray(key) {
+      if (key === 'retention') return [];
+      return [
+        { id: 'caller_name', label: 'Caller Name', type: 'Text' },
+        { id: 'company_name', label: 'Company Name', type: 'Text' },
+        { id: 'ar_number', label: 'AR Number', type: 'Text' },
+        { id: 'system_number', label: 'System #', type: 'Text' },
+        { id: 'phone_number', label: 'Phone #', type: 'Text' },
+        { id: 'verification', label: 'Verification', type: 'Dropdown', options: 'Passcode Verified, Invoice Verified, Unverified' },
+        { id: 'service_type', label: 'Service Type', type: 'Dropdown', options: 'Full System, Video Only, Fire System' },
+        { id: 'panel_type', label: 'Panel Type', type: 'Dropdown', options: 'Qolsys IQ Panel 4, Honeywell Vista, Interlogix Simon, 2GIG' },
+        { id: 'reason', label: 'Reason for Call', type: 'Text' },
+        { id: 'scheduled_service', label: 'Scheduled Service', type: 'Dropdown', options: 'No, Yes' },
+        { id: 'fee_waived', label: 'Fee Waived', type: 'Dropdown', options: 'No, Yes' },
+        { id: 'submission_id', label: 'Submission ID', type: 'Text' },
+        { id: 'resolution', label: 'Resolution / Notes', type: 'Textarea' }
+      ];
+    }
+  </script>
+<div id="privacyScriptTooltip" role="tooltip" hidden><strong>DIRECT-DIAL INBOUND / OUTBOUND</strong><p>“This call may be recorded and your personal information shared with our service providers. To learn more, visit our privacy policy at AAA.com”</p><strong>TRANSLATIONS</strong><p>“This call may be recorded and during this call your personal information may be shared with our service providers to provide you with language translations and services. To learn more, visit our privacy policy at AAA.com”</p><strong>SPANISH</strong><p>Esta llamada puede ser grabada y su información personal compartida con nuestros proveedores de servicios. Para saber más, visite nuestra política de privacidad en AAA.com”</p><strong>IVR</strong><p>“This call may be recorded for quality and training purposes. During this call, AAA may collect personal information from you and may need to share this information with third parties to provide you with services or help fulfill your request. To learn more, please visit AAA.com to view our privacy policy.”</p></div><script>
+(() => {
+  const tip = document.getElementById('privacyScriptTooltip');
+  let timer;
+  function show(field) {
+    clearTimeout(timer);
+    tip.hidden = false;
+    const r = field.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(12, Math.min(r.left, innerWidth - w - 12)) + 'px';
+    tip.style.top = Math.max(12, Math.min(r.bottom + h + 6 < innerHeight ? r.bottom + 6 : r.top - h - 6, innerHeight - h - 12)) + 'px';
+  }
+  function hideLater() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (!tip.matches(':hover') && !document.querySelector('[data-privacy-hover]:hover') && !document.activeElement?.closest('[data-privacy-hover]')) tip.hidden = true;
+    }, 180);
+  }
+  document.addEventListener('pointerover', e => {
+    const field = e.target.closest('[data-privacy-hover]');
+    if (field) show(field);
+    else if (tip.contains(e.target)) clearTimeout(timer);
+  });
+  document.addEventListener('pointerout', hideLater);
+  document.addEventListener('focusin', e => {
+    const field = e.target.closest('[data-privacy-hover]');
+    if (field) show(field);
+  });
+  document.addEventListener('focusout', hideLater);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { clearTimeout(timer); tip.hidden = true; }
+  });
+  window.addEventListener('resize', () => { tip.hidden = true; });
+  window.addEventListener('scroll', e => { if (!tip.contains(e.target)) tip.hidden = true; }, true);
+})();
+</script></body>
+</html>
