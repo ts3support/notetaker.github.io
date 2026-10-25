@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <base target="_top">
@@ -170,6 +170,9 @@
         </button>
         <button type="button" onclick="switchForm('retention')" id="tab-retention" style="display:none" class="form-tab px-3 py-1.5 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
           <i class="fa-solid fa-handshake text-rose-600"></i> Retention
+        </button>
+        <button type="button" onclick="switchForm('mx')" id="tab-mx" style="display:none" class="form-tab px-3 py-1.5 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-people-group text-cyan-600"></i> MX (Member Experience)
         </button>
       </div>
 
@@ -528,7 +531,8 @@
       dealer: {},
       addendum: {},
       parts: {},
-      retention: {}
+      retention: {},
+      mx: {}
     };
 
     // Parsed email templates catalog
@@ -553,6 +557,7 @@
 
       updateAgentUI();
       applyRetentionAccess();
+      applyMXAccess();
       restoreFormDrafts();
 
       schemaLoadState = 'loading';
@@ -584,6 +589,25 @@
         if (allowed) {
           const option = document.createElement('option');
           option.value = 'Retention'; option.textContent = 'Retention'; select.appendChild(option);
+        }
+      }
+    }
+
+    function canAccessMX() {
+      const department = String(currentAgent.department || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      return ['member experience 1', 'member experience 2', 'member experience 3', 'mx lead'].includes(department);
+    }
+
+    function applyMXAccess() {
+      const allowed = canAccessMX();
+      const button = document.getElementById('tab-mx');
+      if (button) button.style.display = allowed ? '' : 'none';
+      const select = document.getElementById('feedbackSection');
+      if (select) {
+        Array.from(select.options).filter(option => option.value === 'MX').forEach(option => option.remove());
+        if (allowed) {
+          const option = document.createElement('option');
+          option.value = 'MX'; option.textContent = 'MX (Member Experience)'; select.appendChild(option);
         }
       }
     }
@@ -710,6 +734,7 @@ function dependencyIsMatched(rule, values) {
     }
 
     function getOrderedFields(targetKey) {
+      if (targetKey === 'mx' && !canAccessMX()) return [];
       if (targetKey === 'retention' && !canAccessRetention()) return [];
       if (schemaLoadState === 'loading') return [];
       if (schemaLoadState === 'failed') return getFallbackFieldsArray(targetKey);
@@ -786,6 +811,10 @@ function dependencyIsMatched(rule, values) {
     }
 
     function switchForm(formKey) {
+      if (formKey === 'mx' && !canAccessMX()) {
+        alert('MX is available only to Member Experience 1, 2, 3 and MX Lead departments.');
+        return;
+      }
       if (formKey === 'retention' && !canAccessRetention()) {
         alert('Retention is available only to Retention and Retention Lead departments.');
         return;
@@ -806,7 +835,8 @@ function dependencyIsMatched(rule, values) {
           dealer: 'Dealer Service Ticket',
           addendum: 'Addendum Request Ticket',
           parts: 'Parts Order Ticket',
-          retention: 'Retention'
+          retention: 'Retention',
+          mx: 'MX (Member Experience)'
         };
       }
 
@@ -941,6 +971,9 @@ function dependencyIsMatched(rule, values) {
 
   if (targetKey === 'retention' && schemaLoadState === 'ready' && !fieldsList.length) {
     html = '<div class="col-span-full text-sm text-amber-800 p-3" role="alert">No Retention fields were returned. Check that Code.gs includes the retention worksheet in getFormSchema().</div>';
+  }
+  if (targetKey === 'mx' && schemaLoadState === 'ready' && !fieldsList.length) {
+    html = '<div class="col-span-full text-sm text-amber-800 p-3" role="alert">No MX fields were returned. Check that Code.gs includes the MX worksheet in getFormSchema() and returns mx and mx_order.</div>';
   }
   container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
   if (activeFormKey === 'notes' && nonCommHost && schemaLoadState === 'ready') {
@@ -1605,7 +1638,7 @@ function handleFieldInput(fieldId, val) {
 
     // Fallback Array of Fields
     function getFallbackFieldsArray(key) {
-      if (key === 'retention') return [];
+      if (key === 'retention' || key === 'mx') return [];
       return [
         { id: 'caller_name', label: 'Caller Name', type: 'Text' },
         { id: 'company_name', label: 'Company Name', type: 'Text' },
