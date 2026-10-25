@@ -105,6 +105,16 @@
       .page-content { padding: 20px 10px; }
       .container { margin: 20px auto; padding: 20px; }
     }
+    .creator-credit {
+      width: 100%;
+      margin-top: 12px;
+      padding: 14px 16px 0;
+      color: #64748b;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -171,9 +181,7 @@
     <strong>AAA Smart Home Security</strong> • NOTES APP • Internal Use Only
     <br><br>
     <a class="admin-link" onclick="promptAdminAccess()">Admin Access</a>
-    <div class="creator-credit">
-  Created by Erick Dansby 08/13/2026
-</div>
+    <div class="creator-credit">Created by Erick Dansby 08/13/2026</div>
   </footer>
 
   <!-- ADMIN LOGIN MODAL -->
@@ -246,7 +254,6 @@
       // Clean redirect to notes.html without relying on server scriptlets
       const notesUrl =
         'https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxZrmHrx__1b4rfbzTXsnH0YonDsQvy-x1cvkiUazqZWyEcDcfj7u6wCwgJg3mipG01/exec?page=notes';
-
       window.top.location.href = notesUrl;
     }
 
