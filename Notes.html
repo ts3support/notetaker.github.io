@@ -565,12 +565,12 @@
     });
 
     function updateAgentUI() {
-      document.getElementById('headerAgentDisplay').innerText = `${currentAgent.name} (${currentAgent.extension})`;
+      document.getElementById('headerAgentDisplay').innerText = `currentAgent.name({currentAgent.extension})`;
       document.getElementById('headerDeptDisplay').innerText = currentAgent.department;
       document.getElementById('footerAgentDisplay').innerText = currentAgent.name;
       document.getElementById('footerExtDisplay').innerText = currentAgent.extension;
       document.getElementById('footerDeptDisplay').innerText = currentAgent.department;
-      document.getElementById('previewAgentSignoff').innerText = `${currentAgent.name} (${currentAgent.extension})`;
+      document.getElementById('previewAgentSignoff').innerText = `currentAgent.name({currentAgent.extension})`;
     }
 
     function logoutToLogin() {
@@ -590,7 +590,7 @@
           timerSeconds++;
           const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
           const s = String(timerSeconds % 60).padStart(2, '0');
-          document.getElementById('callTimerDisplay').innerText = `${m}:${s}`;
+          document.getElementById('callTimerDisplay').innerText = `m:{s}`;
         }, 1000);
         document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-pause"></i>';
         document.getElementById('timerToggleBtn').className = 'p-1 hover:text-amber-300 text-amber-400';
@@ -874,17 +874,17 @@ function dependencyIsMatched(rule, values) {
     const isPrivacyField = /privacy/i.test(String(fieldId) + ' ' + String(label));
     html += `<div data-field-id="${fieldId}" ${isPrivacyField ? 'data-privacy-hover tabindex="0" aria-describedby="privacyScriptTooltip"' : ''} class="space-y-1 ${isSpanningTextarea ? 'col-span-1 md:col-span-2 lg:col-span-3' : ''}">
       <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
-        <span>${label}${isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
+        <span>label{isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
         ${fieldRequiredNow(field, currentVals) ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
       </label>`;
 
     if (fType === 'textarea') {
-      html += `<textarea rows="3" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">${val}</textarea>`;
+      html += `<textarea rows="3" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter label..."class="w-fulltext-xspx-3py-2bg-slate-50focus:bg-whiteborderborder-slate-300rounded-mdoutline-nonefocus:border-[#003b8f]focus:ring-1focus:ring-[#003b8f]transition">{val}</textarea>`;
     } else if (fType === 'dropdown') {
       html += `<select onchange="handleFieldInput('${fieldId}', this.value)" class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition cursor-pointer">
         <option value="">-- Select --</option>`;
       opts.forEach(opt => {
-        html += `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>`;
+        html += `<option value="${opt}" val===opt?'selected':''>{opt}</option>`;
       });
       html += `</select>`;
     } else if (fType === 'radio') {
@@ -897,13 +897,13 @@ function dependencyIsMatched(rule, values) {
               ? 'bg-[#003b8f] text-white border-[#003b8f]' 
               : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
           }">
-            <input type="radio" name="${fieldId}" value="${opt}" ${isSelected ? 'checked' : ''} onchange="handleFieldInput('${fieldId}', this.value)" class="hidden">
+            <input type="radio" name="fieldId"value="{opt}" isSelected?'checked':''onchange="handleFieldInput('{fieldId}', this.value)" class="hidden">
             <span>${opt}</span>
           </label>`;
       });
       html += `</div>`;
     } else {
-      html += `<input type="text" value="${val}" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">`;
+      html += `<input type="text" value="val"oninput="handleFieldInput('{fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">`;
     }
 
     html += `</div>`;
@@ -1517,7 +1517,7 @@ function handleFieldInput(fieldId, val) {
       google.script.run
         .withSuccessHandler(res => {
           resDiv.className = `p-3 rounded border text-xs ${res.found ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`;
-          resDiv.innerHTML = `<strong>${res.message}</strong> for Zip <code>${zip}</code>`;
+          resDiv.innerHTML = `<strong>res.message</strong>forZip<code>{zip}</code>`;
         })
         .checkZipCode(zip);
     }
@@ -1625,3 +1625,5 @@ function handleFieldInput(fieldId, val) {
 })();
 </script></body>
 </html>
+
+
