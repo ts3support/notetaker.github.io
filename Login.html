@@ -138,7 +138,7 @@
           <input type="text" id="phone" required autocomplete="off" oninput="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
         </div>
 
-        <!-- 100% Dynamic Department Dropdown -->
+        <!-- 100% Dynamic Dropdown: Zero hardcoded departments -->
         <div class="field" data-internal-id="department">
           <label for="dept">DEPARTMENT *</label>
           <select id="dept" required onchange="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
@@ -146,7 +146,7 @@
           </select>
         </div>
 
-        <button type="button" onclick="saveData()">SAVE & CONTINUE</button>
+        <button type="button" onclick="saveData()">SAVE &amp; CONTINUE</button>
         <div id="status"></div>
       </form>
     </section>
@@ -184,6 +184,22 @@
 
   <script>
     let globalAuthorizedExtensions = [];
+
+    function populateDeptDropdown(optionsList, selectedValue) {
+      if (!Array.isArray(optionsList) || optionsList.length === 0) return;
+      const deptSelect = document.getElementById('dept');
+      if (!deptSelect) return;
+
+      let optionsHtml = '<option value="">Select Department...</option>';
+      optionsList.forEach(function(opt) {
+        const cleanOpt = String(opt).trim();
+        if (cleanOpt) {
+          const isSelected = (cleanOpt === selectedValue) ? ' selected' : '';
+          optionsHtml += '<option value="' + cleanOpt + '"' + isSelected + '>' + cleanOpt + '</option>';
+        }
+      });
+      deptSelect.innerHTML = optionsHtml;
+    }
 
     function saveData() {
       const nameInput = document.getElementById('name');
@@ -239,52 +255,42 @@
       document.getElementById('phone').value = localStorage.getItem('phone') || sessionStorage.getItem('extension') || '';
       const savedDept = localStorage.getItem('dept') || sessionStorage.getItem('department') || '';
 
+      // 1. Instant Cache: If departments were previously fetched, render them immediately (0.00s)
+      const cachedDeptsJson = localStorage.getItem('cached_departments');
+      if (cachedDeptsJson) {
+        try {
+          const cachedDepts = JSON.parse(cachedDeptsJson);
+          populateDeptDropdown(cachedDepts, savedDept);
+        } catch (e) {}
+      }
+
+      // 2. Dynamic Fetch: Query Google Sheet login!D4 and refresh dropdown
       if (window.google && google.script && google.script.run) {
-        google.script.run.withSuccessHandler(function(schema) {
-          if (!schema) return;
-          
-          globalAuthorizedExtensions = (schema.authorizedExtensions || []).map(function(e) { return String(e).trim(); });
+        google.script.run
+          .withSuccessHandler(function(schema) {
+            if (!schema) return;
+            
+            globalAuthorizedExtensions = (schema.authorizedExtensions || []).map(function(e) { return String(e).trim(); });
 
-          const loginSchema = schema.login || schema.index || {};
+            const loginSchema = schema.login || schema.index || {};
 
-          // Dynamic Agent Name label & visibility
-          if (loginSchema.agent_name) {
-            const el = document.querySelector('[data-internal-id="agent_name"]');
-            if (el) {
-              if (loginSchema.agent_name.label) el.querySelector('label').textContent = loginSchema.agent_name.label + ' *';
-              if (String(loginSchema.agent_name.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
+            if (loginSchema.department && loginSchema.department.options) {
+              const options = loginSchema.department.options
+                .split(',')
+                .map(function(s) { return s.trim(); })
+                .filter(Boolean);
+
+              // Cache for future loads
+              localStorage.setItem('cached_departments', JSON.stringify(options));
+
+              // Populate the dropdown dynamically
+              populateDeptDropdown(options, document.getElementById('dept').value || savedDept);
             }
-          }
-
-          // Dynamic Extension label & visibility
-          if (loginSchema.extension) {
-            const el = document.querySelector('[data-internal-id="extension"]');
-            if (el) {
-              if (loginSchema.extension.label) el.querySelector('label').textContent = loginSchema.extension.label + ' *';
-              if (String(loginSchema.extension.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
-            }
-          }
-
-          // 100% Dynamic Department options populated straight from login!D4
-          if (loginSchema.department) {
-            const el = document.querySelector('[data-internal-id="department"]');
-            if (el) {
-              if (loginSchema.department.label) el.querySelector('label').textContent = loginSchema.department.label + ' *';
-              if (String(loginSchema.department.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
-
-              if (loginSchema.department.options) {
-                const deptSelect = document.getElementById('dept');
-                const options = loginSchema.department.options.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-                let optionsHtml = '<option value="">Select Department...</option>';
-                options.forEach(function(opt) {
-                  const selected = (opt === savedDept) ? ' selected' : '';
-                  optionsHtml += `<option value="${opt}"${selected}>${opt}</option>`;
-                });
-                deptSelect.innerHTML = optionsHtml;
-              }
-            }
-          }
-        }).getFormSchema();
+          })
+          .withFailureHandler(function(err) {
+            console.warn('Could not sync dynamic departments from Google Sheet:', err);
+          })
+          .getFormSchema();
       }
     });
 
