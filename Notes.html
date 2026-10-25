@@ -558,6 +558,7 @@
       updateAgentUI();
       applyRetentionAccess();
       applyMXAccess();
+      applyServiceFormAccess();
       restoreFormDrafts();
 
       schemaLoadState = 'loading';
@@ -609,6 +610,34 @@
           const option = document.createElement('option');
           option.value = 'MX'; option.textContent = 'MX (Member Experience)'; select.appendChild(option);
         }
+      }
+    }
+
+    function canAccessServiceForm(formKey) {
+      return !(['residential', 'dealer', 'parts'].includes(formKey) &&
+        (canAccessRetention() || canAccessMX()));
+    }
+
+    function applyServiceFormAccess() {
+      ['residential', 'dealer', 'parts'].forEach(function(key) {
+        const tab = document.getElementById('tab-' + key);
+        if (tab) tab.style.display = canAccessServiceForm(key) ? '' : 'none';
+      });
+      const select = document.getElementById('feedbackSection');
+      if (select) {
+        const sections = {
+          'Residential Scheduling': 'residential',
+          'Dealer Service': 'dealer',
+          'Parts Order': 'parts'
+        };
+        Array.from(select.options).forEach(function(option) {
+          const key = sections[option.value];
+          if (!key) return;
+          const allowed = canAccessServiceForm(key);
+          option.hidden = !allowed;
+          option.disabled = !allowed;
+          if (!allowed && option.selected) select.selectedIndex = 0;
+        });
       }
     }
 
@@ -734,6 +763,7 @@ function dependencyIsMatched(rule, values) {
     }
 
     function getOrderedFields(targetKey) {
+      if (!canAccessServiceForm(targetKey)) return [];
       if (targetKey === 'mx' && !canAccessMX()) return [];
       if (targetKey === 'retention' && !canAccessRetention()) return [];
       if (schemaLoadState === 'loading') return [];
@@ -811,6 +841,10 @@ function dependencyIsMatched(rule, values) {
     }
 
     function switchForm(formKey) {
+      if (!canAccessServiceForm(formKey)) {
+        alert('This section is not available for your department.');
+        return;
+      }
       if (formKey === 'mx' && !canAccessMX()) {
         alert('MX is available only to Member Experience 1, 2, 3 and MX Lead departments.');
         return;
