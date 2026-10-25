@@ -1,7 +1,73 @@
-https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxZrmHrx__1b4rfbzTXsnH0YonDsQvy-x1cvkiUazqZWyEcDcfj7u6wCwgJg3mipG01/exec
 
-https://n-mtvzbsuuy3mqj6ruzv3phynpnndwg5aarx3kdxi-0lu-script.googleusercontent.com/userCodeAppPanel?page=notes
 
+
+
+Those URLs identify a navigation problem: after login, you’re landing on the internal googleusercontent.com/userCodeAppPanel address instead of the deployed /exec?page=notes address.
+
+Apps Script serves HTML inside an iframe. Navigation should target the deployed app in the top-level window, not use the internal frame address as the destination.
+
+Use this exact destination for the repair
+Inside saveData() in your login HTML, replace the redirect block you showed with:
+
+javascript
+const notesUrl =
+  'https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxZrmHrx__1b4rfbzTXsnH0YonDsQvy-x1cvkiUazqZWyEcDcfj7u6wCwgJg3mipG01/exec?page=notes';
+
+window.top.location.href = notesUrl;
+Keep this inside saveData(), after the existing storage statements. It should execute directly when you click Save & Continue.
+
+This pins navigation to the deployment URL you supplied. It does not change your spreadsheet ID.
+
+Then test the existing deployment
+Save the login file.
+
+Update that same deployment to a new version.
+
+Reopen your original /exec start URL.
+
+Log in again.
+
+The destination should be:
+
+text
+https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxZrmHrx__1b4rfbzTXsnH0YonDsQvy-x1cvkiUazqZWyEcDcfj7u6wCwgJg3mipG01/exec?page=notes
+Leave Code.gs and Notes.html unchanged for this test.
+
+Why this differs from the previous advice
+The template-based appUrl redirect you showed should produce an absolute deployment URL if that value is supplied correctly and that version is running. Your observed destination does not match that expected result. I can’t yet tell whether an older handler is deployed, another redirect overrides it, or the rendered value is wrong.
+
+Using the explicit destination removes that uncertainty for this test. I attempted to open both supplied URLs, but couldn’t retrieve their contents, so I have not verified the live page.
+
+give me corrected Login.html
+
+
+
+Login
+HTML
+The complete corrected Login.html is attached.
+
+It replaces the login redirect with the exact deployed /exec?page=notes URL you supplied. It preserves the existing login validation, saved agent details, dynamic department dropdown, and admin tools from your uploaded login file.
+
+Install
+Open your Apps Script project.
+
+Replace the entire contents of your existing Login.html or login.html file with the attachment. Keep its existing filename.
+
+Save.
+
+Update the same web-app deployment to a new version.
+
+Reopen your original /exec start page and test Save & Continue.
+
+No Code.gs, Notes.html, or spreadsheet ID changes are included.
+
+The JavaScript passed a syntax check. The live redirect still needs testing. This version uses a fixed deployment URL, so it will need updating if you later switch to a different deployment.
+
+How do I update the web-app deployment
+What should my Code.gs file look like now
+Show me how to test the login redirect
+How do I handle errors in saveData
+What if the department dropdown is empty
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -245,13 +311,10 @@ https://n-mtvzbsuuy3mqj6ruzv3phynpnndwg5aarx3kdxi-0lu-script.googleusercontent.c
       sessionStorage.setItem('is_authorized_2026', isAuth ? 'true' : 'false');
 
       // Clean redirect to notes.html without relying on server scriptlets
-      // Use the deployed web-app URL, not the HTML-service iframe URL.
-      const base = <?!= JSON.stringify(appUrl) ?>;
-      if (!base) {
-        status.textContent = 'The app URL is unavailable. Reopen the deployed app and try again.';
-        return;
-      }
-      window.top.location.href = base + '?page=notes';
+      const notesUrl =
+        'https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxZrmHrx__1b4rfbzTXsnH0YonDsQvy-x1cvkiUazqZWyEcDcfj7u6wCwgJg3mipG01/exec?page=notes';
+
+      window.top.location.href = notesUrl;
     }
 
     window.addEventListener('load', function () {
