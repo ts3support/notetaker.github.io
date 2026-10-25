@@ -145,7 +145,9 @@
             <option value="Tech Support Level 1">Tech Support Level 1</option>
             <option value="Tech Support Level 2">Tech Support Level 2</option>
             <option value="Tech Support Level 3">Tech Support Level 3</option>
-            <option value="Team Lead">Team Lead</option>
+            <option value="TS Lead">TS Lead</option>
+            <option value="Retention">Retention</option>
+            <option value="Retention Lead">Retention Lead</option>
           </select>
         </div>
 
@@ -186,6 +188,8 @@
   </div>
 
   <script>
+    let globalAuthorizedExtensions = [];
+
     function saveData() {
       const nameInput = document.getElementById('name');
       const phoneInput = document.getElementById('phone');
@@ -222,49 +226,68 @@
         return;
       }
 
+      // Check authorization against dynamic extensions from Settings
+      const isAuth = globalAuthorizedExtensions.includes(phone);
+
       // Save to localStorage
       localStorage.setItem('name', name);
       localStorage.setItem('phone', phone);
       localStorage.setItem('dept', dept);
 
-      // Route to index.html
-      window.top.location.href = '<?= appUrl ?>?page=notes';
+      // Also sync to sessionStorage
+      sessionStorage.setItem('agent_name', name);
+      sessionStorage.setItem('extension', phone);
+      sessionStorage.setItem('department', dept);
+      sessionStorage.setItem('is_authorized_2026', isAuth ? 'true' : 'false');
+
+      // Clean redirect to notes.html without relying on server scriptlets
+      const base = window.location.href.split('?')[0];
+      window.top.location.href = base + '?page=notes';
     }
 
     window.addEventListener('load', function () {
-      document.getElementById('name').value = localStorage.getItem('name') || '';
-      document.getElementById('phone').value = localStorage.getItem('phone') || '';
-      const savedDept = localStorage.getItem('dept') || '';
+      document.getElementById('name').value = localStorage.getItem('name') || sessionStorage.getItem('agent_name') || '';
+      document.getElementById('phone').value = localStorage.getItem('phone') || sessionStorage.getItem('extension') || '';
+      const savedDept = localStorage.getItem('dept') || sessionStorage.getItem('department') || '';
 
       if (window.google && google.script && google.script.run) {
         google.script.run.withSuccessHandler(function(schema) {
-          const indexSchema = (schema && schema.index) ? schema.index : {};
+          if (!schema) return;
+          
+          // Store authorized extensions from Settings
+          globalAuthorizedExtensions = (schema.authorizedExtensions || []).map(function(e) { return String(e).trim(); });
 
-          if (indexSchema.agent_name) {
+          // Support both 'login' and 'index' tab naming conventions
+          const loginSchema = schema.login || schema.index || {};
+
+          // Dynamic Agent Name field config
+          if (loginSchema.agent_name) {
             const el = document.querySelector('[data-internal-id="agent_name"]');
             if (el) {
-              if (indexSchema.agent_name.label) el.querySelector('label').textContent = indexSchema.agent_name.label + ' *';
-              if (String(indexSchema.agent_name.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
+              if (loginSchema.agent_name.label) el.querySelector('label').textContent = loginSchema.agent_name.label + ' *';
+              if (String(loginSchema.agent_name.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
             }
           }
 
-          if (indexSchema.extension) {
+          // Dynamic Extension field config
+          if (loginSchema.extension) {
             const el = document.querySelector('[data-internal-id="extension"]');
             if (el) {
-              if (indexSchema.extension.label) el.querySelector('label').textContent = indexSchema.extension.label + ' *';
-              if (String(indexSchema.extension.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
+              if (loginSchema.extension.label) el.querySelector('label').textContent = loginSchema.extension.label + ' *';
+              if (String(loginSchema.extension.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
             }
           }
 
-          if (indexSchema.department) {
+          // Dynamic Department dropdown config from Sheet
+          if (loginSchema.department) {
             const el = document.querySelector('[data-internal-id="department"]');
             if (el) {
-              if (indexSchema.department.label) el.querySelector('label').textContent = indexSchema.department.label + ' *';
-              if (String(indexSchema.department.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
+              if (loginSchema.department.label) el.querySelector('label').textContent = loginSchema.department.label + ' *';
+              if (String(loginSchema.department.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
 
-              if (indexSchema.department.options) {
+              if (loginSchema.department.options) {
                 const deptSelect = document.getElementById('dept');
-                const options = indexSchema.department.options.split(',').map(s => s.trim()).filter(Boolean);
+                const options = loginSchema.department.options.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
                 let optionsHtml = '<option value="">Select Department...</option>';
                 options.forEach(function(opt) {
                   const selected = (opt === savedDept) ? ' selected' : '';
