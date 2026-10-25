@@ -138,16 +138,11 @@
           <input type="text" id="phone" required autocomplete="off" oninput="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
         </div>
 
+        <!-- 100% Dynamic Department Dropdown -->
         <div class="field" data-internal-id="department">
           <label for="dept">DEPARTMENT *</label>
           <select id="dept" required onchange="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
             <option value="">Select Department...</option>
-            <option value="Tech Support Level 1">Tech Support Level 1</option>
-            <option value="Tech Support Level 2">Tech Support Level 2</option>
-            <option value="Tech Support Level 3">Tech Support Level 3</option>
-            <option value="TS Lead">TS Lead</option>
-            <option value="Retention">Retention</option>
-            <option value="Retention Lead">Retention Lead</option>
           </select>
         </div>
 
@@ -200,13 +195,11 @@
       const phone = phoneInput.value.trim();
       const dept = deptSelect.value.trim();
 
-      // Reset any existing error states
       nameInput.classList.remove('input-error');
       phoneInput.classList.remove('input-error');
       deptSelect.classList.remove('input-error');
       status.textContent = '';
 
-      // Validate all 3 fields
       let missingFields = [];
       if (!name) {
         nameInput.classList.add('input-error');
@@ -226,21 +219,17 @@
         return;
       }
 
-      // Check authorization against dynamic extensions from Settings
       const isAuth = globalAuthorizedExtensions.includes(phone);
 
-      // Save to localStorage
       localStorage.setItem('name', name);
       localStorage.setItem('phone', phone);
       localStorage.setItem('dept', dept);
 
-      // Also sync to sessionStorage
       sessionStorage.setItem('agent_name', name);
       sessionStorage.setItem('extension', phone);
       sessionStorage.setItem('department', dept);
       sessionStorage.setItem('is_authorized_2026', isAuth ? 'true' : 'false');
 
-      // Clean redirect to notes.html without relying on server scriptlets
       const base = window.location.href.split('?')[0];
       window.top.location.href = base + '?page=notes';
     }
@@ -254,13 +243,11 @@
         google.script.run.withSuccessHandler(function(schema) {
           if (!schema) return;
           
-          // Store authorized extensions from Settings
           globalAuthorizedExtensions = (schema.authorizedExtensions || []).map(function(e) { return String(e).trim(); });
 
-          // Support both 'login' and 'index' tab naming conventions
           const loginSchema = schema.login || schema.index || {};
 
-          // Dynamic Agent Name field config
+          // Dynamic Agent Name label & visibility
           if (loginSchema.agent_name) {
             const el = document.querySelector('[data-internal-id="agent_name"]');
             if (el) {
@@ -269,7 +256,7 @@
             }
           }
 
-          // Dynamic Extension field config
+          // Dynamic Extension label & visibility
           if (loginSchema.extension) {
             const el = document.querySelector('[data-internal-id="extension"]');
             if (el) {
@@ -278,7 +265,7 @@
             }
           }
 
-          // Dynamic Department dropdown config from Sheet
+          // 100% Dynamic Department options populated straight from login!D4
           if (loginSchema.department) {
             const el = document.querySelector('[data-internal-id="department"]');
             if (el) {
