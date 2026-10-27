@@ -556,7 +556,8 @@
 
       if (savedName) currentAgent.name = savedName;
       if (savedPhone) currentAgent.extension = savedPhone;
-      if (savedDept) currentAgent.department = savedDept;
+      currentAgent.department = savedDept || '';
+      activeFormKey = getDepartmentDefaultForm() || 'notes';
       if (savedTier) currentAgent.tier = savedTier;
 
       updateAgentUI();
@@ -564,6 +565,7 @@
       applyMXAccess();
       applyServiceFormAccess();
       restoreFormDrafts();
+      applyDepartmentRouting();
 
       schemaLoadState = 'loading';
       renderActiveForm();
@@ -579,10 +581,29 @@
       preloadEmailTemplates();
     });
 
+function getDepartmentKey() {
+  const dept = String(currentAgent.department || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (/^(tech support|technical support)(?:$|[ -])/.test(dept)) return 'tech';
+  if (/^(member experience|mx)(?:$|[ -])/.test(dept)) return 'mx';
+  if (/^retention(?:$|[ -])/.test(dept)) return 'retention';
+  return '';
+}
+
+function getDepartmentDefaultForm() {
+  return { tech: 'notes', mx: 'mx', retention: 'retention' }[getDepartmentKey()] || '';
+}
+
+function applyDepartmentRouting() {
+  applyRetentionAccess();
+  applyMXAccess();
+  applyServiceFormAccess();
+  const defaultForm = getDepartmentDefaultForm();
+  if (defaultForm) switchForm(defaultForm);
+  else renderActiveForm();
+}
+
 function canAccessRetention() {
-  const dept = String(currentAgent.department || '').trim().toLowerCase();
-  const role = String(currentAgent.role || currentAgent.tier || '').trim().toLowerCase();
-  return dept.includes('retention') || role.includes('retention');
+  return getDepartmentKey() === 'retention';
 }
     function applyRetentionAccess() {
       const allowed = canAccessRetention();
@@ -599,8 +620,7 @@ function canAccessRetention() {
     }
 
 function canAccessMX() {
-  const department = String(currentAgent.department || '').trim().toLowerCase().replace(/\s+/g, ' ');
-  return department === 'member experience' || department.startsWith('member experience') || department === 'mx';
+  return getDepartmentKey() === 'mx';
 }
 
     function applyMXAccess() {
@@ -618,18 +638,27 @@ function canAccessMX() {
     }
 
     function canAccessServiceForm(formKey) {
-      return !(['residential', 'dealer', 'parts'].includes(formKey) &&
-        (canAccessRetention() || canAccessMX()));
+      const department = getDepartmentKey();
+      if (!department) return false;
+      if (['notes', 'inbound', 'outbound', 'residential', 'dealer', 'parts'].includes(formKey)) {
+        return department === 'tech';
+      }
+      if (formKey === 'mx') return department === 'mx';
+      if (formKey === 'retention') return department === 'retention';
+      return formKey === 'addendum';
     }
 
     function applyServiceFormAccess() {
-      ['residential', 'dealer', 'parts'].forEach(function(key) {
+      ['notes', 'residential', 'dealer', 'parts', 'addendum'].forEach(function(key) {
         const tab = document.getElementById('tab-' + key);
         if (tab) tab.style.display = canAccessServiceForm(key) ? '' : 'none';
       });
       const select = document.getElementById('feedbackSection');
       if (select) {
         const sections = {
+          'Inbound Note Taker': 'notes',
+          'Outbound Note Taker': 'notes',
+          'Addendum Request': 'addendum',
           'Residential Scheduling': 'residential',
           'Dealer Service': 'dealer',
           'Parts Order': 'parts'
@@ -721,6 +750,10 @@ function dependencyIsMatched(rule, values) {
     }
 
     function validateRequiredFieldsBeforeCopy() {
+      if (!getDepartmentKey() || !canAccessServiceForm(activeFormKey)) {
+        alert('Nothing was copied. Your department is missing, unrecognized, or does not match this form. Sign in again.');
+        return false;
+      }
       if (schemaLoadState !== 'ready') {
         alert('NOTHING WAS COPIED. Spreadsheet configuration is unavailable. Reload and try again.');
         return false;
@@ -854,11 +887,11 @@ function dependencyIsMatched(rule, values) {
         return;
       }
       if (formKey === 'mx' && !canAccessMX()) {
-        alert('MX is available only to Member Experience 1, 2, 3 and MX Lead departments.');
+        alert('MX notes are available only to the Member Experience department.');
         return;
       }
       if (formKey === 'retention' && !canAccessRetention()) {
-        alert('Retention is available only to Retention and Retention Lead departments.');
+        alert('Retention notes are available only to the Retention department.');
         return;
       }
       prefillTicketFromNotes(formKey);
@@ -941,6 +974,10 @@ function dependencyIsMatched(rule, values) {
   const modeControls = document.getElementById('notesModeControls');
   if (nonCommHost) { nonCommHost.replaceChildren(); nonCommHost.style.display = 'none'; }
   if (modeControls) { modeControls.classList.remove('sm:grid-cols-3'); modeControls.classList.add('sm:grid-cols-2'); }
+  if (!getDepartmentKey()) {
+    container.innerHTML = '<div class="col-span-full rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900" role="alert">Your department is missing or unrecognized. Use Switch Agent to sign in with Tech Support, Member Experience, or Retention.</div>';
+    return;
+  }
   if (schemaLoadState === 'loading') {
     container.innerHTML = '<div class="col-span-full py-4 text-sm text-slate-500" role="status">Loading form configuration from the spreadsheet…</div>';
     return;
