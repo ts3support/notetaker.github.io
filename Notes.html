@@ -517,7 +517,8 @@
     let currentAgent = {
       name: 'Support Agent',
       extension: '1000',
-      department: 'Tech Support Level 2'
+      department: 'Tech Support',
+      tier: 'Level 1'
     };
 
     let activeFormKey = 'notes';
@@ -551,9 +552,12 @@
       const savedPhone = localStorage.getItem('phone');
       const savedDept = localStorage.getItem('dept');
 
+      const savedTier = localStorage.getItem('role_tier') || localStorage.getItem('tier') || sessionStorage.getItem('role_tier') || sessionStorage.getItem('tier');
+
       if (savedName) currentAgent.name = savedName;
       if (savedPhone) currentAgent.extension = savedPhone;
       if (savedDept) currentAgent.department = savedDept;
+      if (savedTier) currentAgent.tier = savedTier;
 
       updateAgentUI();
       applyRetentionAccess();
@@ -594,10 +598,10 @@
       }
     }
 
-    function canAccessMX() {
-      const department = String(currentAgent.department || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      return ['member experience 1', 'member experience 2', 'member experience 3', 'mx lead'].includes(department);
-    }
+function canAccessMX() {
+  const department = String(currentAgent.department || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return department === 'member experience' || department.startsWith('member experience') || department === 'mx';
+}
 
     function applyMXAccess() {
       const allowed = canAccessMX();
@@ -641,14 +645,18 @@
       }
     }
 
-    function updateAgentUI() {
-      document.getElementById('headerAgentDisplay').innerText = `${currentAgent.name} (${currentAgent.extension})`;
-      document.getElementById('headerDeptDisplay').innerText = currentAgent.department;
-      document.getElementById('footerAgentDisplay').innerText = currentAgent.name;
-      document.getElementById('footerExtDisplay').innerText = currentAgent.extension;
-      document.getElementById('footerDeptDisplay').innerText = currentAgent.department;
-      document.getElementById('previewAgentSignoff').innerText = `${currentAgent.name} (${currentAgent.extension})`;
-    }
+function updateAgentUI() {
+  const fullDept = currentAgent.tier 
+    ? `${currentAgent.department} ${currentAgent.tier}`.trim() 
+    : currentAgent.department;
+
+  document.getElementById('headerAgentDisplay').innerText = `${currentAgent.name} (${currentAgent.extension})`;
+  document.getElementById('headerDeptDisplay').innerText = fullDept;
+  document.getElementById('footerAgentDisplay').innerText = currentAgent.name;
+  document.getElementById('footerExtDisplay').innerText = currentAgent.extension;
+  document.getElementById('footerDeptDisplay').innerText = fullDept;
+  document.getElementById('previewAgentSignoff').innerText = `${currentAgent.name} (${currentAgent.extension})`;
+}
 
     function logoutToLogin() {
       window.top.location.href = '<?= appUrl ?>?page=login';
@@ -667,7 +675,7 @@
           timerSeconds++;
           const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
           const s = String(timerSeconds % 60).padStart(2, '0');
-          document.getElementById('callTimerDisplay').innerText = `m:{s}`;
+          document.getElementById('callTimerDisplay').innerText = `${m}:${s}`;
         }, 1000);
         document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-pause"></i>';
         document.getElementById('timerToggleBtn').className = 'p-1 hover:text-amber-300 text-amber-400';
@@ -1064,7 +1072,10 @@ function handleFieldInput(fieldId, val) {
         lines.push(label + ': ' + (value || 'N/A'));
       });
       if (lines.length) lines.push('');
-      lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extension || ''), 'DEPT: ' + (currentAgent.department || ''));
+      const fullDept = currentAgent.tier 
+  ? `${currentAgent.department} ${currentAgent.tier}`.trim() 
+  : currentAgent.department;
+lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extension || ''), 'DEPT: ' + (fullDept || ''));
       return lines.join('\n');
     }
 
@@ -1617,7 +1628,7 @@ function handleFieldInput(fieldId, val) {
       google.script.run
         .withSuccessHandler(res => {
           resDiv.className = `p-3 rounded border text-xs ${res.found ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`;
-          resDiv.innerHTML = `<strong>res.message</strong>forZip<code>{zip}</code>`;
+          resDiv.innerHTML = `<strong>${res.message}</strong> for Zip <code>${zip}</code>`;
         })
         .checkZipCode(zip);
     }
