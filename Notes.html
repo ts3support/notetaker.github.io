@@ -579,11 +579,11 @@
       preloadEmailTemplates();
     });
 
-    function canAccessRetention() {
-      const department = String(currentAgent.department || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      return department === 'retention' || department === 'retention lead';
-    }
-
+function canAccessRetention() {
+  const dept = String(currentAgent.department || '').trim().toLowerCase();
+  const role = String(currentAgent.role || currentAgent.tier || '').trim().toLowerCase();
+  return dept.includes('retention') || role.includes('retention');
+}
     function applyRetentionAccess() {
       const allowed = canAccessRetention();
       const button = document.getElementById('tab-retention');
@@ -979,7 +979,6 @@ function dependencyIsMatched(rule, values) {
         <span>${label}${isPrivacyField ? ' <span aria-hidden="true" class="text-blue-700">ⓘ</span>' : ''}</span>
         ${fieldRequiredNow(field, currentVals) ? '<span class="text-rose-600 font-extrabold text-[10px]">* Required</span>' : ''}
       </label>`;
-
     if (fType === 'textarea') {
       html += `<textarea rows="3" oninput="handleFieldInput('${fieldId}', this.value)" placeholder="Enter ${label}..." class="w-full text-xs px-3 py-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-md outline-none focus:border-[#003b8f] focus:ring-1 focus:ring-[#003b8f] transition">${val}</textarea>`;
     } else if (fType === 'dropdown') {
