@@ -593,3 +593,35 @@
       true
     ]]);
   }
+
+// Read-only diagnostic for the missing Retention field.
+function diagnoseRetentionFocus() {
+  const ss = getAppSpreadsheet();
+  const sheet = getSheetByNameInsensitive_(ss, 'retention');
+  if (!sheet) throw new Error('Retention worksheet not found.');
+
+  const schema = getFormSchema();
+  const ordered = schema.retention_order || [];
+  const report = {
+    spreadsheetId: ss.getId(),
+    spreadsheetName: ss.getName(),
+    sheetName: sheet.getName(),
+    lastRow: sheet.getLastRow(),
+    row14: sheet.getRange('A14:H14').getDisplayValues()[0],
+    focusInSchema: schema.retention && schema.retention.focus || null,
+    focusInOrderedFields: ordered.filter(function(field) {
+      return field.id === 'focus';
+    }),
+    matchingSheetRows: []
+  };
+
+  const rows = sheet.getDataRange().getDisplayValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (cleanSettingText(rows[i][0]) === 'focus') {
+      report.matchingSheetRows.push({row: i + 1, values: rows[i].slice(0, 8)});
+    }
+  }
+
+  console.log(JSON.stringify(report, null, 2));
+  return report;
+}
