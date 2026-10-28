@@ -27,7 +27,7 @@
   #notesModeControls { align-items: start; }
   #notesModeControls > div { min-width: 0; }
   #notesModeControls > div > label,
-  #nonCommModeControl [data-field-id="non_comm"] > label {
+  #campaignModeControl [data-field-id="campaign_toggle"] > label {
     display: block;
     margin: 0 0 4px;
     min-height: 16px;
@@ -38,7 +38,7 @@
     color: #64748b;
     text-transform: uppercase;
   }
-  #nonCommModeControl [data-field-id="non_comm"] > div {
+  #campaignModeControl [data-field-id="campaign_toggle"] > div {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
@@ -46,7 +46,7 @@
     margin-top: 0;
   }
   #notesModeControls button,
-  #nonCommModeControl [data-field-id="non_comm"] > div > label {
+  #campaignModeControl [data-field-id="campaign_toggle"] > div > label {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -61,7 +61,7 @@
     font-weight: 700;
     text-align: center;
   }
-  #nonCommModeControl [data-field-id="non_comm"] > div > label:focus-within {
+  #campaignModeControl [data-field-id="campaign_toggle"] > div > label:focus-within {
     outline: 2px solid #003b8f;
     outline-offset: 2px;
   }
@@ -259,7 +259,7 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
           </div>
         </div>
 
-        <div id="nonCommModeControl" style="display:none"></div>
+        <div id="campaignModeControl" style="display:none"></div>
 
         <div>
           <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Customer Type</label>
@@ -625,7 +625,7 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
       google.script.run
         .withSuccessHandler(handleSchemaLoaded)
         .withFailureHandler(handleSchemaFallback)
-        .getFormSchema();
+        .getFormSchema(currentAgent.department, currentAgent.extension);
 
       google.script.run
         .withSuccessHandler(populateHelpfulLinks)
@@ -845,7 +845,7 @@ function dependencyIsMatched(rule, values) {
       });
       if (missing.length) {
         alert('NOTHING WAS COPIED.\n\nComplete these required fields or correct their settings:\n\n' + missing.map(label => '• ' + label).join('\n'));
-        const wrapper = Array.from(document.querySelectorAll('#dynamicFormContainer [data-field-id]')).find(el => el.dataset.fieldId === firstId);
+        const wrapper = Array.from(document.querySelectorAll('#dynamicFormContainer [data-field-id], #campaignModeControl [data-field-id]')).find(el => el.dataset.fieldId === firstId);
         if (wrapper) {
           wrapper.scrollIntoView({block:'center', behavior:'smooth'});
           const input = wrapper.querySelector('input,select,textarea');
@@ -1006,7 +1006,7 @@ function dependencyIsMatched(rule, values) {
     const visible = field.visible !== undefined ? field.visible : field['Visible'];
     if (!schemaFlag(visible, true)) return false;
     // Separate access restriction: list supplied by Code.gs from Settings!B3.
-    if (id === 'non_comm' && !specialEmailAccessAllowed) return false;
+
     const rule = parseFieldDependency(field);
     if (rule && rule.invalid) {
       console.error('Invalid dependency for field:', id, rule.raw);
@@ -1029,9 +1029,9 @@ function dependencyIsMatched(rule, values) {
 
     function renderActiveForm() {
   const container = document.getElementById('dynamicFormContainer');
-  const nonCommHost = document.getElementById('nonCommModeControl');
+  const campaignHost = document.getElementById('campaignModeControl');
   const modeControls = document.getElementById('notesModeControls');
-  if (nonCommHost) { nonCommHost.replaceChildren(); nonCommHost.style.display = 'none'; }
+  if (campaignHost) { campaignHost.replaceChildren(); campaignHost.style.display = 'none'; }
   if (modeControls) { modeControls.classList.remove('sm:grid-cols-3'); modeControls.classList.add('sm:grid-cols-2'); }
   if (!getDepartmentKey()) {
     container.innerHTML = '<div class="col-span-full rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900" role="alert">Your department is missing or unrecognized. Use Switch Agent to sign in with Tech Support, Member Experience, or Retention.</div>';
@@ -1063,7 +1063,7 @@ function dependencyIsMatched(rule, values) {
     
     // Robust options resolution
     const rawOptions = field.options || field.Options || field['Options'] || '';
-    const opts = rawOptions.split(',').map(s => s.trim()).filter(Boolean)
+    const opts = (Array.isArray(rawOptions) ? rawOptions : String(rawOptions).split(',')).map(s => s.trim()).filter(Boolean)
       .filter(option => isServiceOptionAllowed(fieldId, option));
 
     const isSpanningTextarea = fType === 'textarea';
@@ -1113,11 +1113,11 @@ function dependencyIsMatched(rule, values) {
     html = '<div class="col-span-full text-sm text-amber-800 p-3" role="alert">No MX fields were returned. Check that Code.gs includes the MX worksheet in getFormSchema() and returns mx and mx_order.</div>';
   }
   container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
-  if (activeFormKey === 'notes' && nonCommHost && schemaLoadState === 'ready') {
-    const nonCommField = container.querySelector('[data-field-id="non_comm"]');
-    if (nonCommField) {
-      nonCommHost.appendChild(nonCommField);
-      nonCommHost.style.display = '';
+  if (activeFormKey === 'notes' && campaignHost && schemaLoadState === 'ready') {
+    const campaignField = container.querySelector('[data-field-id="campaign_toggle"]');
+    if (campaignField) {
+      campaignHost.appendChild(campaignField);
+      campaignHost.style.display = '';
       if (modeControls) { modeControls.classList.remove('sm:grid-cols-2'); modeControls.classList.add('sm:grid-cols-3'); }
     }
   }
@@ -1128,25 +1128,18 @@ function handleFieldInput(fieldId, val) {
   if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
   formValues[activeFormKey][fieldId] = val;
 
-  // Auto-fill Reason for Call when NON-COMM "Yes" is selected
-  if (fieldId === 'non_comm') {
-    if (String(val).trim().toLowerCase() === 'yes') {
-      formValues[activeFormKey]['reason'] = 'Non Communication Project (2026)';
-    } else if (String(val).trim().toLowerCase() === 'no' && formValues[activeFormKey]['reason'] === 'Non Communication Project (2026)') {
-      formValues[activeFormKey]['reason'] = '';
-    }
-  }
+  // Campaign labels and answers come from the resolved spreadsheet schema.
 
   saveFormDrafts();
   const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
   const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
 
   const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
-  if (type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','non_comm'].includes(fieldId)) renderActiveForm();
+  if (type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','campaign_toggle'].includes(fieldId)) renderActiveForm();
 }
 
     document.addEventListener('change', function(event) {
-      const wrapper = event.target.closest('#dynamicFormContainer [data-field-id], #nonCommModeControl [data-field-id]');
+      const wrapper = event.target.closest('#dynamicFormContainer [data-field-id], #campaignModeControl [data-field-id]');
       if (!wrapper) return;
       const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
       if (getOrderedFields(key).some(field => parseFieldDependency(field)?.source === wrapper.dataset.fieldId)) renderActiveForm();
