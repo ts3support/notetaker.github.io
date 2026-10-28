@@ -152,16 +152,24 @@
           <label for="dept">DEPARTMENT *</label>
           <select id="dept" required onchange="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
             <option value="">Select Department...</option>
-            <option value="Tech Support Level 1">Tech Support Level 1</option>
-            <option value="Tech Support Level 2">Tech Support Level 2</option>
-            <option value="Tech Support Level 3">Tech Support Level 3</option>
-            <option value="TS Lead">TS Lead</option>
+            <option value="Tech Support">Tech Support</option>
             <option value="Retention">Retention</option>
-            <option value="Retention Lead">Retention Lead</option>
+            <option value="Member Experience">Member Experience</option>
           </select>
         </div>
 
-        <button type="button" onclick="saveData()">SAVE & CONTINUE</button>
+        <div class="field" data-internal-id="role_tier">
+          <label for="roleTier">ROLE / TIER *</label>
+          <select id="roleTier" required onchange="this.classList.remove('input-error'); document.getElementById('status').textContent='';">
+            <option value="">Select Role / Tier...</option>
+            <option value="Level 1">Level 1</option>
+            <option value="Level 2">Level 2</option>
+            <option value="Level 3">Level 3</option>
+            <option value="Lead">Lead</option>
+          </select>
+        </div>
+
+        <button type="button" onclick="saveData()">SAVE &amp; CONTINUE</button>
         <div id="status"></div>
       </form>
     </section>
@@ -205,19 +213,22 @@
       const nameInput = document.getElementById('name');
       const phoneInput = document.getElementById('phone');
       const deptSelect = document.getElementById('dept');
+      const roleTierSelect = document.getElementById('roleTier');
       const status = document.getElementById('status');
 
       const name = nameInput.value.trim();
       const phone = phoneInput.value.trim();
       const dept = deptSelect.value.trim();
+      const roleTier = roleTierSelect ? roleTierSelect.value.trim() : '';
 
       // Reset any existing error states
       nameInput.classList.remove('input-error');
       phoneInput.classList.remove('input-error');
       deptSelect.classList.remove('input-error');
+      if (roleTierSelect) roleTierSelect.classList.remove('input-error');
       status.textContent = '';
 
-      // Validate all 3 fields
+      // Validate all required fields
       let missingFields = [];
       if (!name) {
         nameInput.classList.add('input-error');
@@ -231,6 +242,10 @@
         deptSelect.classList.add('input-error');
         missingFields.push('Department');
       }
+      if (roleTierSelect && !roleTier) {
+        roleTierSelect.classList.add('input-error');
+        missingFields.push('Role / Tier');
+      }
 
       if (missingFields.length > 0) {
         status.textContent = 'Please complete all required fields: ' + missingFields.join(', ') + '.';
@@ -240,15 +255,19 @@
       // Check authorization against dynamic extensions from Settings
       const isAuth = globalAuthorizedExtensions.includes(phone);
 
-      // Save to localStorage
+      // Save to localStorage (storing under both legacy and standard keys)
       localStorage.setItem('name', name);
       localStorage.setItem('phone', phone);
       localStorage.setItem('dept', dept);
+      localStorage.setItem('role_tier', roleTier);
+      localStorage.setItem('tier', roleTier);
 
       // Also sync to sessionStorage
       sessionStorage.setItem('agent_name', name);
       sessionStorage.setItem('extension', phone);
       sessionStorage.setItem('department', dept);
+      sessionStorage.setItem('role_tier', roleTier);
+      sessionStorage.setItem('tier', roleTier);
       sessionStorage.setItem('is_authorized_2026', isAuth ? 'true' : 'false');
 
       // Clean redirect to notes.html without relying on server scriptlets
@@ -262,10 +281,12 @@
       document.getElementById('phone').value = localStorage.getItem('phone') || sessionStorage.getItem('extension') || '';
       const savedDept = localStorage.getItem('dept') || sessionStorage.getItem('department') || '';
 
+      const savedTier = localStorage.getItem('role_tier') || localStorage.getItem('tier') || sessionStorage.getItem('role_tier') || sessionStorage.getItem('tier') || '';
+
       if (window.google && google.script && google.script.run) {
         google.script.run.withSuccessHandler(function(schema) {
           if (!schema) return;
-          
+
           // Store authorized extensions from Settings
           globalAuthorizedExtensions = (schema.authorizedExtensions || []).map(function(e) { return String(e).trim(); });
 
@@ -306,6 +327,26 @@
                   optionsHtml += `<option value="${opt}"${selected}>${opt}</option>`;
                 });
                 deptSelect.innerHTML = optionsHtml;
+              }
+            }
+          }
+
+          // Dynamic Role / Tier dropdown config from Sheet
+          if (loginSchema.role_tier) {
+            const el = document.querySelector('[data-internal-id="role_tier"]');
+            if (el) {
+              if (loginSchema.role_tier.label) el.querySelector('label').textContent = loginSchema.role_tier.label + ' *';
+              if (String(loginSchema.role_tier.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
+
+              if (loginSchema.role_tier.options) {
+                const roleTierSelect = document.getElementById('roleTier');
+                const options = loginSchema.role_tier.options.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+                let optionsHtml = '<option value="">Select Role / Tier...</option>';
+                options.forEach(function(opt) {
+                  const selected = (opt === savedTier) ? ' selected' : '';
+                  optionsHtml += `<option value="${opt}"${selected}>${opt}</option>`;
+                });
+                roleTierSelect.innerHTML = optionsHtml;
               }
             }
           }
