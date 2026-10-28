@@ -27,7 +27,7 @@
   #notesModeControls { align-items: start; }
   #notesModeControls > div { min-width: 0; }
   #notesModeControls > div > label,
-  #campaignModeControl [data-field-id="campaign_toggle"] > label {
+  #campaignModeControl [data-field-id] > label {
     display: block;
     margin: 0 0 4px;
     min-height: 16px;
@@ -38,7 +38,7 @@
     color: #64748b;
     text-transform: uppercase;
   }
-  #campaignModeControl [data-field-id="campaign_toggle"] > div {
+  #campaignModeControl [data-field-id] > div {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
@@ -46,7 +46,7 @@
     margin-top: 0;
   }
   #notesModeControls button,
-  #campaignModeControl [data-field-id="campaign_toggle"] > div > label {
+  #campaignModeControl [data-field-id] > div > label {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -61,7 +61,7 @@
     font-weight: 700;
     text-align: center;
   }
-  #campaignModeControl [data-field-id="campaign_toggle"] > div > label:focus-within {
+  #campaignModeControl [data-field-id] > div > label:focus-within {
     outline: 2px solid #003b8f;
     outline-offset: 2px;
   }
@@ -137,7 +137,7 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-sm sm:text-base font-extrabold tracking-tight uppercase">Notes App</h1>
-            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0</span>
+            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0-CAMFIX2</span>
           </div>
           <div class="text-xs text-blue-100 flex items-center gap-2">
             <span>Agent: <strong id="headerAgentDisplay" class="text-white">Loading...</strong></span>
@@ -591,8 +591,6 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
 
     // Parsed email templates catalog
     let parsedStandardTemplates = [];
-    let standardTemplatesState = 'loading';
-    let standardTemplatesError = '';
     let specialTemplatesList = [];
     let activeEmailTab = 'standard';
     let activeSelectedTemplate = null;
@@ -631,11 +629,6 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
 
       google.script.run
         .withSuccessHandler(populateHelpfulLinks)
-        .withFailureHandler(function(error) {
-          console.error('Helpful links failed:', error);
-          const list = document.getElementById('linksList');
-          if (list) list.textContent = 'Helpful links could not be loaded: ' + (error.message || error);
-        })
         .getHelpfulLinks(currentAgent.department);
 
       preloadEmailTemplates();
@@ -650,13 +643,45 @@ function getDepartmentKey() {
 }
 
 function isDepartmentNoteForm(formKey = activeFormKey) {
-  return ['notes', 'retention', 'mx'].includes(formKey);
+  return ['notes','retention','mx'].includes(formKey);
 }
 function getActiveSchemaKey() {
   if (activeFormKey === 'notes') return callType === 'Outbound' ? 'outbound' : 'inbound';
   if (activeFormKey === 'retention') return callType === 'Outbound' ? 'retention_outbound' : 'retention';
   if (activeFormKey === 'mx') return callType === 'Outbound' ? 'mx_outbound' : 'mx';
   return activeFormKey;
+}
+function placeCampaignControl() {
+  const bar = document.getElementById('notesModeControls');
+  const host = document.getElementById('campaignModeControl');
+  const container = document.getElementById('dynamicFormContainer');
+  if (!bar || !host || !container) return;
+  bar.classList.toggle('hidden', !isDepartmentNoteForm());
+  const fields = getOrderedFields(getActiveSchemaKey());
+  const campaigns = Array.isArray(formSchema.activeCampaigns) ? formSchema.activeCampaigns :
+    ((formSchema.campaigns || {})[getDepartmentKey()] || []);
+  const campaignIds = new Set(campaigns.map(c => String(c.campaignId || c.id || '')));
+  const candidates = fields.filter(field => {
+    const id = String(field.id || field.internalId || field['Internal ID'] || '');
+    return field.isCampaign === true || !!field.campaignId ||
+      String(field.placement || '').toLowerCase() === 'top_controls' ||
+      id === 'campaign_toggle' || id === 'non_comm' || campaignIds.has(id);
+  });
+  const wrappers = Array.from(container.querySelectorAll('[data-field-id]'));
+  const moves = candidates.map(field => {
+    const id = String(field.id || field.internalId || field['Internal ID'] || '');
+    return wrappers.find(el => el.dataset.fieldId === id);
+  }).filter(Boolean);
+  if (isDepartmentNoteForm() && moves.length) {
+    host.replaceChildren(...moves);
+    host.style.display = '';
+    bar.classList.remove('sm:grid-cols-2');
+    bar.classList.add('sm:grid-cols-3');
+  } else {
+    host.style.display = 'none';
+    bar.classList.remove('sm:grid-cols-3');
+    bar.classList.add('sm:grid-cols-2');
+  }
 }
 
 function getDepartmentDefaultForm() {
@@ -899,7 +924,6 @@ function dependencyIsMatched(rule, values) {
         return;
       }
       formSchema = schema;
-      if (Array.isArray(schema.warnings)) schema.warnings.forEach(message => console.warn(message));
       schemaLoadState = 'ready';
       applySpecialEmailAccess();
       renderActiveForm();
@@ -1026,7 +1050,7 @@ function dependencyIsMatched(rule, values) {
     const visible = field.visible !== undefined ? field.visible : field['Visible'];
     if (!schemaFlag(visible, true)) return false;
     // Separate access restriction: list supplied by Code.gs from Settings!B3.
-    // Campaign targeting is resolved by the backend.
+    // Backend campaign targeting controls availability.
     const rule = parseFieldDependency(field);
     if (rule && rule.invalid) {
       console.error('Invalid dependency for field:', id, rule.raw);
@@ -1051,7 +1075,6 @@ function dependencyIsMatched(rule, values) {
   const container = document.getElementById('dynamicFormContainer');
   const campaignHost = document.getElementById('campaignModeControl');
   const modeControls = document.getElementById('notesModeControls');
-  if (modeControls) modeControls.classList.toggle('hidden', !isDepartmentNoteForm());
   if (campaignHost) { campaignHost.replaceChildren(); campaignHost.style.display = 'none'; }
   if (modeControls) { modeControls.classList.remove('sm:grid-cols-3'); modeControls.classList.add('sm:grid-cols-2'); }
   if (!getDepartmentKey()) {
@@ -1134,14 +1157,7 @@ function dependencyIsMatched(rule, values) {
     html = '<div class="col-span-full text-sm text-amber-800 p-3" role="alert">No MX fields were returned. Check that Code.gs includes the MX worksheet in getFormSchema() and returns mx and mx_order.</div>';
   }
   container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
-  if (isDepartmentNoteForm() && campaignHost && schemaLoadState === 'ready') {
-    const campaignField = container.querySelector('[data-field-id="campaign_toggle"]');
-    if (campaignField) {
-      campaignHost.appendChild(campaignField);
-      campaignHost.style.display = '';
-      if (modeControls) { modeControls.classList.remove('sm:grid-cols-2'); modeControls.classList.add('sm:grid-cols-3'); }
-    }
-  }
+  placeCampaignControl();
   updateUndoClearButtons();
 }
 
@@ -1154,7 +1170,7 @@ function handleFieldInput(fieldId, val) {
   const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
 
   const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
-  if (type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','campaign_toggle'].includes(fieldId)) renderActiveForm();
+  if (type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','non_comm'].includes(fieldId)) renderActiveForm();
 }
 
     document.addEventListener('change', function(event) {
@@ -1295,23 +1311,17 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
     }
 
     function preloadEmailTemplates() {
-      standardTemplatesState = 'loading';
-      standardTemplatesError = '';
-      parsedStandardTemplates = [];
-      renderTemplateCardsList();
       google.script.run
         .withSuccessHandler((html) => {
-          standardTemplatesState = 'ready';
           rawDocHtml = html || '';
           parseStandardTemplatesFromHtml(rawDocHtml);
           renderTemplateCardsList();
         })
         .withFailureHandler((err) => {
-          console.error('Error preloading email templates:', err);
-          standardTemplatesState = 'failed';
-          standardTemplatesError = String(err.message || err);
-          parsedStandardTemplates = [];
-          renderTemplateCardsList();
+          console.error("Error preloading email templates:", err);
+          document.getElementById('templatesListContainer').innerHTML = `
+            <div class="p-4 text-xs text-rose-600">Failed to load templates: ${err.message}</div>
+          `;
         })
         .getEmailTemplatesHtml(currentAgent.department);
     }
@@ -1373,7 +1383,6 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
         }
       });
 
-      // Use only templates from the configured document.
       parsedStandardTemplates = templates;
       if (!activeSelectedTemplate && parsedStandardTemplates.length > 0) {
         selectTemplate(parsedStandardTemplates[0]);
@@ -1433,17 +1442,6 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
       const container = document.getElementById('templatesListContainer');
       const isSpecial = activeEmailTab === 'special';
       const sourceList = isSpecial ? specialTemplatesList : parsedStandardTemplates;
-      if (!isSpecial && (standardTemplatesState !== 'ready' || !parsedStandardTemplates.length)) {
-        const message = document.createElement('div');
-        message.className = 'py-12 px-4 text-center text-slate-500 text-xs';
-        message.textContent = standardTemplatesState === 'loading' ? 'Loading department email templates...' :
-          standardTemplatesState === 'failed' ? 'Email templates could not be loaded: ' + standardTemplatesError :
-          'No templates found in the configured document. Use headings for template titles and Subject: lines for subjects.';
-        container.replaceChildren(message);
-        document.getElementById('templateCountBadge').textContent = '0 Templates';
-        return;
-      }
-
       const searchQ = (document.getElementById('searchTemplateInput')?.value || '').toLowerCase().trim();
 
       if (isSpecial && !specialEmailAccessAllowed) {
@@ -1781,7 +1779,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
 
     // Fallback Array of Fields
     function getFallbackFieldsArray(key) {
-      if (['retention','retention_outbound','mx','mx_outbound'].includes(key)) return [];
+      if (key === 'retention' || key === 'mx') return [];
       return [
         { id: 'caller_name', label: 'Caller Name', type: 'Text' },
         { id: 'company_name', label: 'Company Name', type: 'Text' },
