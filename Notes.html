@@ -118,6 +118,10 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
 })();
 </script>
 
+<style>
+html[data-theme="dark"] #helpfulLinksMenu .border-slate-200,html[data-theme="dark"] #helpfulLinksMenu .border-slate-300 { border-color:#41516a !important; }
+html[data-theme="dark"] #linksHubList a:hover { background-color:#253c5b !important; }
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
@@ -138,7 +142,7 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-sm sm:text-base font-extrabold tracking-tight uppercase">Notes App</h1>
-            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0-LINKSHUB1</span>
+            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0-LINKSLIST2</span>
           </div>
           <div class="text-xs text-blue-100 flex items-center gap-2">
             <span>Agent: <strong id="headerAgentDisplay" class="text-white">Loading...</strong></span>
@@ -1802,34 +1806,23 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
   window.addEventListener('scroll', e => { if (!tip.contains(e.target)) tip.hidden = true; }, true);
 })();
 </script>
-<div id="helpfulLinksMenu" role="dialog" aria-modal="true" aria-labelledby="linksHubHeading" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
- <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-6xl w-full h-[90vh] flex flex-col overflow-hidden">
-  <div class="px-5 py-3 bg-[#003b8f] text-white flex justify-between items-center shrink-0">
-   <div><h3 id="linksHubHeading" class="text-sm font-bold uppercase tracking-wider">Helpful Links Hub</h3><p class="text-xs text-blue-100">Find department resources, guides, and tools.</p></div>
-   <button type="button" onclick="closeHelpfulLinksHub()" aria-label="Close Helpful Links" class="px-3 py-2 text-lg">&#215;</button>
+<!-- Single-column Helpful Links modal -->
+<div id="helpfulLinksMenu" role="dialog" aria-modal="true" aria-labelledby="linksHubHeading" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-5">
+ <div class="bg-white w-full max-w-xl max-h-[90vh] flex flex-col rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
+  <div class="bg-[#003b8f] text-white px-5 py-4 flex justify-between items-start gap-3 shrink-0">
+   <div><h3 id="linksHubHeading" class="text-sm font-bold uppercase tracking-wider">Helpful Links Hub</h3><p class="text-xs text-blue-100 mt-1">Find department resources, guides, and tools.</p></div>
+   <button type="button" onclick="closeHelpfulLinksHub()" aria-label="Close Helpful Links" class="text-xl leading-none px-2 py-1 rounded focus:outline focus:outline-2">&#215;</button>
   </div>
-  <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-wrap items-end gap-3 shrink-0">
-   <label class="flex-1 min-w-[180px] text-xs text-slate-600">Search resources<input id="linksHubSearch" type="search" oninput="renderHelpfulLinksHub()" placeholder="Search title, category, description, or instructions..." class="block w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm"></label>
-   <label class="text-xs text-slate-600">Category<select id="linksHubCategory" onchange="renderHelpfulLinksHub()" class="block mt-1 px-3 py-2 rounded-lg bg-white border border-slate-300 text-sm"><option value="">All Categories</option></select></label>
-   <button type="button" onclick="loadHelpfulLinks()" class="px-3 py-2 text-xs font-bold border border-slate-300 rounded-lg text-slate-700">Refresh</button>
-   <span id="linksHubCount" class="text-xs text-slate-500 pb-2" aria-live="polite">0 Resources</span>
+  <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 shrink-0 space-y-3">
+   <label class="block text-xs text-slate-600">Search resources<input id="linksHubSearch" type="search" oninput="renderHelpfulLinksHub()" placeholder="Search title, category, description, or instructions..." class="block w-full mt-1 rounded-lg bg-white border border-slate-300 px-3 py-2 text-sm"></label>
+   <div class="flex items-center gap-2 flex-wrap">
+    <label class="sr-only" for="linksHubCategory">Category</label><select id="linksHubCategory" onchange="renderHelpfulLinksHub()" class="flex-1 min-w-0 bg-white border border-slate-300 rounded-lg px-2 py-2 text-xs text-slate-700"><option value="">All Categories</option></select>
+    <button type="button" onclick="loadHelpfulLinks()" class="px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-700 font-bold">Refresh</button>
+    <span id="linksHubCount" role="status" class="text-xs text-slate-500">0 Resources</span>
+   </div>
   </div>
-  <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 overflow-y-auto md:overflow-hidden">
-   <div id="linksHubList" class="md:col-span-5 min-h-[180px] max-h-[35vh] md:max-h-none overflow-y-auto p-3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 space-y-2"></div>
-   <section class="md:col-span-7 overflow-y-auto p-5 bg-white text-slate-800 space-y-4">
-    <div id="linksHubEmpty" class="text-sm text-slate-500 py-8">Select a resource from the list.</div>
-    <div id="linksHubDetail" class="hidden space-y-4">
-     <span id="linksHubBadge" class="inline-block text-xs font-bold rounded bg-blue-50 text-[#003b8f] px-2 py-1"></span>
-     <h4 id="linksHubTitle" class="text-lg font-bold break-words"></h4>
-     <div class="flex flex-wrap gap-2"><a id="linksHubOpen" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-[#003b8f] text-white rounded-lg text-sm font-bold">Open Resource</a><button id="linksHubCopy" type="button" onclick="copyHelpfulResourceLink()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-bold">Copy Link</button></div>
-     <div><h5 class="text-xs uppercase font-bold text-slate-500 mb-2">Description</h5><p id="linksHubDescription" class="text-sm whitespace-pre-wrap break-words"></p></div>
-     <div><h5 class="text-xs uppercase font-bold text-slate-500 mb-2">Agent Instructions</h5><p id="linksHubInstructions" class="text-sm whitespace-pre-wrap break-words"></p></div>
-     <div><h5 class="text-xs uppercase font-bold text-slate-500 mb-2">Destination URL</h5><p id="linksHubUrl" class="text-xs break-all"></p><p id="linksHubMode" class="text-xs text-slate-500 mt-2"></p></div>
-    </div>
-    <p id="linksHubStatus" role="status" class="text-xs text-slate-500"></p>
-   </section>
-  </div>
-  <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 shrink-0"><span id="linksHubDepartment"></span><button type="button" onclick="closeHelpfulLinksHub()" class="px-4 py-2 rounded border border-slate-300 text-slate-700 font-bold">Close</button></div>
+  <div id="linksHubList" class="min-h-[160px] overflow-y-auto flex-1 p-3 space-y-2 bg-white"></div>
+  <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center gap-2 shrink-0"><span id="linksHubDepartment" class="text-xs text-slate-500"></span><button type="button" onclick="closeHelpfulLinksHub()" class="px-3 py-2 text-xs font-bold text-slate-700 border border-slate-300 rounded-lg">Close</button></div>
  </div>
 </div>
 
@@ -1837,7 +1830,6 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
 let helpfulResources = [];
 let helpfulResourcesState = 'loading';
 let helpfulResourcesError = '';
-let selectedHelpfulResourceId = '';
 let helpfulLinksTrigger = null;
 let helpfulRequestNumber = 0;
 function toggleHelpfulLinks() { openHelpfulLinksHub(); }
@@ -1851,95 +1843,64 @@ function openHelpfulLinksHub() {
 }
 function closeHelpfulLinksHub() {
   document.getElementById('helpfulLinksMenu').classList.add('hidden');
-  if (helpfulLinksTrigger && helpfulLinksTrigger.isConnected) helpfulLinksTrigger.focus();
+  if(helpfulLinksTrigger && helpfulLinksTrigger.isConnected) helpfulLinksTrigger.focus();
 }
 function loadHelpfulLinks() {
-  const request = ++helpfulRequestNumber;
-  helpfulResourcesState = 'loading'; helpfulResourcesError = '';
-  renderHelpfulLinksHub();
-  google.script.run.withSuccessHandler(function(links) {
-    if (request !== helpfulRequestNumber) return;
+  const request=++helpfulRequestNumber;
+  helpfulResourcesState='loading';helpfulResourcesError='';renderHelpfulLinksHub();
+  google.script.run.withSuccessHandler(function(links){
+    if(request!==helpfulRequestNumber)return;
     populateHelpfulLinks(links);
-  }).withFailureHandler(function(error) {
-    if (request !== helpfulRequestNumber) return;
-    helpfulResourcesState = 'failed'; helpfulResourcesError = String(error.message || error);
-    helpfulResources = []; selectedHelpfulResourceId = ''; renderHelpfulLinksHub();
+  }).withFailureHandler(function(error){
+    if(request!==helpfulRequestNumber)return;
+    helpfulResourcesState='failed';helpfulResourcesError=String(error.message||error);
+    helpfulResources=[];renderHelpfulLinksHub();
   }).getHelpfulLinks(currentAgent.department);
 }
 function populateHelpfulLinks(links) {
-  helpfulResources = (Array.isArray(links) ? links : []).map(function(link,index) {
+  helpfulResources=(Array.isArray(links)?links:[]).map(function(link,index){
     try {
-      const url = new URL(link.url);
-      if (!['https:','http:'].includes(url.protocol)) return null;
-      return Object.assign({},link,{id:String(link.id || 'resource_'+index),url:url.href,
-        title:String(link.title || link.name || 'Resource'),category:String(link.category || 'General')});
-    } catch(error) { return null; }
+      const url=new URL(link.url);
+      if(!['https:','http:'].includes(url.protocol))return null;
+      return Object.assign({},link,{id:String(link.id||'resource_'+index),url:url.href,
+        title:String(link.title||link.name||'Resource'),category:String(link.category||'General')});
+    }catch(error){return null;}
   }).filter(Boolean);
-  helpfulResourcesState = 'ready';
-  const categorySelect = document.getElementById('linksHubCategory');
-  const previous = categorySelect.value;
-  categorySelect.replaceChildren(new Option('All Categories',''));
-  Array.from(new Set(helpfulResources.map(link=>link.category))).sort().forEach(category=>categorySelect.add(new Option(category,category)));
-  if (Array.from(categorySelect.options).some(option=>option.value===previous)) categorySelect.value=previous;
+  helpfulResourcesState='ready';
+  const select=document.getElementById('linksHubCategory'),previous=select.value;
+  select.replaceChildren(new Option('All Categories',''));
+  Array.from(new Set(helpfulResources.map(link=>link.category))).sort().forEach(category=>select.add(new Option(category,category)));
+  if(Array.from(select.options).some(option=>option.value===previous))select.value=previous;
   renderHelpfulLinksHub();
 }
 function renderHelpfulLinksHub() {
-  const list=document.getElementById('linksHubList'); if(!list) return;
+  const list=document.getElementById('linksHubList');if(!list)return;
   const query=document.getElementById('linksHubSearch').value.trim().toLowerCase();
   const category=document.getElementById('linksHubCategory').value;
   const matches=helpfulResources.filter(link=>(!category||link.category===category)&&
     [link.title,link.category,link.description,link.agentInstructions||link.instructions].join(' ').toLowerCase().includes(query));
   list.replaceChildren();
-  document.getElementById('linksHubCount').textContent=matches.length+' Resources';
-  document.getElementById('linksHubStatus').textContent='';
-  if(helpfulResourcesState!=='ready'||!matches.length) {
-    const message=document.createElement('p');message.className='p-4 text-sm text-slate-500';
+  document.getElementById('linksHubCount').textContent=(helpfulResourcesState==='ready'?matches.length:0)+' Resources';
+  if(helpfulResourcesState!=='ready'||!matches.length){
+    const message=document.createElement('p');message.className='p-4 text-sm text-slate-500';message.setAttribute('role','status');
     message.textContent=helpfulResourcesState==='loading'?'Loading department resources...':
       helpfulResourcesState==='failed'?'Unable to load Helpful Links: '+helpfulResourcesError:
       helpfulResources.length?'No resources match your search or category.':'No active resources are configured for this department.';
-    list.appendChild(message);selectedHelpfulResourceId='';showHelpfulResource(null);return;
+    list.appendChild(message);return;
   }
-  if(!matches.some(link=>link.id===selectedHelpfulResourceId)) selectedHelpfulResourceId=matches[0].id;
-  matches.forEach(function(link) {
-    const selected=link.id===selectedHelpfulResourceId;
-    const button=document.createElement('button');button.type='button';button.setAttribute('aria-pressed',String(selected));
-    button.className='w-full text-left p-3 rounded-lg border transition '+(selected?'bg-blue-50 border-[#003b8f]':'bg-white border-slate-200');
+  matches.forEach(function(link){
+    const popup=link.popupMode==='popup'||link.popup==='chatbot';
+    const anchor=document.createElement('a');anchor.href=link.url;anchor.target='_blank';anchor.rel='noopener noreferrer';
+    anchor.className='block w-full text-left px-4 py-3 rounded-lg border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline focus:outline-2 focus:outline-[#003b8f] transition';
+    anchor.title=link.title+(popup?' (opens popup window)':' (opens new tab)');
     const title=document.createElement('div');title.className='font-bold text-sm text-slate-800';title.textContent=link.title;
     const category=document.createElement('div');category.className='text-xs text-slate-500 mt-1';category.textContent=link.category;
-    button.append(title,category);
-    if(link.description){const summary=document.createElement('div');summary.className='text-xs text-slate-500 mt-1';summary.textContent=String(link.description).slice(0,160);button.appendChild(summary);}
-    button.onclick=function(){selectedHelpfulResourceId=link.id;renderHelpfulLinksHub();
-      const replacement=Array.from(list.querySelectorAll('button')).find(b=>b.dataset.resourceId===link.id);if(replacement)replacement.focus({preventScroll:true});};
-    button.dataset.resourceId=link.id;list.appendChild(button);
+    anchor.append(title,category);
+    if(popup)anchor.addEventListener('click',function(event){
+      event.preventDefault();window.open(link.url,'_blank','popup=yes,width=1000,height=750,resizable=yes,scrollbars=yes,noopener,noreferrer');
+    });
+    list.appendChild(anchor);
   });
-  showHelpfulResource(matches.find(link=>link.id===selectedHelpfulResourceId));
-}
-function showHelpfulResource(link) {
-  document.getElementById('linksHubDetail').classList.toggle('hidden',!link);
-  document.getElementById('linksHubEmpty').classList.toggle('hidden',!!link);
-  if(!link) {document.getElementById('linksHubOpen').removeAttribute('href');return;}
-  document.getElementById('linksHubBadge').textContent=link.category;
-  document.getElementById('linksHubTitle').textContent=link.title;
-  document.getElementById('linksHubDescription').textContent=link.description||'No description has been provided.';
-  document.getElementById('linksHubInstructions').textContent=link.agentInstructions||link.instructions||'No additional instructions.';
-  document.getElementById('linksHubUrl').textContent=link.url;
-  const popup=link.popupMode==='popup'||link.popup==='chatbot';
-  document.getElementById('linksHubMode').textContent=popup?'Opens in a separate popup window.':'Opens in a new browser tab.';
-  const open=document.getElementById('linksHubOpen');open.href=link.url;
-  open.onclick=function(event){if(popup){event.preventDefault();window.open(link.url,'_blank','popup=yes,width=1000,height=750,resizable=yes,scrollbars=yes,noopener,noreferrer');}};
-}
-async function copyHelpfulResourceLink() {
-  const link=helpfulResources.find(item=>item.id===selectedHelpfulResourceId);if(!link)return;
-  const status=document.getElementById('linksHubStatus');
-  try {
-    if(navigator.clipboard&&window.isSecureContext) await navigator.clipboard.writeText(link.url);
-    else throw new Error('Clipboard API unavailable');
-    status.textContent='Link copied.';
-  } catch(error) {
-    const input=document.createElement('textarea');input.value=link.url;input.style.position='fixed';input.style.left='-9999px';document.body.appendChild(input);input.select();
-    let ok=false;try{ok=document.execCommand('copy');}catch(e){}input.remove();
-    document.getElementById('linksHubCopy').focus();status.textContent=ok?'Link copied.':'Copy failed. Select and copy the destination URL manually.';
-  }
 }
 document.addEventListener('keydown',function(event){
   const modal=document.getElementById('helpfulLinksMenu');if(modal.classList.contains('hidden'))return;
