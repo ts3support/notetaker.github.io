@@ -959,9 +959,15 @@ function dependencyIsMatched(rule, values) {
       console.error('Invalid dependency for field:', id, rule.raw);
       return false;
     }
-      if (rule && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return false;
-      return true;
-    }
+
+    // 1. If rule is :Visible and condition is NOT matched -> HIDE IT
+    if (rule && rule.action === 'visible' && !dependencyIsMatched(rule, values)) return false;
+
+    // 2. If rule is :Hide and condition IS matched -> HIDE IT
+    if (rule && rule.action === 'hide' && dependencyIsMatched(rule, values)) return false;
+
+    return true;
+  }
 
     function isServiceOptionAllowed(fieldId, option) {
       return fieldId !== 'service_type' || customerType !== 'Residential' ||
