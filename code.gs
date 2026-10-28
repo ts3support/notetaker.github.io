@@ -1,7 +1,7 @@
 /**
  * COMPLETE CODE.GS — NOTE TAKER BACKEND
  * Department campaigns, form schemas, Helpful Links hub, emails, and link import.
- * Helpful Links primary Tech Support worksheet: Links-Tech Support.
+ * Helpful Links primary Tech Support worksheet: Links - Tech Support.
  * Run importLinksFromGoogleDoc manually to append links; it is not run on page load.
  */
 function text_(value) { return value == null ? '' : String(value).trim(); }
@@ -235,7 +235,7 @@ function extractDocLinks_(body) {
 }
 function importLinksFromGoogleDoc() {
   const docId = '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU';
-  const sheetName = 'Links-Tech Support';
+  const sheetName = 'Links - Tech Support';
   const lock = LockService.getScriptLock(); lock.waitLock(30000);
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet(), sheet = ss.getSheetByName(sheetName);
