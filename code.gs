@@ -9,8 +9,9 @@
  *  - Web app routing (doGet) for Login.html & Notes.html
  *  - Dynamic multi-department campaign evaluation & extension targeting
  *  - Dynamic:Campaigns placeholder resolution (Label: NON-COMM, Options: Yes,No)
+ *  - Department-specific Helpful Links (Tabs: Links - Tech Support, Retention, MX)
+ *  - Department-specific Standard Email Templates (Docs mapped in Settings)
  *  - Form schema parsing (Inbound, Outbound, Retention, MX, Tickets, Parts, etc.)
- *  - Google Docs integration (Helpful Links & Standard Email Templates)
  *  - Special emails & admin passcode validation
  *  - Footprint / Territory Zip Code lookup
  *  - Agent feedback submission & change log audit queries
@@ -131,7 +132,6 @@ function getActiveDepartmentCampaigns(department, extension) {
   }
 
   let sheet = ss.getSheetByName(targetTab);
-  // Fallback to Retention if sheet not found by explicit name
   if (!sheet) {
     sheet = ss.getSheetByName('Campaigns - Retention');
   }
@@ -172,7 +172,6 @@ function getActiveDepartmentCampaigns(department, extension) {
     // Targeting rules:
     // 1. Department-Wide or extension list has "ALL"
     // 2. Extension-Specific and extension list contains agent's extension
-    // 3. If extension is empty/unknown, allow Department-Wide campaigns to display by default
     let isTargeted = false;
     if (scope === 'department-wide' || targetExtList.includes('ALL')) {
       isTargeted = true;
@@ -316,7 +315,7 @@ function getFormSchema(department, extension) {
 
     for (let r = 1; r < data.length; r++) {
       const row = data[r];
-      const internalId = String(row[idIdx] || '').trim();
+      let internalId = String(row[idIdx] || '').trim();
       if (!internalId) continue;
 
       let fieldLabel = String(row[labelIdx] || internalId).trim();
@@ -333,6 +332,7 @@ function getFormSchema(department, extension) {
 
         if (campaigns && campaigns.length > 0) {
           const activeCampaign = campaigns[0];
+          internalId = activeCampaign.campaignId || 'non_comm';
           fieldLabel = activeCampaign.label || 'NON-COMM';
           fieldType = activeCampaign.type || 'Radio';
           fieldOptions = Array.isArray(activeCampaign.options) 
@@ -341,7 +341,6 @@ function getFormSchema(department, extension) {
           isVisible = true;
           isRequired = activeCampaign.required === true;
         } else {
-          // If no active or targeted campaign for this department/agent, hide the row
           isVisible = false;
           fieldOptions = '';
         }
@@ -382,9 +381,81 @@ function getFormSchema(department, extension) {
 }
 
 // ============================================================================
-// 6. HELPFUL LINKS (GOOGLE DOC INTEGRATION)
+// 6. HELPFUL LINKS FETCHER (DEPARTMENT TABS WITH FALLBACK TO DOC)
 // ============================================================================
 
+/**
+ * Loads active helpful links from the dedicated department tabs:
+ *  - Links - Tech Support
+ *  - Links - Retention
+ *  - Links - Member Experience
+ *
+ * @param {string} department - e.g. "Tech Support", "Retention", "Member Experience"
+ * @returns {Array<Object>} List of active link objects [{name, url, category, popup}]
+ */
+function getHelpfulLinks(department) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const deptStr = String(department || '').trim().toLowerCase();
+
+  // Resolve matching sheet tab
+  let targetTab = '';
+  if (deptStr.includes('retention')) {
+    targetTab = 'Links - Retention';
+  } else if (deptStr.includes('member') || deptStr.includes('mx') || deptStr.includes('experience')) {
+    targetTab = 'Links - Member Experience';
+  } else {
+    targetTab = 'Links - Tech Support';
+  }
+
+  let sheet = ss.getSheetByName(targetTab);
+  if (!sheet) {
+    sheet = ss.getSheetByName('Links - Tech Support');
+  }
+
+  // If department tab is found, read structured links
+  if (sheet) {
+    const data = sheet.getDataRange().getValues();
+    if (data.length > 1) {
+      const headers = data[0].map(h => String(h).trim().toLowerCase());
+      const titleIdx = headers.indexOf('link title');
+      const urlIdx = headers.indexOf('url');
+      const catIdx = headers.indexOf('category');
+      const popupIdx = headers.indexOf('popup mode');
+      const activeIdx = headers.indexOf('active');
+
+      const links = [];
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+
+        // Must be active
+        const isActive = row[activeIdx] === true || String(row[activeIdx]).trim().toUpperCase() === 'TRUE';
+        if (!isActive) continue;
+
+        const title = String(row[titleIdx] || '').trim();
+        const url = String(row[urlIdx] || '').trim();
+        if (!title || !url) continue;
+
+        const popupMode = String(row[popupIdx] || '').trim().toLowerCase();
+
+        links.push({
+          name: title,
+          url: url,
+          category: row[catIdx] || 'General',
+          popup: popupMode === 'popup' || popupMode === 'modal' || title.toLowerCase().includes('chatbot') ? 'chatbot' : null
+        });
+      }
+
+      if (links.length > 0) {
+        return links;
+      }
+    }
+  }
+
+  // Fallback: Read from legacy master Google Doc if tab is empty
+  return getHelpfulLinksFromDoc();
+}
+
+/** Legacy Google Doc parser (kept for fallback) */
 function getHelpfulLinksFromDoc() {
   const settings = getSettings();
   const docId = settings['Doc ID - Helpful Links'] || '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU';
@@ -432,12 +503,34 @@ function getHelpfulLinksFromDoc() {
 }
 
 // ============================================================================
-// 7. STANDARD & SPECIAL EMAIL TEMPLATES
+// 7. STANDARD & SPECIAL EMAIL TEMPLATES (DEPARTMENT ROUTED)
 // ============================================================================
 
-function getEmailTemplatesHtml() {
+/**
+ * Loads standard email templates dynamically for the agent's department
+ * from the Google Doc ID mapped in the Settings sheet.
+ *
+ * @param {string} department - e.g. "Tech Support", "Retention", "Member Experience"
+ * @returns {string} HTML markup of email templates
+ */
+function getEmailTemplatesHtml(department) {
   const settings = getSettings();
-  const docId = settings['Doc ID - Standard Emails'] || '1CJtJskbXT-fY2qNfna9W-i-x3rlJl404W4bgMoKFm0c';
+  const deptStr = String(department || '').trim().toLowerCase();
+
+  // Determine the mapped Google Doc ID for this department
+  let docId = '';
+  if (deptStr.includes('retention')) {
+    docId = settings['Doc ID - Standard Emails - Retention'] || settings['Doc ID - Standard Emails'];
+  } else if (deptStr.includes('member') || deptStr.includes('mx') || deptStr.includes('experience')) {
+    docId = settings['Doc ID - Standard Emails - Member Experience'] || settings['Doc ID - Standard Emails'];
+  } else {
+    docId = settings['Doc ID - Standard Emails - Tech Support'] || settings['Doc ID - Standard Emails'];
+  }
+
+  // Fallback to default Tech Support Google Doc if unmapped
+  if (!docId) {
+    docId = '1CJtJskbXT-fY2qNfna9W-i-x3rlJl404W4bgMoKFm0c';
+  }
 
   try {
     const url = 'https://docs.google.com/feeds/download/documents/export/Export?id=' + docId + '&exportFormat=html';
