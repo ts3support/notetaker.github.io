@@ -1,730 +1,361 @@
 /**
- * ============================================================================
- * NOTE TAKER APPLICATION - BACKEND ENGINE (Code.gs)
- * AAA Smart Home / A3 Smart Home
- * ============================================================================
- * Files in project: Code.gs, Login.html, Notes.html
- * ============================================================================
- * Handles:
- *  - Web app routing (doGet) for Login.html & Notes.html
- *  - Dynamic multi-department campaign evaluation & extension targeting
- *  - Dynamic:Campaigns placeholder resolution (Label: NON-COMM, Options: Yes,No)
- *  - Department-specific Helpful Links (Tabs: Links - Tech Support, Retention, MX)
- *  - Department-specific Standard Email Templates (Docs mapped in Settings)
- *  - Form schema parsing (Inbound, Outbound, Retention, MX, Tickets, Parts, etc.)
- *  - Special emails & admin passcode validation
- *  - Footprint / Territory Zip Code lookup
- *  - Agent feedback submission & change log audit queries
- * ============================================================================
+ * Note Taker backend: department campaigns, links, email templates and forms.
+ * Campaign control ID remains campaign_toggle; campaignId is separate metadata.
+ * Department resources do not silently fall back to another department.
  */
-
-// ============================================================================
-// 1. ROUTING (doGet) - CASE-INSENSITIVE FOR LOGIN.HTML & NOTES.HTML
-// ============================================================================
-
 function doGet(e) {
-  const params = (e && e.parameter) ? e.parameter : {};
-  const requested = String(params.page || '').trim().toLowerCase();
-
-  // If user requested notes (or already passed agent/extension params), load Notes.html
-  // Otherwise, start on Login.html
-  let targetFile = 'Login';
-
-  if (requested === 'notes' || requested === 'main' || requested === 'app' || requested === 'index') {
-    targetFile = 'Notes';
-  } else if (requested === 'login') {
-    targetFile = 'Login';
-  } else if (params.agent || params.extension || params.ext || params.user) {
-    targetFile = 'Notes';
-  } else {
-    targetFile = 'Login';
-  }
-
-  // Load template with strict fallback to exact project names (Notes.html / Login.html)
-  let template;
-  try {
-    template = HtmlService.createTemplateFromFile(targetFile);
-  } catch (err) {
-    try {
-      template = HtmlService.createTemplateFromFile(targetFile.toLowerCase());
-    } catch (e2) {
-      template = HtmlService.createTemplateFromFile(targetFile === 'Notes' ? 'Login' : 'Notes');
-    }
-  }
-
-  // Pass URL and parameters to the HTML template
-  template.appUrl = ScriptApp.getService().getUrl();
-  template.params = params;
-  template.agent = params.agent || params.name || '';
-  template.extension = params.extension || params.ext || '';
-  template.department = params.department || params.dept || '';
-  template.role = params.role || params.role_tier || '';
-
-  return template.evaluate()
-    .setTitle('AAA Smart Home - Note Taker')
+  const p = e && e.parameter || {};
+  const page = String(p.page || '').trim().toLowerCase();
+  let file = 'Login';
+  if (['notes','main','app','index'].includes(page)) file = 'Notes';
+  else if (page !== 'login' && (p.agent || p.extension || p.ext || p.user)) file = 'Notes';
+  let t;
+  try { t = HtmlService.createTemplateFromFile(file); }
+  catch (err) { t = HtmlService.createTemplateFromFile(file.toLowerCase()); }
+  t.appUrl = ScriptApp.getService().getUrl();
+  t.params = p;
+  t.agent = p.agent || p.name || '';
+  t.extension = p.extension || p.ext || '';
+  t.department = p.department || p.dept || '';
+  t.role = p.role || p.role_tier || '';
+  return t.evaluate().setTitle('AAA Smart Home - Note Taker')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport','width=device-width, initial-scale=1');
 }
 
 function include(filename) {
-  const candidates = [
-    filename,
-    filename.charAt(0).toUpperCase() + filename.slice(1),
-    filename.toLowerCase(),
-    filename.toUpperCase()
-  ];
-  for (let i = 0; i < candidates.length; i++) {
-    try {
-      return HtmlService.createHtmlOutputFromFile(candidates[i]).getContent();
-    } catch (e) {}
+  const name = String(filename || '');
+  for (const candidate of [name, name.charAt(0).toUpperCase() + name.slice(1), name.toLowerCase(), name.toUpperCase()]) {
+    try { return HtmlService.createHtmlOutputFromFile(candidate).getContent(); } catch (err) {}
   }
   return '';
 }
 
-// ============================================================================
-// 2. SETTINGS HELPER
-// ============================================================================
-
+function text_(v) { return v === null || v === undefined ? '' : String(v).trim(); }
+function flag_(v, fallback) {
+  if (v === true || v === false) return v;
+  const s = text_(v).toLowerCase();
+  if (['true','yes','1'].includes(s)) return true;
+  if (['false','no','0'].includes(s)) return false;
+  return fallback === undefined ? false : fallback;
+}
+function list_(v) { return text_(v).split(/[,;\n]+/).map(text_).filter(Boolean); }
+function department_(value) {
+  const s = text_(value).toLowerCase().replace(/\s+/g,' ');
+  if (/^(tech support|technical support)(?:$|[ -])/.test(s)) return {key:'tech',name:'Tech Support'};
+  if (/^(member experience|mx)(?:$|[ -])/.test(s)) return {key:'mx',name:'Member Experience'};
+  if (/^retention(?:$|[ -])/.test(s)) return {key:'retention',name:'Retention'};
+  return null;
+}
+function headers_(row) { return row.map(v => text_(v).toLowerCase().replace(/\s+/g,' ')); }
+function cell_(row, headers, name) {
+  const i = headers.indexOf(name);
+  return i < 0 ? '' : row[i];
+}
+function requireHeaders_(headers, names, tab) {
+  const missing = names.filter(n => !headers.includes(n));
+  if (missing.length) throw new Error(tab + ': missing headers: ' + missing.join(', '));
+}
 function getSettings() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Settings');
-  const settings = {};
-
-  if (!sheet) return settings;
-
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    const key = String(data[i][0] || '').trim();
-    const val = data[i][1];
-    if (key) {
-      settings[key] = val;
-    }
-  }
-  return settings;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Settings');
+  const result = {};
+  if (!sheet) return result;
+  sheet.getDataRange().getValues().slice(1).forEach(row => {
+    const key = text_(row[0]);
+    if (key) result[key] = row[1];
+  });
+  return result;
 }
 
-// ============================================================================
-// 3. DYNAMIC CAMPAIGN RESOLVER ENGINE
-// ============================================================================
-
-/**
- * Resolves active campaigns targeted to an agent by Department and Extension.
- *
- * @param {string} department - e.g., "Retention", "Tech Support", "Member Experience"
- * @param {string|number} extension - e.g., "1306228"
- * @returns {Array<Object>} List of active campaigns matching targeting rules
- */
 function getActiveDepartmentCampaigns(department, extension) {
+  const dept = department_(department);
+  if (!dept) return [];
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const extStr = String(extension || '').trim();
-  const deptStr = String(department || '').trim().toLowerCase();
-
-  // Resolve matching department campaign tab
-  let targetTab = '';
-  if (deptStr.includes('retention')) {
-    targetTab = 'Campaigns - Retention';
-  } else if (deptStr.includes('tech') || deptStr.includes('support')) {
-    targetTab = 'Campaigns - Tech Support';
-  } else if (deptStr.includes('member') || deptStr.includes('mx') || deptStr.includes('experience')) {
-    targetTab = 'Campaigns - Member Experience';
-  } else {
-    targetTab = 'Campaigns - ' + department;
-  }
-
-  let sheet = ss.getSheetByName(targetTab);
-  if (!sheet) {
-    sheet = ss.getSheetByName('Campaigns - Retention');
-  }
+  const tab = 'Campaigns - ' + dept.name;
+  const sheet = ss.getSheetByName(tab);
   if (!sheet) return [];
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
-
-  const headers = data[0].map(h => String(h).trim().toLowerCase());
-  const colIndex = {
-    id: headers.indexOf('campaign id'),
-    label: headers.indexOf('display label'),
-    type: headers.indexOf('field type'),
-    options: headers.indexOf('options'),
-    active: headers.indexOf('active'),
-    scope: headers.indexOf('target scope'),
-    extensions: headers.indexOf('target extensions'),
-    required: headers.indexOf('required'),
-    notes: headers.indexOf('notes')
-  };
-
-  const activeCampaigns = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    // Check Active boolean
-    const isActive = row[colIndex.active] === true || String(row[colIndex.active]).trim().toUpperCase() === 'TRUE';
-    if (!isActive) continue;
-
-    const campaignId = String(row[colIndex.id] || '').trim();
-    if (!campaignId) continue;
-
-    const scope = String(row[colIndex.scope] || '').trim().toLowerCase();
-    const rawExtensions = String(row[colIndex.extensions] || '').trim();
-    const targetExtList = rawExtensions.split(',').map(e => e.trim());
-
-    // Targeting rules:
-    // 1. Department-Wide or extension list has "ALL"
-    // 2. Extension-Specific and extension list contains agent's extension
-    let isTargeted = false;
-    if (scope === 'department-wide' || targetExtList.includes('ALL')) {
-      isTargeted = true;
-    } else if (scope === 'extension-specific' && extStr && targetExtList.includes(extStr)) {
-      isTargeted = true;
-    }
-
-    if (isTargeted) {
-      activeCampaigns.push({
-        campaignId: campaignId,
-        id: campaignId,
-        label: row[colIndex.label] || campaignId.toUpperCase(),
-        type: row[colIndex.type] || 'Radio',
-        options: String(row[colIndex.options] || 'Yes,No').split(',').map(o => o.trim()),
-        required: row[colIndex.required] === true || String(row[colIndex.required]).trim().toUpperCase() === 'TRUE',
-        targetScope: row[colIndex.scope] || 'Department-Wide',
-        notes: row[colIndex.notes] || ''
-      });
-    }
-  }
-
-  return activeCampaigns;
+  return readCampaigns_(sheet.getDataRange().getValues(), tab, extension);
 }
-
-// ============================================================================
-// 4. LOGIN FORM CONFIG & VALIDATION HELPERS
-// ============================================================================
+function readCampaigns_(data, tab, extension) {
+  if (data.length < 2) return [];
+  const h = headers_(data[0]);
+  requireHeaders_(h,['campaign id','display label','field type','options','active','target scope','target extensions'],tab);
+  const ext = text_(extension);
+  const found = new Set();
+  const result = [];
+  data.slice(1).forEach(row => {
+    if (!flag_(cell_(row,h,'active'))) return;
+    const id = text_(cell_(row,h,'campaign id'));
+    if (!id) return;
+    const scope = text_(cell_(row,h,'target scope')).toLowerCase().replace(/[\s_]+/g,'-');
+    const targets = list_(cell_(row,h,'target extensions'));
+    const targeted = scope === 'department-wide' || targets.some(v => v.toUpperCase() === 'ALL') ||
+      (scope === 'extension-specific' && ext !== '' && targets.includes(ext));
+    if (!targeted) return;
+    if (found.has(id)) throw new Error(tab + ': duplicate active campaign ID: ' + id);
+    found.add(id);
+    result.push({
+      id:id, campaignId:id,
+      label:text_(cell_(row,h,'display label')) || id,
+      type:text_(cell_(row,h,'field type')) || 'Radio',
+      options:list_(cell_(row,h,'options')).length ? list_(cell_(row,h,'options')) : ['Yes','No'],
+      required:flag_(cell_(row,h,'required')),
+      targetScope:scope,
+      notes:text_(cell_(row,h,'notes'))
+    });
+  });
+  return result;
+}
 
 function getLoginFields() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('login') || ss.getSheetByName('Login') || ss.getSheetByName('Index');
   if (!sheet) return [];
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
-
-  const fields = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row[0]) {
-      fields.push({
-        id: String(row[0]).trim(),
-        internalId: String(row[0]).trim(),
-        label: String(row[1] || row[0]).trim(),
-        type: String(row[2] || 'Text').trim(),
-        options: String(row[3] || '').split(',').map(o => o.trim()).filter(Boolean),
-        visible: row[4] === true || String(row[4]).toUpperCase() === 'TRUE',
-        required: row[5] === true || String(row[5]).toUpperCase() === 'TRUE'
-      });
-    }
-  }
-  return fields;
+  return sheet.getDataRange().getValues().slice(1).filter(row => text_(row[0])).map(row => ({
+    id:text_(row[0]), internalId:text_(row[0]), label:text_(row[1]) || text_(row[0]),
+    type:text_(row[2]) || 'Text', options:list_(row[3]), visible:flag_(row[4]), required:flag_(row[5])
+  }));
 }
-
-function getLoginConfig() {
-  return getLoginFields();
-}
-
+function getLoginConfig() { return getLoginFields(); }
 function validateLogin(agentName, extension, department) {
-  return {
-    success: true,
-    agentName: agentName,
-    extension: extension,
-    department: department
-  };
+  // Compatibility response only; this is not identity authentication.
+  const valid = !!text_(agentName) && !!text_(extension) && !!department_(department);
+  return {success:valid,agentName:text_(agentName),extension:text_(extension),department:text_(department),
+    message:valid ? '' : 'Enter an agent name, extension, and recognized department.'};
 }
-
 function getProjectExtensions() {
-  const settings = getSettings();
-  const raw = String(settings['Project 2026 Extensions'] || '');
-  return raw.split(',').map(e => e.trim()).filter(Boolean);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Settings');
+  // Preserve the original Settings!B3 extension list used for special-email access.
+  return sheet ? list_(sheet.getRange('B3').getDisplayValue()) : [];
 }
+function isProjectExtension(ext) { return getProjectExtensions().includes(text_(ext)); }
 
-function isProjectExtension(ext) {
-  const exts = getProjectExtensions();
-  return exts.includes(String(ext).trim());
-}
-
-// ============================================================================
-// 5. FORM SCHEMA LOADER (getFormSchema) - DYNAMIC RESOLUTION
-// ============================================================================
-
-/**
- * Reads form definitions from all service tabs and dynamically resolves campaign settings.
- * Replaces "Dynamic:Campaigns" with the active campaign controls (Label: NON-COMM, Options: Yes,No).
- */
 function getFormSchema(department, extension) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const extStr = String(extension || '').trim();
-  const deptStr = String(department || '').trim();
-
-  const schema = {
-    campaigns: {}
+  const ext = text_(extension);
+  const agentDept = department_(department);
+  const campaigns = {
+    tech:getActiveDepartmentCampaigns('Tech Support',ext),
+    retention:getActiveDepartmentCampaigns('Retention',ext),
+    mx:getActiveDepartmentCampaigns('Member Experience',ext)
   };
-
-  const formSheets = [
-    { key: 'login', tab: 'login', defaultDept: 'Tech Support' },
-    { key: 'index', tab: 'login', defaultDept: 'Tech Support' },
-    { key: 'inbound', tab: 'Inbound', defaultDept: 'Tech Support' },
-    { key: 'outbound', tab: 'Outbound', defaultDept: 'Tech Support' },
-    { key: 'retention', tab: 'Retention', defaultDept: 'Retention' },
-    { key: 'retention_outbound', tab: 'Retention Outbound', defaultDept: 'Retention' },
-    { key: 'residential', tab: 'Residential', defaultDept: 'Tech Support' },
-    { key: 'dealer', tab: 'Dealer', defaultDept: 'Tech Support' },
-    { key: 'addendum', tab: 'Addendum', defaultDept: 'Tech Support' },
-    { key: 'parts', tab: 'Parts', defaultDept: 'Tech Support' },
-    { key: 'mx', tab: 'MX', defaultDept: 'Member Experience' },
-    { key: 'mx_outbound', tab: 'MX Outbound', defaultDept: 'Member Experience' }
+  const schema = {campaigns:campaigns,activeCampaigns:agentDept ? campaigns[agentDept.key] : [],
+    authorizedExtensions:getProjectExtensions(),warnings:[]};
+  const forms = [
+    ['login','login','tech'],['index','login','tech'],
+    ['inbound','Inbound','tech'],['outbound','Outbound','tech'],
+    ['retention','Retention','retention'],['retention_outbound','Retention Outbound','retention'],
+    ['residential','Residential','tech'],['dealer','Dealer','tech'],['addendum','Addendum',null],
+    ['parts','Parts','tech'],['mx','MX','mx'],['mx_outbound','MX Outbound','mx']
   ];
-
-  formSheets.forEach(item => {
-    const sheet = ss.getSheetByName(item.tab);
-    if (!sheet) {
-      schema[item.key] = {};
-      schema[item.key + '_order'] = [];
-      return;
+  const sheetData = {};
+  forms.forEach(spec => {
+    const key = spec[0], tab = spec[1];
+    schema[key] = {};
+    schema[key + '_order'] = [];
+    if (!Object.prototype.hasOwnProperty.call(sheetData,tab)) {
+      const sheet = ss.getSheetByName(tab) || (tab === 'login' ? ss.getSheetByName('Login') || ss.getSheetByName('Index') : null);
+      sheetData[tab] = sheet ? sheet.getDataRange().getValues() : [];
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      schema[item.key] = {};
-      schema[item.key + '_order'] = [];
-      return;
-    }
-
-    const headers = data[0].map(h => String(h).trim().toLowerCase());
-    const idIdx = headers.indexOf('internal id');
-    const labelIdx = headers.indexOf('display label');
-    const typeIdx = headers.indexOf('field type');
-    const optIdx = headers.indexOf('options');
-    const visIdx = headers.indexOf('visible');
-    const reqIdx = headers.indexOf('required');
-    const depIdx = headers.indexOf('depends on');
-    const copyIdx = headers.indexOf('copy if blank');
-
-    const fieldsMap = {};
-    const fieldsOrder = [];
-
-    // Determine the department to evaluate for this specific form
-    const effectiveDept = deptStr || item.defaultDept;
-
-    for (let r = 1; r < data.length; r++) {
-      const row = data[r];
-      let internalId = String(row[idIdx] || '').trim();
-      if (!internalId) continue;
-
-      let fieldLabel = String(row[labelIdx] || internalId).trim();
-      let fieldType = String(row[typeIdx] || 'Text').trim();
-      let fieldOptions = String(row[optIdx] || '').trim();
-      let isVisible = row[visIdx] === true || String(row[visIdx]).toUpperCase() === 'TRUE';
-      let isRequired = row[reqIdx] === true || String(row[reqIdx]).toUpperCase() === 'TRUE';
-
-      // ======================================================================
-      // INTERCEPT DYNAMIC CAMPAIGN PLACEHOLDER
-      // ======================================================================
-      if (internalId === 'campaign_toggle' || fieldOptions.toLowerCase().includes('dynamic:campaigns')) {
-        const campaigns = getActiveDepartmentCampaigns(effectiveDept, extStr);
-
-        if (campaigns && campaigns.length > 0) {
-          const activeCampaign = campaigns[0];
-          internalId = activeCampaign.campaignId || 'non_comm';
-          fieldLabel = activeCampaign.label || 'NON-COMM';
-          fieldType = activeCampaign.type || 'Radio';
-          fieldOptions = Array.isArray(activeCampaign.options) 
-            ? activeCampaign.options.join(',') 
-            : String(activeCampaign.options || 'Yes,No');
-          isVisible = true;
-          isRequired = activeCampaign.required === true;
+    const data = sheetData[tab];
+    if (data.length < 2) return;
+    const h = headers_(data[0]);
+    requireHeaders_(h,['internal id','display label','field type','options','visible','required'],tab);
+    // Each form uses its owning department; shared addendum uses the signed-in department.
+    const owner = spec[2] || (agentDept ? agentDept.key : null);
+    const available = owner ? campaigns[owner] : [];
+    data.slice(1).forEach(row => {
+      const sourceId = text_(cell_(row,h,'internal id'));
+      if (!sourceId) return;
+      const rawOptions = text_(cell_(row,h,'options'));
+      const dynamic = sourceId === 'campaign_toggle' || /dynamic:campaigns/i.test(rawOptions);
+      const field = {
+        id:dynamic ? 'campaign_toggle' : sourceId,
+        internalId:dynamic ? 'campaign_toggle' : sourceId,
+        label:text_(cell_(row,h,'display label')) || sourceId,
+        type:text_(cell_(row,h,'field type')) || 'Text',
+        options:rawOptions,visible:flag_(cell_(row,h,'visible')),required:flag_(cell_(row,h,'required')),
+        dependsOn:text_(cell_(row,h,'depends on')),copyIfBlank:flag_(cell_(row,h,'copy if blank'))
+      };
+      if (dynamic) {
+        field.isCampaign = true;
+        field.placement = 'top_controls';
+        field.sourceId = sourceId;
+        field.campaignId = '';
+        if (available.length) {
+          const campaign = available[0];
+          field.campaignId = campaign.campaignId;
+          field.label = campaign.label;
+          field.type = campaign.type;
+          field.options = campaign.options.join(',');
+          // Keep the form row's Visible switch authoritative.
+          field.required = campaign.required;
+          if (available.length > 1) schema.warnings.push(tab + ': multiple campaigns match; using the first row: ' + campaign.campaignId);
         } else {
-          isVisible = false;
-          fieldOptions = '';
+          field.visible = false;
+          field.required = false;
+          field.options = '';
         }
       }
-
-      const fieldObj = {
-        id: internalId,
-        internalId: internalId,
-        label: fieldLabel,
-        type: fieldType,
-        options: fieldOptions,
-        visible: isVisible,
-        required: isRequired,
-        dependsOn: String(row[depIdx] || '').trim(),
-        copyIfBlank: row[copyIdx] === true || String(row[copyIdx]).toUpperCase() === 'TRUE'
-      };
-
-      fieldsMap[internalId] = fieldObj;
-      fieldsOrder.push(fieldObj);
-    }
-
-    schema[item.key] = fieldsMap;
-    schema[item.key + '_order'] = fieldsOrder;
+      if (schema[key][field.id]) throw new Error(tab + ': duplicate resolved Internal ID: ' + field.id);
+      schema[key][field.id] = field;
+      schema[key + '_order'].push(field);
+    });
   });
-
-  // Attach department campaigns object
-  schema.campaigns = {
-    retention: getActiveDepartmentCampaigns('Retention', extStr),
-    tech: getActiveDepartmentCampaigns('Tech Support', extStr),
-    mx: getActiveDepartmentCampaigns('Member Experience', extStr)
-  };
-
-  if (deptStr) {
-    schema.activeCampaigns = getActiveDepartmentCampaigns(deptStr, extStr);
-  }
-
   return schema;
 }
 
-// ============================================================================
-// 6. HELPFUL LINKS FETCHER (DEPARTMENT TABS WITH FALLBACK TO DOC)
-// ============================================================================
-
-/**
- * Loads active helpful links from the dedicated department tabs:
- *  - Links - Tech Support
- *  - Links - Retention
- *  - Links - Member Experience
- *
- * @param {string} department - e.g. "Tech Support", "Retention", "Member Experience"
- * @returns {Array<Object>} List of active link objects [{name, url, category, popup}]
- */
 function getHelpfulLinks(department) {
+  const dept = department_(department);
+  if (!dept) return [];
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const deptStr = String(department || '').trim().toLowerCase();
-
-  // Resolve matching sheet tab
-  let targetTab = '';
-  if (deptStr.includes('retention')) {
-    targetTab = 'Links - Retention';
-  } else if (deptStr.includes('member') || deptStr.includes('mx') || deptStr.includes('experience')) {
-    targetTab = 'Links - Member Experience';
-  } else {
-    targetTab = 'Links - Tech Support';
-  }
-
-  let sheet = ss.getSheetByName(targetTab);
+  const tab = 'Links - ' + dept.name;
+  const sheet = ss.getSheetByName(tab);
   if (!sheet) {
-    sheet = ss.getSheetByName('Links - Tech Support');
+    // Optional explicit shared document; no fixed or other-department fallback.
+    const shared = text_(getSettings()['Doc ID - Helpful Links']);
+    return shared ? readHelpfulLinksDoc_(shared) : [];
   }
-
-  // If department tab is found, read structured links
-  if (sheet) {
-    const data = sheet.getDataRange().getValues();
-    if (data.length > 1) {
-      const headers = data[0].map(h => String(h).trim().toLowerCase());
-      const titleIdx = headers.indexOf('link title');
-      const urlIdx = headers.indexOf('url');
-      const catIdx = headers.indexOf('category');
-      const popupIdx = headers.indexOf('popup mode');
-      const activeIdx = headers.indexOf('active');
-
-      const links = [];
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-
-        // Must be active
-        const isActive = row[activeIdx] === true || String(row[activeIdx]).trim().toUpperCase() === 'TRUE';
-        if (!isActive) continue;
-
-        const title = String(row[titleIdx] || '').trim();
-        const url = String(row[urlIdx] || '').trim();
-        if (!title || !url) continue;
-
-        const popupMode = String(row[popupIdx] || '').trim().toLowerCase();
-
-        links.push({
-          name: title,
-          url: url,
-          category: row[catIdx] || 'General',
-          popup: popupMode === 'popup' || popupMode === 'modal' || title.toLowerCase().includes('chatbot') ? 'chatbot' : null
-        });
-      }
-
-      if (links.length > 0) {
-        return links;
-      }
-    }
-  }
-
-  // Fallback: Read from legacy master Google Doc if tab is empty
-  return getHelpfulLinksFromDoc();
-}
-
-/** Legacy Google Doc parser (kept for fallback) */
-function getHelpfulLinksFromDoc() {
-  const settings = getSettings();
-  const docId = settings['Doc ID - Helpful Links'] || '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU';
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  const h = headers_(data[0]);
+  requireHeaders_(h,['link title','url','active'],tab);
   const links = [];
-
-  try {
-    const doc = DocumentApp.openById(docId);
-    const body = doc.getBody();
-    const paragraphs = body.getParagraphs();
-
-    for (let i = 0; i < paragraphs.length; i++) {
-      const p = paragraphs[i];
-      const text = p.getText().trim();
-      if (!text) continue;
-
-      const textObj = p.editAsText();
-      const str = textObj.getText();
-      let lastUrl = null;
-
-      for (let ch = 0; ch < str.length; ch++) {
-        const url = textObj.getLinkUrl(ch);
-        if (url && url !== lastUrl) {
-          lastUrl = url;
-          let name = text;
-          let popup = null;
-
-          if (name.toLowerCase().includes('chatbot') || url.toLowerCase().includes('chatbot')) {
-            popup = 'chatbot';
-          }
-
-          links.push({
-            name: name,
-            url: url,
-            popup: popup
-          });
-          break;
-        }
+  data.slice(1).forEach(row => {
+    if (!flag_(cell_(row,h,'active'))) return;
+    const name = text_(cell_(row,h,'link title'));
+    const url = text_(cell_(row,h,'url'));
+    if (!name || !/^https?:\/\//i.test(url)) return;
+    const popup = text_(cell_(row,h,'popup mode')).toLowerCase();
+    links.push({name:name,url:url,category:text_(cell_(row,h,'category')) || 'General',
+      popup:['popup','modal','chatbot'].includes(popup) || /chatbot/i.test(name) ? 'chatbot' : null});
+  });
+  return links;
+}
+function getHelpfulLinksFromDoc(department) {
+  // Compatibility wrapper: old callers can supply a department to use the new routing.
+  if (text_(department)) return getHelpfulLinks(department);
+  const doc = text_(getSettings()['Doc ID - Helpful Links']);
+  return doc ? readHelpfulLinksDoc_(doc) : [];
+}
+function documentId_(value) {
+  const s = text_(value);
+  const match = s.match(/\/d\/([A-Za-z0-9_-]+)/) || s.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  const id = match ? match[1] : s;
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error('Invalid Google document ID or URL.');
+  return id;
+}
+function readHelpfulLinksDoc_(value) {
+  const doc = DocumentApp.openById(documentId_(value));
+  const links = [];
+  doc.getBody().getParagraphs().forEach(p => {
+    const name = p.getText().trim();
+    if (!name) return;
+    const text = p.editAsText();
+    for (let i = 0; i < text.getText().length; i++) {
+      const url = text.getLinkUrl(i);
+      if (url && /^https?:\/\//i.test(url)) {
+        links.push({name:name,url:url,category:'General',popup:/chatbot/i.test(name + ' ' + url) ? 'chatbot' : null});
+        break;
       }
     }
-  } catch (err) {
-    console.error('Error in getHelpfulLinksFromDoc:', err);
-  }
-
+  });
   return links;
 }
 
-// ============================================================================
-// 7. STANDARD & SPECIAL EMAIL TEMPLATES (DEPARTMENT ROUTED)
-// ============================================================================
-
-/**
- * Loads standard email templates dynamically for the agent's department
- * from the Google Doc ID mapped in the Settings sheet.
- *
- * @param {string} department - e.g. "Tech Support", "Retention", "Member Experience"
- * @returns {string} HTML markup of email templates
- */
 function getEmailTemplatesHtml(department) {
   const settings = getSettings();
-  const deptStr = String(department || '').trim().toLowerCase();
-
-  // Determine the mapped Google Doc ID for this department
-  let docId = '';
-  if (deptStr.includes('retention')) {
-    docId = settings['Doc ID - Standard Emails - Retention'] || settings['Doc ID - Standard Emails'];
-  } else if (deptStr.includes('member') || deptStr.includes('mx') || deptStr.includes('experience')) {
-    docId = settings['Doc ID - Standard Emails - Member Experience'] || settings['Doc ID - Standard Emails'];
-  } else {
-    docId = settings['Doc ID - Standard Emails - Tech Support'] || settings['Doc ID - Standard Emails'];
-  }
-
-  // Fallback to default Tech Support Google Doc if unmapped
-  if (!docId) {
-    docId = '1CJtJskbXT-fY2qNfna9W-i-x3rlJl404W4bgMoKFm0c';
-  }
-
-  try {
-    const url = 'https://docs.google.com/feeds/download/documents/export/Export?id=' + docId + '&exportFormat=html';
-    const params = {
-      method: 'get',
-      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-      muteHttpExceptions: true
-    };
-    const response = UrlFetchApp.fetch(url, params);
-    return response.getContentText();
-  } catch (err) {
-    console.error('Error in getEmailTemplatesHtml:', err);
-    return '';
-  }
+  const dept = department_(department);
+  if (text_(department) && !dept) throw new Error('Unrecognized email-template department.');
+  const specific = dept ? text_(settings['Doc ID - Standard Emails - ' + dept.name]) : '';
+  const configured = specific || text_(settings['Doc ID - Standard Emails']);
+  if (!configured) throw new Error('No standard email document configured for ' + (dept ? dept.name : 'the shared email library') + '.');
+  const id = documentId_(configured);
+  const url = 'https://docs.google.com/document/d/' + encodeURIComponent(id) + '/export?format=html';
+  const response = UrlFetchApp.fetch(url,{
+    method:'get',headers:{Authorization:'Bearer ' + ScriptApp.getOAuthToken()},muteHttpExceptions:true
+  });
+  const status = response.getResponseCode();
+  if (status < 200 || status >= 300) throw new Error('Email document export failed (HTTP ' + status + '). Check the document ID and access permissions.');
+  return response.getContentText();
 }
 
-function getSpecialEmails() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Special Emails');
+function getSpecialEmailTemplates(extension) {
+  if (!isProjectExtension(extension)) return [];
+  return readSpecialEmails_();
+}
+function getSpecialEmails(extension) {
+  // Keep the legacy public name, but require the same extension check.
+  return getSpecialEmailTemplates(extension);
+}
+function readSpecialEmails_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Special Emails');
   if (!sheet) return [];
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
-
-  const list = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row[0]) {
-      list.push({
-        id: row[0],
-        brand: row[1] || 'AAA Smart Home',
-        subject: row[2] || '',
-        body: row[3] || ''
-      });
-    }
-  }
-  return list;
+  return sheet.getDataRange().getValues().slice(1).filter(row => text_(row[0])).map(row => ({
+    id:text_(row[0]),brand:text_(row[1]) || 'AAA Smart Home',subject:text_(row[2]),body:text_(row[3])
+  }));
 }
-
-// ============================================================================
-// 8. FOOTPRINT & DEALER SERVICE ZIP SEARCH
-// ============================================================================
 
 function checkZipCode(zipInput) {
-  const zip = String(zipInput || '').trim();
-  if (!zip) {
-    return { found: false, message: 'Please enter a valid zip code.' };
-  }
-
+  const zip = text_(zipInput);
+  if (!zip) return {found:false,message:'Please enter a valid zip code.'};
   const settings = getSettings();
-  const zipSheetId = settings['Sheet ID - Zip Codes'] || '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw';
-
+  const sheetId = settings['Sheet ID - Zip Codes'] || '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw';
   try {
-    const zipSS = SpreadsheetApp.openById(zipSheetId);
-
-    // Rule 1: Official Pro Zips
-    const proSheet = zipSS.getSheetByName('Official Pro Zips');
-    if (proSheet) {
-      const proData = proSheet.getDataRange().getDisplayValues();
-      for (let r = 0; r < proData.length; r++) {
-        for (let c = 0; c < proData[r].length; c++) {
-          if (proData[r][c].trim() === zip) {
-            return {
-              found: true,
-              status: 'PRO',
-              message: '✅ In Footprint (Pro Territory)'
-            };
+    const ss = SpreadsheetApp.openById(sheetId);
+    const pro = ss.getSheetByName('Official Pro Zips');
+    if (pro) {
+      const rows = pro.getDataRange().getDisplayValues();
+      if (rows.some(row => row.some(v => v.trim() === zip))) return {found:true,status:'PRO',message:'✅ In Footprint (Pro Territory)'};
+    }
+    const ds = ss.getSheetByName('Official DS (Upgrade & Service)') || ss.getSheetByName('Official DS') || ss.getSheetByName('Dealer Service');
+    if (ds) {
+      const data = ds.getDataRange().getDisplayValues();
+      if (data.length > 2) {
+        for (let col = 0; col < data[0].length; col++) {
+          const noTech = /NO TECH/i.test(data[0][col] + ' ' + data[1][col]);
+          for (let row = 2; row < data.length; row++) {
+            if (data[row][col].trim() !== zip) continue;
+            if (noTech) return {found:false,status:'NO_TECH',message:'❌ No Tech Available (Dealer No Tech Territory)'};
+            const territory = data[0][col] || data[1][col] || 'Dealer Service';
+            return {found:true,status:'DEALER',message:'✅ Dealer Service (' + territory.trim() + ')'};
           }
         }
       }
     }
-
-    // Rule 2: Official DS (Upgrade & Service)
-    const dsSheet = zipSS.getSheetByName('Official DS (Upgrade & Service)') ||
-                    zipSS.getSheetByName('Official DS') ||
-                    zipSS.getSheetByName('Dealer Service');
-
-    if (dsSheet) {
-      const dsData = dsSheet.getDataRange().getDisplayValues();
-      if (dsData.length > 2) {
-        const numCols = dsData[0].length;
-        for (let col = 0; col < numCols; col++) {
-          const headerRow1 = String(dsData[0][col] || '').toUpperCase();
-          const headerRow2 = String(dsData[1][col] || '').toUpperCase();
-          const isNoTech = headerRow1.includes('NO TECH') || headerRow2.includes('NO TECH');
-
-          for (let row = 2; row < dsData.length; row++) {
-            if (dsData[row][col].trim() === zip) {
-              if (isNoTech) {
-                return {
-                  found: false,
-                  status: 'NO_TECH',
-                  message: '❌ No Tech Available (Dealer No Tech Territory)'
-                };
-              } else {
-                const territoryName = dsData[0][col] || dsData[1][col] || 'Dealer Service';
-                return {
-                  found: true,
-                  status: 'DEALER',
-                  message: '✅ Dealer Service (' + territoryName.trim() + ')'
-                };
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      found: false,
-      status: 'NOT_FOUND',
-      message: '❌ No Tech Available'
-    };
-
+    return {found:false,status:'NOT_FOUND',message:'❌ No Tech Available'};
   } catch (err) {
-    console.error('Error in checkZipCode:', err);
-    return {
-      found: false,
-      status: 'ERROR',
-      message: 'Error searching zip footprint: ' + err.message
-    };
+    console.error('Error in checkZipCode:',err);
+    return {found:false,status:'ERROR',message:'Error searching zip footprint: ' + err.message};
   }
 }
-
-// ============================================================================
-// 9. FEEDBACK & CHANGE LOG
-// ============================================================================
 
 function submitFeedback(payload) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('Feedback');
-    if (!sheet) {
-      return { success: false, message: 'Feedback sheet could not be found.' };
-    }
-
-    const timestamp = new Date();
-    const agentName = payload.name || 'Anonymous';
-    const extension = payload.extension || payload.phone || '-';
-    const dept = payload.dept || payload.department || '-';
-    const category = payload.category || 'General';
-    const form = payload.section || payload.form || payload.applicableForm || 'General';
-    const comments = payload.comments || payload.details || payload.message || '';
-
-    sheet.appendRow([
-      timestamp,
-      agentName,
-      extension,
-      dept,
-      category,
-      form,
-      comments
-    ]);
-
-    return { success: true, message: 'Feedback submitted successfully. Thank you!' };
-  } catch (err) {
-    console.error('Error in submitFeedback:', err);
-    return { success: false, message: 'Error submitting feedback: ' + err.message };
-  }
+    const p = payload || {};
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Feedback');
+    if (!sheet) return {success:false,message:'Feedback sheet could not be found.'};
+    const comments = text_(p.comments || p.details || p.message);
+    if (!comments) return {success:false,message:'Please enter comments or details.'};
+    const safe = v => {
+      const s = text_(v);
+      return /^[=+@-]/.test(s) ? "'" + s : s;
+    };
+    sheet.appendRow([new Date(),safe(p.name || 'Anonymous'),safe(p.extension || p.phone || '-'),
+      safe(p.dept || p.department || '-'),safe(p.category || 'General'),
+      safe(p.section || p.form || p.applicableForm || 'General'),safe(comments)]);
+    return {success:true,message:'Feedback submitted successfully. Thank you!'};
+  } catch (err) { return {success:false,message:'Error submitting feedback: ' + err.message}; }
 }
-
 function getChangeLog() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Change Log');
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Change Log');
   if (!sheet) return [];
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
-
-  const records = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const isVisible = row[5] === undefined || row[5] === true || String(row[5]).toUpperCase() === 'TRUE';
-    if (!isVisible) continue;
-
-    let dateFormatted = row[0];
-    if (row[0] instanceof Date) {
-      dateFormatted = Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'MM/dd/yyyy');
-    }
-
-    records.push({
-      date: dateFormatted,
-      version: row[1] || 'v1.x',
-      form: row[2] || 'General',
-      description: row[3] || '',
-      updatedBy: row[4] || 'Admin'
-    });
-  }
-
-  return records.reverse();
+  return sheet.getDataRange().getValues().slice(1).filter(row => flag_(row[5],true)).map(row => ({
+    date:row[0] instanceof Date ? Utilities.formatDate(row[0],Session.getScriptTimeZone(),'MM/dd/yyyy') : text_(row[0]),
+    version:text_(row[1]) || 'v1.x',form:text_(row[2]) || 'General',description:text_(row[3]),updatedBy:text_(row[4]) || 'Admin'
+  })).reverse();
 }
-
 function validateAdminPasscode(enteredPasscode) {
-  const settings = getSettings();
-  const correctPasscode = String(settings['Admin Password'] || '8454').trim();
-  return String(enteredPasscode).trim() === correctPasscode;
+  const configured = text_(getSettings()['Admin Password']);
+  return configured !== '' && text_(enteredPasscode) === configured;
 }
