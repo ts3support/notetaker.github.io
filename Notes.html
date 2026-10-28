@@ -642,6 +642,17 @@ function getDepartmentKey() {
   return '';
 }
 
+function isDepartmentNoteForm(formKey = activeFormKey) {
+  return ['notes', 'retention', 'mx'].includes(formKey);
+}
+
+function getActiveSchemaKey() {
+  if (activeFormKey === 'notes') return callType === 'Outbound' ? 'outbound' : 'inbound';
+  if (activeFormKey === 'retention') return callType === 'Outbound' ? 'retention_outbound' : 'retention';
+  if (activeFormKey === 'mx') return callType === 'Outbound' ? 'mx_outbound' : 'mx';
+  return activeFormKey;
+}
+
 function getDepartmentDefaultForm() {
   return { tech: 'notes', mx: 'mx', retention: 'retention' }[getDepartmentKey()] || '';
 }
@@ -696,8 +707,8 @@ function canAccessMX() {
       if (['notes', 'inbound', 'outbound', 'residential', 'dealer', 'parts'].includes(formKey)) {
         return department === 'tech';
       }
-      if (formKey === 'mx') return department === 'mx';
-      if (formKey === 'retention') return department === 'retention';
+      if (['mx', 'mx_outbound'].includes(formKey)) return department === 'mx';
+      if (['retention', 'retention_outbound'].includes(formKey)) return department === 'retention';
       return formKey === 'addendum';
     }
 
@@ -811,7 +822,7 @@ function dependencyIsMatched(rule, values) {
         alert('NOTHING WAS COPIED. Spreadsheet configuration is unavailable. Reload and try again.');
         return false;
       }
-      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      const key = getActiveSchemaKey();
       if (!formSchema || !Array.isArray(formSchema[key + '_order'])) {
         alert('NOTHING WAS COPIED. Form settings have not loaded. Please wait and try again.');
         return false;
@@ -954,7 +965,7 @@ function dependencyIsMatched(rule, values) {
       });
       document.getElementById(`tab-${formKey}`).className = 'form-tab px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-[#003b8f] border-b-2 border-[#003b8f]';
 
-      if (formKey === 'notes') {
+      if (isDepartmentNoteForm(formKey)) {
         document.getElementById('notesModeControls').classList.remove('hidden');
       } else {
         document.getElementById('notesModeControls').classList.add('hidden');
@@ -1006,7 +1017,7 @@ function dependencyIsMatched(rule, values) {
     const visible = field.visible !== undefined ? field.visible : field['Visible'];
     if (!schemaFlag(visible, true)) return false;
     // Separate access restriction: list supplied by Code.gs from Settings!B3.
-
+    // Campaign visibility is resolved by backend department/extension targeting.
     const rule = parseFieldDependency(field);
     if (rule && rule.invalid) {
       console.error('Invalid dependency for field:', id, rule.raw);
@@ -1031,6 +1042,7 @@ function dependencyIsMatched(rule, values) {
   const container = document.getElementById('dynamicFormContainer');
   const campaignHost = document.getElementById('campaignModeControl');
   const modeControls = document.getElementById('notesModeControls');
+  if (modeControls) modeControls.classList.toggle('hidden', !isDepartmentNoteForm());
   if (campaignHost) { campaignHost.replaceChildren(); campaignHost.style.display = 'none'; }
   if (modeControls) { modeControls.classList.remove('sm:grid-cols-3'); modeControls.classList.add('sm:grid-cols-2'); }
   if (!getDepartmentKey()) {
@@ -1044,6 +1056,15 @@ function dependencyIsMatched(rule, values) {
   const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
   
   const fieldsList = getOrderedFields(targetKey);
+  if (schemaLoadState === 'ready' && isDepartmentNoteForm() && !fieldsList.length) {
+    const notice = document.createElement('div');
+    notice.className = 'col-span-full text-sm text-amber-800 p-3';
+    notice.setAttribute('role', 'alert');
+    notice.textContent = 'No fields are configured for ' + targetKey + '. Check the corresponding worksheet and its Visible settings.';
+    container.replaceChildren(notice);
+    updateUndoClearButtons();
+    return;
+  }
   const currentVals = formValues[activeFormKey] || {};
   let html = schemaLoadState === 'failed'
     ? '<div class="col-span-full rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">Default form — spreadsheet configuration unavailable. Fields may differ from your worksheet. Copying is disabled. Reload to retry.</div>'
@@ -1113,7 +1134,7 @@ function dependencyIsMatched(rule, values) {
     html = '<div class="col-span-full text-sm text-amber-800 p-3" role="alert">No MX fields were returned. Check that Code.gs includes the MX worksheet in getFormSchema() and returns mx and mx_order.</div>';
   }
   container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
-  if (activeFormKey === 'notes' && campaignHost && schemaLoadState === 'ready') {
+  if (isDepartmentNoteForm() && campaignHost && schemaLoadState === 'ready') {
     const campaignField = container.querySelector('[data-field-id="campaign_toggle"]');
     if (campaignField) {
       campaignHost.appendChild(campaignField);
@@ -1128,10 +1149,10 @@ function handleFieldInput(fieldId, val) {
   if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
   formValues[activeFormKey][fieldId] = val;
 
-  // Campaign labels and answers come from the resolved spreadsheet schema.
+  // Campaign text and options come from the spreadsheet schema.
 
   saveFormDrafts();
-  const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+  const key = getActiveSchemaKey();
   const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
 
   const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
@@ -1141,12 +1162,12 @@ function handleFieldInput(fieldId, val) {
     document.addEventListener('change', function(event) {
       const wrapper = event.target.closest('#dynamicFormContainer [data-field-id], #campaignModeControl [data-field-id]');
       if (!wrapper) return;
-      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      const key = getActiveSchemaKey();
       if (getOrderedFields(key).some(field => parseFieldDependency(field)?.source === wrapper.dataset.fieldId)) renderActiveForm();
     });
     // NOTE COMPILED TEXT BUILDER (FOLLOWS SHEET ROW ORDER)
     function buildCompiledNoteText() {
-      const key = activeFormKey === 'notes' ? callType.toLowerCase() : activeFormKey;
+      const key = getActiveSchemaKey();
       const vals = formValues[activeFormKey] || {};
       const lines = [];
       getOrderedFields(key).forEach(field => {
@@ -1771,7 +1792,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
 
     // Fallback Array of Fields
     function getFallbackFieldsArray(key) {
-      if (key === 'retention' || key === 'mx') return [];
+      if (['retention', 'retention_outbound', 'mx', 'mx_outbound'].includes(key)) return [];
       return [
         { id: 'caller_name', label: 'Caller Name', type: 'Text' },
         { id: 'company_name', label: 'Company Name', type: 'Text' },
