@@ -66,6 +66,57 @@
     outline-offset: 2px;
   }
 </style>
+
+<style id="notes-theme">
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="dark"] body { background:#0b1220; color:#e2e8f0; }
+html[data-theme="dark"] :is(main,nav,[role="dialog"],#emailTemplatesModal,#feedbackModal,#changeLogModal,#zipModal,#notePreviewModal,#helpfulLinksMenu) :is(.bg-white,.bg-slate-50,.bg-slate-100) { background-color:#162235 !important; }
+html[data-theme="dark"] nav,html[data-theme="dark"] #helpfulLinksMenu { background:#162235 !important; }
+html[data-theme="dark"] :is(main,nav,#emailTemplatesModal,#feedbackModal,#changeLogModal,#zipModal,#notePreviewModal,#helpfulLinksMenu) :is(.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500) { color:#d5deeb !important; }
+html[data-theme="dark"] :is(.border-slate-100,.border-slate-200,.border-slate-300) { border-color:#41516a !important; }
+html[data-theme="dark"] :is(input,select,textarea) { background-color:#101b2d !important; color:#f1f5f9 !important; border-color:#52637c !important; }
+html[data-theme="dark"] :is(input,textarea)::placeholder { color:#9aabc1; opacity:1; }
+html[data-theme="dark"] :is(main,nav,#emailTemplatesModal,#feedbackModal,#changeLogModal,#zipModal,#notePreviewModal) :is(.bg-blue-50,.bg-slate-200) { background-color:#253c5b !important; color:#e2e8f0 !important; }
+html[data-theme="dark"] #privacyScriptTooltip { background:#162235; color:#e2e8f0; border-color:#52637c; }
+html[data-theme="dark"] #privacyScriptTooltip strong { color:#93c5fd; }
+html[data-theme="dark"] ::-webkit-scrollbar-track { background:#101b2d; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
+#themeToggle:focus-visible { outline:2px solid #fbbf24; outline-offset:3px; }
+</style>
+<script>
+(function () {
+  const key = 'aaaNotesTheme';
+  const root = document.documentElement;
+  let stored = null;
+  try { stored = localStorage.getItem(key); } catch (error) {}
+  const preference = window.matchMedia('(prefers-color-scheme: dark)');
+  let explicit = stored === 'dark' || stored === 'light';
+  function apply(theme) {
+    root.dataset.theme = theme;
+    const button = document.getElementById('themeToggle');
+    if (!button) return;
+    const dark = theme === 'dark';
+    button.setAttribute('aria-pressed', String(dark));
+    button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    button.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    button.innerHTML = '<i aria-hidden="true" class="fa-solid ' + (dark ? 'fa-sun' : 'fa-moon') + '"></i><span>' + (dark ? 'Light mode' : 'Dark mode') + '</span>';
+  }
+  apply(explicit ? stored : (preference.matches ? 'dark' : 'light'));
+  document.addEventListener('DOMContentLoaded', function () {
+    apply(root.dataset.theme);
+    document.getElementById('themeToggle').addEventListener('click', function () {
+      const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      explicit = true;
+      apply(next);
+      try { localStorage.setItem(key, next); } catch (error) {}
+    });
+  });
+  if (preference.addEventListener) preference.addEventListener('change', function (event) {
+    if (!explicit) apply(event.matches ? 'dark' : 'light');
+  });
+})();
+</script>
+
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
@@ -98,6 +149,8 @@
 
       <!-- Header Utilities -->
       <div class="flex items-center flex-wrap gap-2 text-xs">
+<button type="button" id="themeToggle" aria-label="Switch to dark mode" aria-pressed="false" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-white/10 hover:bg-white/20 text-white font-semibold transition border border-white/20"><i aria-hidden="true" class="fa-solid fa-moon"></i><span>Dark mode</span></button>
+
         
         <!-- Helpful Links Dropdown -->
         <div class="relative">
