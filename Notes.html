@@ -745,8 +745,8 @@ function canAccessMX() {
     }
 
 function updateAgentUI() {
-  const emailHeading = document.getElementById('emailTemplatesHeading');
-  if (emailHeading) emailHeading.textContent = currentAgent.department + ' Email Templates Hub';
+  const heading = document.getElementById('emailTemplatesHeading');
+  if (heading) heading.textContent = currentAgent.department + ' Email Templates Hub';
   const fullDept = currentAgent.tier 
     ? `${currentAgent.department} ${currentAgent.tier}`.trim() 
     : currentAgent.department;
@@ -1026,7 +1026,7 @@ function dependencyIsMatched(rule, values) {
     const visible = field.visible !== undefined ? field.visible : field['Visible'];
     if (!schemaFlag(visible, true)) return false;
     // Separate access restriction: list supplied by Code.gs from Settings!B3.
-    // Campaign availability is resolved by backend targeting.
+    // Campaign targeting is resolved by the backend.
     const rule = parseFieldDependency(field);
     if (rule && rule.invalid) {
       console.error('Invalid dependency for field:', id, rule.raw);
@@ -1373,7 +1373,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
         }
       });
 
-      // No invented fallback templates: use only the configured document.
+      // Use only templates from the configured document.
       parsedStandardTemplates = templates;
       if (!activeSelectedTemplate && parsedStandardTemplates.length > 0) {
         selectTemplate(parsedStandardTemplates[0]);
@@ -1438,7 +1438,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
         message.className = 'py-12 px-4 text-center text-slate-500 text-xs';
         message.textContent = standardTemplatesState === 'loading' ? 'Loading department email templates...' :
           standardTemplatesState === 'failed' ? 'Email templates could not be loaded: ' + standardTemplatesError :
-          "No templates found in this department's configured document. Use headings for template titles and a Subject: line followed by the message.";
+          'No templates found in the configured document. Use headings for template titles and Subject: lines for subjects.';
         container.replaceChildren(message);
         document.getElementById('templateCountBadge').textContent = '0 Templates';
         return;
