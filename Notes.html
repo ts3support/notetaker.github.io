@@ -731,7 +731,7 @@ function updateAgentUI() {
     function parseFieldDependency(field) {
       const raw = String(field.dependsOn ?? '').trim();
       if (!raw) return null;
-      const match = raw.match(/^([^=:\s]+)\s*=\s*(.*?)\s*:\s*(required|visible)\s*$/i);
+      const match = raw.match(/^([^=:\s]+)\s*=\s*(.*?)\s*:\s*(required|visible|hide)\s*$/i);
       return match ? {source: match[1], expected: match[2].trim().toLowerCase(), action: match[3].toLowerCase()} : {invalid: true, raw};
     }
 
