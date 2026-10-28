@@ -5,10 +5,20 @@
  * ============================================================================
  * Files in project: Code.gs, Login.html, Notes.html
  * ============================================================================
+ * Handles:
+ *  - Web app routing (doGet) for Login.html & Notes.html
+ *  - Dynamic multi-department campaign evaluation & extension targeting
+ *  - Dynamic:Campaigns placeholder resolution (Label: NON-COMM, Options: Yes,No)
+ *  - Form schema parsing (Inbound, Outbound, Retention, MX, Tickets, Parts, etc.)
+ *  - Google Docs integration (Helpful Links & Standard Email Templates)
+ *  - Special emails & admin passcode validation
+ *  - Footprint / Territory Zip Code lookup
+ *  - Agent feedback submission & change log audit queries
+ * ============================================================================
  */
 
 // ============================================================================
-// 1. ROUTING (doGet) - FIXED FOR LOGIN.HTML & NOTES.HTML
+// 1. ROUTING (doGet) - CASE-INSENSITIVE FOR LOGIN.HTML & NOTES.HTML
 // ============================================================================
 
 function doGet(e) {
@@ -98,6 +108,10 @@ function getSettings() {
 
 /**
  * Resolves active campaigns targeted to an agent by Department and Extension.
+ *
+ * @param {string} department - e.g., "Retention", "Tech Support", "Member Experience"
+ * @param {string|number} extension - e.g., "1306228"
+ * @returns {Array<Object>} List of active campaigns matching targeting rules
  */
 function getActiveDepartmentCampaigns(department, extension) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -116,7 +130,11 @@ function getActiveDepartmentCampaigns(department, extension) {
     targetTab = 'Campaigns - ' + department;
   }
 
-  const sheet = ss.getSheetByName(targetTab);
+  let sheet = ss.getSheetByName(targetTab);
+  // Fallback to Retention if sheet not found by explicit name
+  if (!sheet) {
+    sheet = ss.getSheetByName('Campaigns - Retention');
+  }
   if (!sheet) return [];
 
   const data = sheet.getDataRange().getValues();
@@ -151,7 +169,10 @@ function getActiveDepartmentCampaigns(department, extension) {
     const rawExtensions = String(row[colIndex.extensions] || '').trim();
     const targetExtList = rawExtensions.split(',').map(e => e.trim());
 
-    // Targeting rules: Department-Wide/ALL or Extension-Specific match
+    // Targeting rules:
+    // 1. Department-Wide or extension list has "ALL"
+    // 2. Extension-Specific and extension list contains agent's extension
+    // 3. If extension is empty/unknown, allow Department-Wide campaigns to display by default
     let isTargeted = false;
     if (scope === 'department-wide' || targetExtList.includes('ALL')) {
       isTargeted = true;
@@ -231,28 +252,35 @@ function isProjectExtension(ext) {
 }
 
 // ============================================================================
-// 5. FORM SCHEMA LOADER (getFormSchema)
+// 5. FORM SCHEMA LOADER (getFormSchema) - DYNAMIC RESOLUTION
 // ============================================================================
 
+/**
+ * Reads form definitions from all service tabs and dynamically resolves campaign settings.
+ * Replaces "Dynamic:Campaigns" with the active campaign controls (Label: NON-COMM, Options: Yes,No).
+ */
 function getFormSchema(department, extension) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const extStr = String(extension || '').trim();
+  const deptStr = String(department || '').trim();
+
   const schema = {
     campaigns: {}
   };
 
   const formSheets = [
-    { key: 'login', tab: 'login' },
-    { key: 'index', tab: 'login' },
-    { key: 'inbound', tab: 'Inbound' },
-    { key: 'outbound', tab: 'Outbound' },
-    { key: 'retention', tab: 'Retention' },
-    { key: 'retention_outbound', tab: 'Retention Outbound' },
-    { key: 'residential', tab: 'Residential' },
-    { key: 'dealer', tab: 'Dealer' },
-    { key: 'addendum', tab: 'Addendum' },
-    { key: 'parts', tab: 'Parts' },
-    { key: 'mx', tab: 'MX' },
-    { key: 'mx_outbound', tab: 'MX Outbound' }
+    { key: 'login', tab: 'login', defaultDept: 'Tech Support' },
+    { key: 'index', tab: 'login', defaultDept: 'Tech Support' },
+    { key: 'inbound', tab: 'Inbound', defaultDept: 'Tech Support' },
+    { key: 'outbound', tab: 'Outbound', defaultDept: 'Tech Support' },
+    { key: 'retention', tab: 'Retention', defaultDept: 'Retention' },
+    { key: 'retention_outbound', tab: 'Retention Outbound', defaultDept: 'Retention' },
+    { key: 'residential', tab: 'Residential', defaultDept: 'Tech Support' },
+    { key: 'dealer', tab: 'Dealer', defaultDept: 'Tech Support' },
+    { key: 'addendum', tab: 'Addendum', defaultDept: 'Tech Support' },
+    { key: 'parts', tab: 'Parts', defaultDept: 'Tech Support' },
+    { key: 'mx', tab: 'MX', defaultDept: 'Member Experience' },
+    { key: 'mx_outbound', tab: 'MX Outbound', defaultDept: 'Member Experience' }
   ];
 
   formSheets.forEach(item => {
@@ -283,19 +311,50 @@ function getFormSchema(department, extension) {
     const fieldsMap = {};
     const fieldsOrder = [];
 
+    // Determine the department to evaluate for this specific form
+    const effectiveDept = deptStr || item.defaultDept;
+
     for (let r = 1; r < data.length; r++) {
       const row = data[r];
       const internalId = String(row[idIdx] || '').trim();
       if (!internalId) continue;
 
+      let fieldLabel = String(row[labelIdx] || internalId).trim();
+      let fieldType = String(row[typeIdx] || 'Text').trim();
+      let fieldOptions = String(row[optIdx] || '').trim();
+      let isVisible = row[visIdx] === true || String(row[visIdx]).toUpperCase() === 'TRUE';
+      let isRequired = row[reqIdx] === true || String(row[reqIdx]).toUpperCase() === 'TRUE';
+
+      // ======================================================================
+      // INTERCEPT DYNAMIC CAMPAIGN PLACEHOLDER
+      // ======================================================================
+      if (internalId === 'campaign_toggle' || fieldOptions.toLowerCase().includes('dynamic:campaigns')) {
+        const campaigns = getActiveDepartmentCampaigns(effectiveDept, extStr);
+
+        if (campaigns && campaigns.length > 0) {
+          const activeCampaign = campaigns[0];
+          fieldLabel = activeCampaign.label || 'NON-COMM';
+          fieldType = activeCampaign.type || 'Radio';
+          fieldOptions = Array.isArray(activeCampaign.options) 
+            ? activeCampaign.options.join(',') 
+            : String(activeCampaign.options || 'Yes,No');
+          isVisible = true;
+          isRequired = activeCampaign.required === true;
+        } else {
+          // If no active or targeted campaign for this department/agent, hide the row
+          isVisible = false;
+          fieldOptions = '';
+        }
+      }
+
       const fieldObj = {
         id: internalId,
         internalId: internalId,
-        label: String(row[labelIdx] || internalId).trim(),
-        type: String(row[typeIdx] || 'Text').trim(),
-        options: String(row[optIdx] || '').trim(),
-        visible: row[visIdx] === true || String(row[visIdx]).toUpperCase() === 'TRUE',
-        required: row[reqIdx] === true || String(row[reqIdx]).toUpperCase() === 'TRUE',
+        label: fieldLabel,
+        type: fieldType,
+        options: fieldOptions,
+        visible: isVisible,
+        required: isRequired,
         dependsOn: String(row[depIdx] || '').trim(),
         copyIfBlank: row[copyIdx] === true || String(row[copyIdx]).toUpperCase() === 'TRUE'
       };
@@ -308,15 +367,15 @@ function getFormSchema(department, extension) {
     schema[item.key + '_order'] = fieldsOrder;
   });
 
-  // Pull all active campaigns per department
+  // Attach department campaigns object
   schema.campaigns = {
-    retention: getActiveDepartmentCampaigns('Retention', extension),
-    tech: getActiveDepartmentCampaigns('Tech Support', extension),
-    mx: getActiveDepartmentCampaigns('Member Experience', extension)
+    retention: getActiveDepartmentCampaigns('Retention', extStr),
+    tech: getActiveDepartmentCampaigns('Tech Support', extStr),
+    mx: getActiveDepartmentCampaigns('Member Experience', extStr)
   };
 
-  if (department) {
-    schema.activeCampaigns = getActiveDepartmentCampaigns(department, extension);
+  if (deptStr) {
+    schema.activeCampaigns = getActiveDepartmentCampaigns(deptStr, extStr);
   }
 
   return schema;
