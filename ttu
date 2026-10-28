@@ -1,1 +1,30 @@
+Option 1: A Quick Apps Script Function (Recommended)
 
+Since your project already uses Google Apps Script (Code.gs), you can add a short function that reads your Google Doc and appends all of its links directly into Links - Tech Support.Example Script:
+Javascript
+function importLinksFromGoogleDoc() {
+  const docId = '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU'; // Your Google Doc ID
+  const doc = DocumentApp.openById(docId);
+  const body = doc.getBody();
+  const paragraphs = body.getParagraphs();
+  
+  const extractedLinks = [];
+  
+  paragraphs.forEach(p => {
+    const text = p.editAsText();
+    const str = text.getText();
+    if (!str.trim()) return;
+    
+    // Check if paragraph has a link attached
+    const url = text.getLinkUrl(0); 
+    if (url) {
+      // [Link Title, URL, Category, Popup Mode, Active, Notes]
+      extractedLinks.push([str.trim(), url, 'Guides & Reference', 'New Tab', true, 'Imported from Doc']);
+    }
+  });
+
+  if (extractedLinks.length > 0) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Links - Tech Support');
+    sheet.getRange(sheet.getLastRow() + 1, 1, extractedLinks.length, 6).setValues(extractedLinks);
+  }
+}
