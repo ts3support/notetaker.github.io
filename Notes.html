@@ -343,7 +343,7 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
         <div class="flex items-center gap-2.5">
           <i class="fa-solid fa-envelope-open-text text-amber-300 text-base"></i>
           <div>
-            <h3 class="text-sm font-bold uppercase tracking-wider">Tech Support Email Templates Hub</h3>
+            <h3 class="text-sm font-bold uppercase tracking-wider" id="emailTemplatesHeading">Email Templates Hub</h3>
             <p class="text-[11px] text-blue-100">Select any template on the left to preview and copy ready-to-send messages</p>
           </div>
         </div>
@@ -591,6 +591,8 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
 
     // Parsed email templates catalog
     let parsedStandardTemplates = [];
+    let standardTemplatesState = 'loading';
+    let standardTemplatesError = '';
     let specialTemplatesList = [];
     let activeEmailTab = 'standard';
     let activeSelectedTemplate = null;
@@ -629,7 +631,12 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
 
       google.script.run
         .withSuccessHandler(populateHelpfulLinks)
-        .getHelpfulLinksFromDoc();
+        .withFailureHandler(function(error) {
+          console.error('Helpful links failed:', error);
+          const list = document.getElementById('linksList');
+          if (list) list.textContent = 'Helpful links could not be loaded: ' + (error.message || error);
+        })
+        .getHelpfulLinks(currentAgent.department);
 
       preloadEmailTemplates();
     });
@@ -645,7 +652,6 @@ function getDepartmentKey() {
 function isDepartmentNoteForm(formKey = activeFormKey) {
   return ['notes', 'retention', 'mx'].includes(formKey);
 }
-
 function getActiveSchemaKey() {
   if (activeFormKey === 'notes') return callType === 'Outbound' ? 'outbound' : 'inbound';
   if (activeFormKey === 'retention') return callType === 'Outbound' ? 'retention_outbound' : 'retention';
@@ -707,8 +713,8 @@ function canAccessMX() {
       if (['notes', 'inbound', 'outbound', 'residential', 'dealer', 'parts'].includes(formKey)) {
         return department === 'tech';
       }
-      if (['mx', 'mx_outbound'].includes(formKey)) return department === 'mx';
-      if (['retention', 'retention_outbound'].includes(formKey)) return department === 'retention';
+      if (['mx','mx_outbound'].includes(formKey)) return department === 'mx';
+      if (['retention','retention_outbound'].includes(formKey)) return department === 'retention';
       return formKey === 'addendum';
     }
 
@@ -739,6 +745,8 @@ function canAccessMX() {
     }
 
 function updateAgentUI() {
+  const emailHeading = document.getElementById('emailTemplatesHeading');
+  if (emailHeading) emailHeading.textContent = currentAgent.department + ' Email Templates Hub';
   const fullDept = currentAgent.tier 
     ? `${currentAgent.department} ${currentAgent.tier}`.trim() 
     : currentAgent.department;
@@ -891,6 +899,7 @@ function dependencyIsMatched(rule, values) {
         return;
       }
       formSchema = schema;
+      if (Array.isArray(schema.warnings)) schema.warnings.forEach(message => console.warn(message));
       schemaLoadState = 'ready';
       applySpecialEmailAccess();
       renderActiveForm();
@@ -1017,7 +1026,7 @@ function dependencyIsMatched(rule, values) {
     const visible = field.visible !== undefined ? field.visible : field['Visible'];
     if (!schemaFlag(visible, true)) return false;
     // Separate access restriction: list supplied by Code.gs from Settings!B3.
-    // Campaign visibility is resolved by backend department/extension targeting.
+    // Campaign availability is resolved by backend targeting.
     const rule = parseFieldDependency(field);
     if (rule && rule.invalid) {
       console.error('Invalid dependency for field:', id, rule.raw);
@@ -1056,15 +1065,6 @@ function dependencyIsMatched(rule, values) {
   const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
   
   const fieldsList = getOrderedFields(targetKey);
-  if (schemaLoadState === 'ready' && isDepartmentNoteForm() && !fieldsList.length) {
-    const notice = document.createElement('div');
-    notice.className = 'col-span-full text-sm text-amber-800 p-3';
-    notice.setAttribute('role', 'alert');
-    notice.textContent = 'No fields are configured for ' + targetKey + '. Check the corresponding worksheet and its Visible settings.';
-    container.replaceChildren(notice);
-    updateUndoClearButtons();
-    return;
-  }
   const currentVals = formValues[activeFormKey] || {};
   let html = schemaLoadState === 'failed'
     ? '<div class="col-span-full rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">Default form — spreadsheet configuration unavailable. Fields may differ from your worksheet. Copying is disabled. Reload to retry.</div>'
@@ -1148,8 +1148,6 @@ function dependencyIsMatched(rule, values) {
 function handleFieldInput(fieldId, val) {
   if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
   formValues[activeFormKey][fieldId] = val;
-
-  // Campaign text and options come from the spreadsheet schema.
 
   saveFormDrafts();
   const key = getActiveSchemaKey();
@@ -1297,19 +1295,25 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
     }
 
     function preloadEmailTemplates() {
+      standardTemplatesState = 'loading';
+      standardTemplatesError = '';
+      parsedStandardTemplates = [];
+      renderTemplateCardsList();
       google.script.run
         .withSuccessHandler((html) => {
+          standardTemplatesState = 'ready';
           rawDocHtml = html || '';
           parseStandardTemplatesFromHtml(rawDocHtml);
           renderTemplateCardsList();
         })
         .withFailureHandler((err) => {
-          console.error("Error preloading email templates:", err);
-          document.getElementById('templatesListContainer').innerHTML = `
-            <div class="p-4 text-xs text-rose-600">Failed to load templates: ${err.message}</div>
-          `;
+          console.error('Error preloading email templates:', err);
+          standardTemplatesState = 'failed';
+          standardTemplatesError = String(err.message || err);
+          parsedStandardTemplates = [];
+          renderTemplateCardsList();
         })
-        .getEmailTemplatesHtml();
+        .getEmailTemplatesHtml(currentAgent.department);
     }
 
     // Parses headings and body paragraphs from Google Doc export, skipping Index / TOC
@@ -1322,7 +1326,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
       const headings = doc.querySelectorAll('h1, h2, h3, h4');
 
       headings.forEach((h, index) => {
-        const title = h.innerText.trim();
+        const title = (h.textContent || '').trim();
         const titleLower = title.toLowerCase();
 
         // Skip "Index", "Template Index", or Table of Contents headings
@@ -1344,7 +1348,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
 
         // Traverse elements until next heading or hr
         while (curr && !['H1','H2','H3','H4','HR'].includes(curr.tagName)) {
-          const txt = curr.innerText.trim();
+          const txt = (curr.textContent || '').trim();
           if (txt.toLowerCase().startsWith('subject:')) {
             subject = txt.substring(8).trim();
           } else if (txt) {
@@ -1369,33 +1373,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
         }
       });
 
-      // Fallback if headings were simple paragraphs
-      if (templates.length === 0) {
-        templates.push(
-          {
-            id: 'STD-01',
-            name: 'Entry Sensor PG9303 Troubleshooting',
-            subject: 'AAA Smart Home Entry Sensor Troubleshooting Resources',
-            body: 'Hello [Member Name],\n\nThank you for contacting AAA Smart Home Security. Below are step-by-step troubleshooting resources for your Entry Sensor (PG9303).\n\nIf you have any further questions, please reference Case #[Case Number].\n\nBest regards,\nAAA Smart Home Technical Support',
-            type: 'standard'
-          },
-          {
-            id: 'STD-02',
-            name: 'ADC-VDB780B Battery Doorbell Camera Guide',
-            subject: 'AAA Smart Home Doorbell Camera Troubleshooting',
-            body: 'Hello [Member Name],\n\nHere are the instructions to charge and reconnect your ADC-VDB780B Battery Spotlight Doorbell Camera.\n\nCase Reference: [Case Number]\n\nBest regards,\nAAA Smart Home Technical Support',
-            type: 'standard'
-          },
-          {
-            id: 'STD-03',
-            name: 'Qolsys IQ Panel 4 User Guide',
-            subject: 'IQ Panel 4 System User Guide & Commands',
-            body: 'Hello [Member Name],\n\nPlease find the user guide and key commands for your Qolsys IQ Panel 4 system.\n\nFor support reference: [Case Number]\n\nBest regards,\nAAA Smart Home Technical Support',
-            type: 'standard'
-          }
-        );
-      }
-
+      // No invented fallback templates: use only the configured document.
       parsedStandardTemplates = templates;
       if (!activeSelectedTemplate && parsedStandardTemplates.length > 0) {
         selectTemplate(parsedStandardTemplates[0]);
@@ -1455,6 +1433,17 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
       const container = document.getElementById('templatesListContainer');
       const isSpecial = activeEmailTab === 'special';
       const sourceList = isSpecial ? specialTemplatesList : parsedStandardTemplates;
+      if (!isSpecial && (standardTemplatesState !== 'ready' || !parsedStandardTemplates.length)) {
+        const message = document.createElement('div');
+        message.className = 'py-12 px-4 text-center text-slate-500 text-xs';
+        message.textContent = standardTemplatesState === 'loading' ? 'Loading department email templates...' :
+          standardTemplatesState === 'failed' ? 'Email templates could not be loaded: ' + standardTemplatesError :
+          "No templates found in this department's configured document. Use headings for template titles and a Subject: line followed by the message.";
+        container.replaceChildren(message);
+        document.getElementById('templateCountBadge').textContent = '0 Templates';
+        return;
+      }
+
       const searchQ = (document.getElementById('searchTemplateInput')?.value || '').toLowerCase().trim();
 
       if (isSpecial && !specialEmailAccessAllowed) {
@@ -1792,7 +1781,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
 
     // Fallback Array of Fields
     function getFallbackFieldsArray(key) {
-      if (['retention', 'retention_outbound', 'mx', 'mx_outbound'].includes(key)) return [];
+      if (['retention','retention_outbound','mx','mx_outbound'].includes(key)) return [];
       return [
         { id: 'caller_name', label: 'Caller Name', type: 'Text' },
         { id: 'company_name', label: 'Company Name', type: 'Text' },
