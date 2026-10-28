@@ -1,627 +1,578 @@
-  // ==========================================
-  // CONFIGURATION & HELPER UTILITIES
-  // ==========================================
+/**
+ * ============================================================================
+ * NOTE TAKER APPLICATION - BACKEND ENGINE (Code.gs)
+ * AAA Smart Home / A3 Smart Home
+ * ============================================================================
+ * Files in project: Code.gs, Login.html, Notes.html
+ * ============================================================================
+ */
 
-  /**
-   * Case-insensitive tab name lookup.
-   */
-  function getSheetByNameInsensitive_(ss, name) {
-    const wanted = String(name).trim().toLowerCase();
-    return ss.getSheets().find(function(sheet) {
-      return sheet.getName().trim().toLowerCase() === wanted;
-    }) || null;
+// ============================================================================
+// 1. ROUTING (doGet) - FIXED FOR LOGIN.HTML & NOTES.HTML
+// ============================================================================
+
+function doGet(e) {
+  const params = (e && e.parameter) ? e.parameter : {};
+  const requested = String(params.page || '').trim().toLowerCase();
+
+  // If user requested notes (or already passed agent/extension params), load Notes.html
+  // Otherwise, start on Login.html
+  let targetFile = 'Login';
+
+  if (requested === 'notes' || requested === 'main' || requested === 'app' || requested === 'index') {
+    targetFile = 'Notes';
+  } else if (requested === 'login') {
+    targetFile = 'Login';
+  } else if (params.agent || params.extension || params.ext || params.user) {
+    targetFile = 'Notes';
+  } else {
+    targetFile = 'Login';
   }
 
-  /**
-   * Opens the master configuration spreadsheet explicitly.
-   */
-  function getAppSpreadsheet() {
-    const masterDocId = '1a3qJOmQbn2eywwOEjA_vhLY3yCFU3j3qHrQ9hEvyEDo';
+  // Load template with strict fallback to exact project names (Notes.html / Login.html)
+  let template;
+  try {
+    template = HtmlService.createTemplateFromFile(targetFile);
+  } catch (err) {
     try {
-      return SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(masterDocId);
-    } catch (err) {
-      return SpreadsheetApp.openById(masterDocId);
+      template = HtmlService.createTemplateFromFile(targetFile.toLowerCase());
+    } catch (e2) {
+      template = HtmlService.createTemplateFromFile(targetFile === 'Notes' ? 'Login' : 'Notes');
     }
   }
 
-  /**
-   * Converts spreadsheet settings into booleans.
-   */
-  function isEnabledSetting(value, defaultValue) {
-    const fallback = defaultValue === true;
-    if (value === true) return true;
-    if (value === false) return false;
+  // Pass URL and parameters to the HTML template
+  template.appUrl = ScriptApp.getService().getUrl();
+  template.params = params;
+  template.agent = params.agent || params.name || '';
+  template.extension = params.extension || params.ext || '';
+  template.department = params.department || params.dept || '';
+  template.role = params.role || params.role_tier || '';
 
-    const normalized = String(value === undefined || value === null ? '' : value).trim().toLowerCase();
-    if (normalized === 'true' || normalized === 'yes') return true;
-    if (normalized === 'false' || normalized === 'no') return false;
-    return fallback;
-  }
+  return template.evaluate()
+    .setTitle('AAA Smart Home - Note Taker')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
 
-  /**
-   * Converts a spreadsheet value into trimmed text. Preserves numeric zero.
-   */
-  function cleanSettingText(value) {
-    return value === undefined || value === null ? '' : String(value).trim();
-  }
-
-  /**
-   * Reads authorized extensions dynamically from Settings!B3.
-   */
-  function getAuthorizedExtensions_(ss) {
-    const spreadsheet = ss || getAppSpreadsheet();
-    const settingsSheet = getSheetByNameInsensitive_(spreadsheet, 'Settings');
-    if (!settingsSheet) return [];
-
-    return cleanSettingText(settingsSheet.getRange('B3').getValue())
-      .split(',')
-      .map(function(extension) {
-        return extension.trim();
-      })
-      .filter(Boolean);
-  }
-
-  // ==========================================
-  // WEB APP ROUTING LOGIC (LOGIN FIRST)
-  // ==========================================
-
-  function doGet(e) {
-    const pageParam = cleanSettingText(
-      e && e.parameter ? e.parameter.page : ''
-    ).toLowerCase();
-
-    // If ?page=notes or ?page=index is explicitly passed, load Notes. Otherwise ALWAYS start at Login!
-    const isNotes = (pageParam === 'notes' || pageParam === 'index');
-    const candidateNames = isNotes
-      ? ['Notes', 'notes', 'Notes.html', 'notes.html']
-      : ['Login', 'login', 'Login.html', 'login.html'];
-
-    let template = null;
-    for (let i = 0; i < candidateNames.length; i++) {
-      try {
-        template = HtmlService.createTemplateFromFile(candidateNames[i]);
-        break;
-      } catch (err) {}
-    }
-
-    if (!template) {
-      try {
-        template = HtmlService.createTemplateFromFile(isNotes ? 'Notes' : 'Login');
-      } catch (e2) {
-        template = HtmlService.createTemplateFromFile('Login');
-      }
-    }
-
-    template.appUrl = ScriptApp.getService().getUrl();
-    return template
-      .evaluate()
-      .setTitle('Note Taker - AAA Smart Home')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  }
-
-  // ==========================================
-  // DYNAMIC FORM SCHEMA GENERATOR
-  // ==========================================
-
-  /**
-   * Reads all active form tabs + login configuration.
-   */
-  function getFormSchema() {
-    const ss = getAppSpreadsheet();
-
-    // Explicitly supported tabs: Includes login, core forms, and new departments
-    const supportedTabs = [
-      'login',
-      'index',
-      'inbound',
-      'outbound',
-      'residential',
-      'dealer',
-      'addendum',
-      'parts',
-      'retention',
-      'mx'
-    ];
-
-    const sheets = ss.getSheets().filter(function(sheet) {
-      const name = sheet.getName().trim().toLowerCase();
-      return supportedTabs.includes(name);
-    });
-
-    const schema = {};
-
-    // Administrative tabs excluded from form generation
-    const excludedSystemTabs = [
-      'settings',
-      'change log',
-      'feedback',
-      'special emails',
-      'admin guide'
-    ];
-
-    sheets.forEach(function(sheet) {
-      const tabName = sheet.getName().trim();
-      const cleanKey = tabName.toLowerCase();
-
-      if (excludedSystemTabs.includes(cleanKey)) {
-        return;
-      }
-
-      schema[cleanKey] = {};
-      schema[cleanKey + '_order'] = [];
-
-      const data = sheet.getDataRange().getValues();
-
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        const id = cleanSettingText(row[0]);
-        if (!id) continue;
-
-        const rawType = cleanSettingText(row[2]).toLowerCase() || 'text';
-        const isVisible = isEnabledSetting(row[4], true);
-        const isRequired = isEnabledSetting(row[5], false);
-        const isCopyBlank = isEnabledSetting(row[7], false);
-
-        const fieldObj = {
-          id: id,
-          label: cleanSettingText(row[1]) || id,
-          type: rawType,
-          options: cleanSettingText(row[3]),
-          visible: isVisible ? 'TRUE' : 'FALSE',
-          required: isRequired,
-          dependsOn: cleanSettingText(row[6]),
-          copyIfBlank: isCopyBlank,
-          rowOrder: i
-        };
-
-        schema[cleanKey][id] = fieldObj;
-        schema[cleanKey + '_order'].push(fieldObj);
-      }
-    });
-
-    // Ensure both schema.login and schema.index are accessible for backwards compatibility
-    if (schema.login && !schema.index) {
-      schema.index = schema.login;
-      schema.index_order = schema.login_order;
-    } else if (schema.index && !schema.login) {
-      schema.login = schema.index;
-      schema.login_order = schema.index_order;
-    }
-
+function include(filename) {
+  const candidates = [
+    filename,
+    filename.charAt(0).toUpperCase() + filename.slice(1),
+    filename.toLowerCase(),
+    filename.toUpperCase()
+  ];
+  for (let i = 0; i < candidates.length; i++) {
     try {
-      schema.authorizedExtensions = getAuthorizedExtensions_(ss);
-    } catch (err) {
-      Logger.log('Error reading authorized extensions: ' + err);
-      schema.authorizedExtensions = [];
-    }
-
-    return schema;
+      return HtmlService.createHtmlOutputFromFile(candidates[i]).getContent();
+    } catch (e) {}
   }
+  return '';
+}
 
-  // ==========================================
-  // STANDARD EMAIL TEMPLATES (WHOLE TEAM)
-  // ==========================================
+// ============================================================================
+// 2. SETTINGS HELPER
+// ============================================================================
 
-  /**
-   * Fetches the standard email templates Google Doc as HTML.
-   */
-  function getEmailTemplatesHtml() {
-    const docId = '1CJtJskbXT-fY2qNfna9W-i-x3rlJl404W4bgMoKFm0c';
+function getSettings() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Settings');
+  const settings = {};
 
-    try {
-      DriveApp.getFileById(docId);
-      const url = 'https://docs.google.com/feeds/download/documents/export/Export?id=' + docId + '&exportFormat=html';
-      const options = {
-        headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-        muteHttpExceptions: true
-      };
+  if (!sheet) return settings;
 
-      const response = UrlFetchApp.fetch(url, options);
-      const code = response.getResponseCode();
-
-      if (code === 200) {
-        return response.getContentText();
-      }
-
-      return `
-        <div style="padding:16px; color:#b91c1c; font-family:sans-serif;">
-          <strong>Error Loading Templates:</strong> Server returned HTTP status ${code}.
-          Please verify document permissions for: <code>${docId}</code>.
-        </div>
-      `;
-    } catch (err) {
-      Logger.log('Error loading standard email templates: ' + err);
-      return `
-        <div style="padding:16px; color:#b91c1c; font-family:sans-serif;">
-          <strong>Error Loading Email Templates:</strong> ${escapeHtml_(err.message || String(err))}
-        </div>
-      `;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    const key = String(data[i][0] || '').trim();
+    const val = data[i][1];
+    if (key) {
+      settings[key] = val;
     }
   }
+  return settings;
+}
 
-  /**
-   * Escapes plain text before inserting it into HTML.
-   */
-  function escapeHtml_(value) {
-    return String(value === undefined || value === null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+// ============================================================================
+// 3. DYNAMIC CAMPAIGN RESOLVER ENGINE
+// ============================================================================
+
+/**
+ * Resolves active campaigns targeted to an agent by Department and Extension.
+ */
+function getActiveDepartmentCampaigns(department, extension) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const extStr = String(extension || '').trim();
+  const deptStr = String(department || '').trim().toLowerCase();
+
+  // Resolve matching department campaign tab
+  let targetTab = '';
+  if (deptStr.includes('retention')) {
+    targetTab = 'Campaigns - Retention';
+  } else if (deptStr.includes('tech') || deptStr.includes('support')) {
+    targetTab = 'Campaigns - Tech Support';
+  } else if (deptStr.includes('member') || deptStr.includes('mx') || deptStr.includes('experience')) {
+    targetTab = 'Campaigns - Member Experience';
+  } else {
+    targetTab = 'Campaigns - ' + department;
   }
 
-  // ==========================================
-  // RESTRICTED SPECIAL EMAIL TEMPLATES (PROJECT 2026)
-  // ==========================================
+  const sheet = ss.getSheetByName(targetTab);
+  if (!sheet) return [];
 
-  function getSpecialEmailTemplates(userExtension) {
-    try {
-      const ss = getAppSpreadsheet();
-      const authorizedExts = getAuthorizedExtensions_(ss);
-      const cleanUserExt = cleanSettingText(userExtension);
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
 
-      if (!authorizedExts.includes(cleanUserExt)) {
-        return [];
-      }
-
-      const sheet = getSheetByNameInsensitive_(ss, 'Special Emails');
-      if (!sheet) return [];
-
-      const data = sheet.getDataRange().getValues();
-      if (data.length <= 1) return [];
-
-      const templates = [];
-      for (let i = 1; i < data.length; i++) {
-        const templateId = cleanSettingText(data[i][0]);
-        const brand = cleanSettingText(data[i][1]);
-        const subject = cleanSettingText(data[i][2]);
-        const body = cleanSettingText(data[i][3]);
-
-        if (!templateId && !brand) continue;
-
-        const displayName = `🔒 Project 2026 - ${brand}`;
-        const formattedBody = body
-          .split(/\r?\n\r?\n/)
-          .map(function(paragraph) {
-            return '<p>' + escapeHtml_(paragraph).replace(/\r?\n/g, '<br>') + '</p>';
-          })
-          .join('<br>');
-
-        const fullHtml = `
-          <div style="font-family:Arial,sans-serif; line-height:1.5;">
-            <p><strong>SUBJECT: ${escapeHtml_(subject)}</strong></p>
-            <br>
-            ${formattedBody}
-          </div>
-        `;
-
-        templates.push({
-          id: templateId,
-          brand: brand,
-          subject: subject,
-          name: displayName,
-          html: fullHtml,
-          body: body
-        });
-      }
-
-      return templates;
-    } catch (err) {
-      Logger.log('Error in getSpecialEmailTemplates: ' + err);
-      return [];
-    }
-  }
-
-  // ==========================================
-  // DYNAMIC HELPFUL LINKS
-  // ==========================================
-
-  function getHelpfulLinksFromDoc() {
-    const docId = '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU';
-    const viewAllLink = {
-      name: '📄 VIEW ALL LINKS',
-      url: 'https://docs.google.com/document/d/' + docId + '/edit',
-      popup: ''
-    };
-
-    try {
-      const doc = DocumentApp.openById(docId);
-      const top10Names = [
-        'Tech Support Opportunities',
-        'Chatbot',
-        'Common Parts List',
-        'Test Mode SOP',
-        'DS Zip Codes',
-        'Tech Support Tier I Guide',
-        'Known Issues Tracker',
-        'Waived Fee Guideline',
-        'Call Routing Guide',
-        'Actual/Incident Form'
-      ];
-
-      const extractedLinks = {};
-      function extractLink(textObj) {
-        const rawText = textObj.getText();
-        const displayText = rawText.trim();
-        if (!displayText) return;
-
-        for (let i = 0; i < rawText.length; i++) {
-          const url = textObj.getLinkUrl(i);
-          if (url) {
-            extractedLinks[displayText] = url;
-            break;
-          }
-        }
-      }
-
-      doc.getBody().getParagraphs().forEach(function(paragraph) {
-        extractLink(paragraph.editAsText());
-      });
-
-      doc.getBody().getTables().forEach(function(table) {
-        for (let r = 0; r < table.getNumRows(); r++) {
-          const row = table.getRow(r);
-          for (let c = 0; c < row.getNumCells(); c++) {
-            extractLink(row.getCell(c).editAsText());
-          }
-        }
-      });
-
-      const finalLinks = [];
-      top10Names.forEach(function(name) {
-        let foundUrl = null;
-        for (const key in extractedLinks) {
-          if (key.toLowerCase().includes(name.toLowerCase())) {
-            foundUrl = extractedLinks[key];
-            break;
-          }
-        }
-        if (foundUrl) {
-          finalLinks.push({
-            name: name,
-            url: foundUrl,
-            popup: name.toLowerCase() === 'chatbot' ? 'chatbot' : ''
-          });
-        }
-      });
-
-      finalLinks.push(viewAllLink);
-      return finalLinks;
-    } catch (err) {
-      Logger.log('Error extracting helpful links: ' + err);
-      return [viewAllLink];
-    }
-  }
-
-  // ==========================================
-  // ZIP CODE SEARCH
-  // ==========================================
-
-  function checkZipCode(zip) {
-    const cleanZip = cleanSettingText(zip);
-    if (!cleanZip) {
-      return { found: false, message: 'No zip code provided.' };
-    }
-
-    const ssId = '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw';
-
-    try {
-      const ss = SpreadsheetApp.openById(ssId);
-      let textFinder = ss.createTextFinder(cleanZip).matchEntireCell(true);
-      let results = textFinder.findAll();
-
-      if (results.length === 0) {
-        textFinder = ss.createTextFinder(cleanZip);
-        results = textFinder.findAll().filter(function(range) {
-          return cleanSettingText(range.getValue()) === cleanZip;
-        });
-      }
-
-      if (results.length === 0) {
-        return { found: false, message: '❌ No Tech Available' };
-      }
-
-      let isProZip = false;
-      let isDSZip = false;
-
-      for (let i = 0; i < results.length; i++) {
-        const range = results[i];
-        const sheet = range.getSheet();
-        const tabName = sheet.getName();
-        const col = range.getColumn();
-
-        if (tabName.includes('Official Pro Zips')) {
-          isProZip = true;
-        } else if (tabName.includes('Official DS (Upgrade & Service)')) {
-          const header = cleanSettingText(sheet.getRange(1, col).getValue()).toUpperCase();
-          if (!header.includes('NO TECH')) {
-            isDSZip = true;
-          }
-        }
-      }
-
-      if (isProZip) return { found: true, message: '✅ In Footprint' };
-      if (isDSZip) return { found: true, message: '✅ Dealer Service' };
-      return { found: false, message: '❌ No Tech Available' };
-    } catch (err) {
-      return { found: false, message: 'Error searching zip codes: ' + (err.message || String(err)) };
-    }
-  }
-
-  // ==========================================
-  // ADMIN PASSCODE & FEEDBACK
-  // ==========================================
-
-  function getAdminPasscode() {
-    try {
-      const ss = getAppSpreadsheet();
-      const settingsSheet = getSheetByNameInsensitive_(ss, 'Settings');
-      if (settingsSheet) {
-        const passcode = cleanSettingText(settingsSheet.getRange('B1').getValue());
-        return passcode || '8454';
-      }
-    } catch (err) {
-      Logger.log('Error reading admin passcode: ' + err);
-    }
-    return '8454';
-  }
-
-  function submitFeedback(data) {
-    try {
-      data = data || {};
-      const ss = getAppSpreadsheet();
-      let feedbackSheet = getSheetByNameInsensitive_(ss, 'Feedback');
-
-      if (!feedbackSheet) {
-        feedbackSheet = ss.insertSheet('Feedback');
-        feedbackSheet.appendRow([
-          'Timestamp',
-          'Agent Name',
-          'Extension',
-          'Department',
-          'Category',
-          'Applicable Form',
-          'Details / Comments'
-        ]);
-        feedbackSheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#f3f3f3');
-        feedbackSheet.setFrozenRows(1);
-      }
-
-      feedbackSheet.appendRow([
-        new Date(),
-        data.name || '',
-        data.phone || data.extension || '',
-        data.dept || '',
-        data.category || '',
-        data.section || data.applicableForm || '',
-        data.details || data.comments || ''
-      ]);
-
-      return { success: true, message: 'Thank you! Your feedback has been submitted.' };
-    } catch (err) {
-      return { success: false, message: 'Failed to submit feedback: ' + String(err) };
-    }
-  }
-
-  // ==========================================
-  // CHANGE LOG
-  // ==========================================
-
-  function getChangeLog() {
-    try {
-      const ss = getAppSpreadsheet();
-      const sheet = getSheetByNameInsensitive_(ss, 'Change Log');
-      if (!sheet) return [];
-
-      const data = sheet.getDataRange().getValues();
-      if (data.length <= 1) return [];
-
-      const tz = ss.getSpreadsheetTimeZone();
-      const visibleRows = data.slice(1).filter(function(row) {
-        const isVisible = isEnabledSetting(row[5], false);
-        const hasContent = row[0] || row[3];
-        return isVisible && Boolean(hasContent);
-      });
-
-      return visibleRows.map(function(row) {
-        return {
-          date: row[0] instanceof Date
-            ? Utilities.formatDate(row[0], tz, 'yyyy-MM-dd')
-            : cleanSettingText(row[0]),
-          version: cleanSettingText(row[1]),
-          form: cleanSettingText(row[2]),
-          description: cleanSettingText(row[3]),
-          updatedBy: cleanSettingText(row[4])
-        };
-      });
-    } catch (err) {
-      Logger.log('Error reading change log: ' + err);
-      return [];
-    }
-  }
-
-  // ==========================================
-  // AUTOMATIC CHANGE LOG TRIGGER
-  // ==========================================
-
-  function onEdit(e) {
-    if (!e || !e.range) return;
-
-    const sheet = e.range.getSheet();
-    const sheetName = sheet.getName();
-    const excludedTabs = ['Change Log', 'Feedback', 'Special Emails'];
-
-    if (excludedTabs.includes(sheetName)) return;
-    if (e.range.getRow() === 1) return;
-
-    const ss = e.source || getAppSpreadsheet();
-    const logSheet = getSheetByNameInsensitive_(ss, 'Change Log');
-    if (!logSheet) return;
-
-    const timestamp = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-    const user = Session.getActiveUser().getEmail() || 'Admin';
-    const cellNotation = e.range.getA1Notation();
-
-    let fieldIdentifier = '';
-    try {
-      const row = e.range.getRow();
-      const idVal = cleanSettingText(sheet.getRange(row, 1).getValue());
-      const labelVal = cleanSettingText(sheet.getRange(row, 2).getValue());
-      fieldIdentifier = labelVal || idVal || `Row ${row}`;
-    } catch (err) {
-      fieldIdentifier = `Row ${e.range.getRow()}`;
-    }
-
-    let description;
-    if (e.range.getNumRows() > 1 || e.range.getNumColumns() > 1) {
-      description = `Updated range ${cellNotation} beginning at [${fieldIdentifier}]. Multiple cells were edited; individual old/new values are not available.`;
-    } else {
-      const oldValue = e.oldValue !== undefined ? `"${e.oldValue}"` : '(blank)';
-      const newValue = e.value !== undefined ? `"${e.value}"` : '(blank)';
-      description = `Updated [${fieldIdentifier}] in ${cellNotation}: changed from ${oldValue} to ${newValue}`;
-    }
-
-    logSheet.insertRowBefore(2);
-    logSheet.getRange(2, 6).insertCheckboxes();
-    logSheet.getRange(2, 1, 1, 6).setValues([[
-      timestamp,
-      'v1.x',
-      sheetName,
-      description,
-      user,
-      true
-    ]]);
-  }
-
-// Read-only diagnostic for the missing Retention field.
-function diagnoseRetentionFocus() {
-  const ss = getAppSpreadsheet();
-  const sheet = getSheetByNameInsensitive_(ss, 'retention');
-  if (!sheet) throw new Error('Retention worksheet not found.');
-
-  const schema = getFormSchema();
-  const ordered = schema.retention_order || [];
-  const report = {
-    spreadsheetId: ss.getId(),
-    spreadsheetName: ss.getName(),
-    sheetName: sheet.getName(),
-    lastRow: sheet.getLastRow(),
-    row14: sheet.getRange('A14:H14').getDisplayValues()[0],
-    focusInSchema: schema.retention && schema.retention.focus || null,
-    focusInOrderedFields: ordered.filter(function(field) {
-      return field.id === 'focus';
-    }),
-    matchingSheetRows: []
+  const headers = data[0].map(h => String(h).trim().toLowerCase());
+  const colIndex = {
+    id: headers.indexOf('campaign id'),
+    label: headers.indexOf('display label'),
+    type: headers.indexOf('field type'),
+    options: headers.indexOf('options'),
+    active: headers.indexOf('active'),
+    scope: headers.indexOf('target scope'),
+    extensions: headers.indexOf('target extensions'),
+    required: headers.indexOf('required'),
+    notes: headers.indexOf('notes')
   };
 
-  const rows = sheet.getDataRange().getDisplayValues();
-  for (let i = 1; i < rows.length; i++) {
-    if (cleanSettingText(rows[i][0]) === 'focus') {
-      report.matchingSheetRows.push({row: i + 1, values: rows[i].slice(0, 8)});
+  const activeCampaigns = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+
+    // Check Active boolean
+    const isActive = row[colIndex.active] === true || String(row[colIndex.active]).trim().toUpperCase() === 'TRUE';
+    if (!isActive) continue;
+
+    const campaignId = String(row[colIndex.id] || '').trim();
+    if (!campaignId) continue;
+
+    const scope = String(row[colIndex.scope] || '').trim().toLowerCase();
+    const rawExtensions = String(row[colIndex.extensions] || '').trim();
+    const targetExtList = rawExtensions.split(',').map(e => e.trim());
+
+    // Targeting rules: Department-Wide/ALL or Extension-Specific match
+    let isTargeted = false;
+    if (scope === 'department-wide' || targetExtList.includes('ALL')) {
+      isTargeted = true;
+    } else if (scope === 'extension-specific' && extStr && targetExtList.includes(extStr)) {
+      isTargeted = true;
+    }
+
+    if (isTargeted) {
+      activeCampaigns.push({
+        campaignId: campaignId,
+        id: campaignId,
+        label: row[colIndex.label] || campaignId.toUpperCase(),
+        type: row[colIndex.type] || 'Radio',
+        options: String(row[colIndex.options] || 'Yes,No').split(',').map(o => o.trim()),
+        required: row[colIndex.required] === true || String(row[colIndex.required]).trim().toUpperCase() === 'TRUE',
+        targetScope: row[colIndex.scope] || 'Department-Wide',
+        notes: row[colIndex.notes] || ''
+      });
     }
   }
 
-  console.log(JSON.stringify(report, null, 2));
-  return report;
+  return activeCampaigns;
+}
+
+// ============================================================================
+// 4. LOGIN FORM CONFIG & VALIDATION HELPERS
+// ============================================================================
+
+function getLoginFields() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('login') || ss.getSheetByName('Login') || ss.getSheetByName('Index');
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  const fields = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[0]) {
+      fields.push({
+        id: String(row[0]).trim(),
+        internalId: String(row[0]).trim(),
+        label: String(row[1] || row[0]).trim(),
+        type: String(row[2] || 'Text').trim(),
+        options: String(row[3] || '').split(',').map(o => o.trim()).filter(Boolean),
+        visible: row[4] === true || String(row[4]).toUpperCase() === 'TRUE',
+        required: row[5] === true || String(row[5]).toUpperCase() === 'TRUE'
+      });
+    }
+  }
+  return fields;
+}
+
+function getLoginConfig() {
+  return getLoginFields();
+}
+
+function validateLogin(agentName, extension, department) {
+  return {
+    success: true,
+    agentName: agentName,
+    extension: extension,
+    department: department
+  };
+}
+
+function getProjectExtensions() {
+  const settings = getSettings();
+  const raw = String(settings['Project 2026 Extensions'] || '');
+  return raw.split(',').map(e => e.trim()).filter(Boolean);
+}
+
+function isProjectExtension(ext) {
+  const exts = getProjectExtensions();
+  return exts.includes(String(ext).trim());
+}
+
+// ============================================================================
+// 5. FORM SCHEMA LOADER (getFormSchema)
+// ============================================================================
+
+function getFormSchema(department, extension) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const schema = {
+    campaigns: {}
+  };
+
+  const formSheets = [
+    { key: 'login', tab: 'login' },
+    { key: 'index', tab: 'login' },
+    { key: 'inbound', tab: 'Inbound' },
+    { key: 'outbound', tab: 'Outbound' },
+    { key: 'retention', tab: 'Retention' },
+    { key: 'retention_outbound', tab: 'Retention Outbound' },
+    { key: 'residential', tab: 'Residential' },
+    { key: 'dealer', tab: 'Dealer' },
+    { key: 'addendum', tab: 'Addendum' },
+    { key: 'parts', tab: 'Parts' },
+    { key: 'mx', tab: 'MX' },
+    { key: 'mx_outbound', tab: 'MX Outbound' }
+  ];
+
+  formSheets.forEach(item => {
+    const sheet = ss.getSheetByName(item.tab);
+    if (!sheet) {
+      schema[item.key] = {};
+      schema[item.key + '_order'] = [];
+      return;
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      schema[item.key] = {};
+      schema[item.key + '_order'] = [];
+      return;
+    }
+
+    const headers = data[0].map(h => String(h).trim().toLowerCase());
+    const idIdx = headers.indexOf('internal id');
+    const labelIdx = headers.indexOf('display label');
+    const typeIdx = headers.indexOf('field type');
+    const optIdx = headers.indexOf('options');
+    const visIdx = headers.indexOf('visible');
+    const reqIdx = headers.indexOf('required');
+    const depIdx = headers.indexOf('depends on');
+    const copyIdx = headers.indexOf('copy if blank');
+
+    const fieldsMap = {};
+    const fieldsOrder = [];
+
+    for (let r = 1; r < data.length; r++) {
+      const row = data[r];
+      const internalId = String(row[idIdx] || '').trim();
+      if (!internalId) continue;
+
+      const fieldObj = {
+        id: internalId,
+        internalId: internalId,
+        label: String(row[labelIdx] || internalId).trim(),
+        type: String(row[typeIdx] || 'Text').trim(),
+        options: String(row[optIdx] || '').trim(),
+        visible: row[visIdx] === true || String(row[visIdx]).toUpperCase() === 'TRUE',
+        required: row[reqIdx] === true || String(row[reqIdx]).toUpperCase() === 'TRUE',
+        dependsOn: String(row[depIdx] || '').trim(),
+        copyIfBlank: row[copyIdx] === true || String(row[copyIdx]).toUpperCase() === 'TRUE'
+      };
+
+      fieldsMap[internalId] = fieldObj;
+      fieldsOrder.push(fieldObj);
+    }
+
+    schema[item.key] = fieldsMap;
+    schema[item.key + '_order'] = fieldsOrder;
+  });
+
+  // Pull all active campaigns per department
+  schema.campaigns = {
+    retention: getActiveDepartmentCampaigns('Retention', extension),
+    tech: getActiveDepartmentCampaigns('Tech Support', extension),
+    mx: getActiveDepartmentCampaigns('Member Experience', extension)
+  };
+
+  if (department) {
+    schema.activeCampaigns = getActiveDepartmentCampaigns(department, extension);
+  }
+
+  return schema;
+}
+
+// ============================================================================
+// 6. HELPFUL LINKS (GOOGLE DOC INTEGRATION)
+// ============================================================================
+
+function getHelpfulLinksFromDoc() {
+  const settings = getSettings();
+  const docId = settings['Doc ID - Helpful Links'] || '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU';
+  const links = [];
+
+  try {
+    const doc = DocumentApp.openById(docId);
+    const body = doc.getBody();
+    const paragraphs = body.getParagraphs();
+
+    for (let i = 0; i < paragraphs.length; i++) {
+      const p = paragraphs[i];
+      const text = p.getText().trim();
+      if (!text) continue;
+
+      const textObj = p.editAsText();
+      const str = textObj.getText();
+      let lastUrl = null;
+
+      for (let ch = 0; ch < str.length; ch++) {
+        const url = textObj.getLinkUrl(ch);
+        if (url && url !== lastUrl) {
+          lastUrl = url;
+          let name = text;
+          let popup = null;
+
+          if (name.toLowerCase().includes('chatbot') || url.toLowerCase().includes('chatbot')) {
+            popup = 'chatbot';
+          }
+
+          links.push({
+            name: name,
+            url: url,
+            popup: popup
+          });
+          break;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error in getHelpfulLinksFromDoc:', err);
+  }
+
+  return links;
+}
+
+// ============================================================================
+// 7. STANDARD & SPECIAL EMAIL TEMPLATES
+// ============================================================================
+
+function getEmailTemplatesHtml() {
+  const settings = getSettings();
+  const docId = settings['Doc ID - Standard Emails'] || '1CJtJskbXT-fY2qNfna9W-i-x3rlJl404W4bgMoKFm0c';
+
+  try {
+    const url = 'https://docs.google.com/feeds/download/documents/export/Export?id=' + docId + '&exportFormat=html';
+    const params = {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
+    };
+    const response = UrlFetchApp.fetch(url, params);
+    return response.getContentText();
+  } catch (err) {
+    console.error('Error in getEmailTemplatesHtml:', err);
+    return '';
+  }
+}
+
+function getSpecialEmails() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Special Emails');
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  const list = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[0]) {
+      list.push({
+        id: row[0],
+        brand: row[1] || 'AAA Smart Home',
+        subject: row[2] || '',
+        body: row[3] || ''
+      });
+    }
+  }
+  return list;
+}
+
+// ============================================================================
+// 8. FOOTPRINT & DEALER SERVICE ZIP SEARCH
+// ============================================================================
+
+function checkZipCode(zipInput) {
+  const zip = String(zipInput || '').trim();
+  if (!zip) {
+    return { found: false, message: 'Please enter a valid zip code.' };
+  }
+
+  const settings = getSettings();
+  const zipSheetId = settings['Sheet ID - Zip Codes'] || '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw';
+
+  try {
+    const zipSS = SpreadsheetApp.openById(zipSheetId);
+
+    // Rule 1: Official Pro Zips
+    const proSheet = zipSS.getSheetByName('Official Pro Zips');
+    if (proSheet) {
+      const proData = proSheet.getDataRange().getDisplayValues();
+      for (let r = 0; r < proData.length; r++) {
+        for (let c = 0; c < proData[r].length; c++) {
+          if (proData[r][c].trim() === zip) {
+            return {
+              found: true,
+              status: 'PRO',
+              message: '✅ In Footprint (Pro Territory)'
+            };
+          }
+        }
+      }
+    }
+
+    // Rule 2: Official DS (Upgrade & Service)
+    const dsSheet = zipSS.getSheetByName('Official DS (Upgrade & Service)') ||
+                    zipSS.getSheetByName('Official DS') ||
+                    zipSS.getSheetByName('Dealer Service');
+
+    if (dsSheet) {
+      const dsData = dsSheet.getDataRange().getDisplayValues();
+      if (dsData.length > 2) {
+        const numCols = dsData[0].length;
+        for (let col = 0; col < numCols; col++) {
+          const headerRow1 = String(dsData[0][col] || '').toUpperCase();
+          const headerRow2 = String(dsData[1][col] || '').toUpperCase();
+          const isNoTech = headerRow1.includes('NO TECH') || headerRow2.includes('NO TECH');
+
+          for (let row = 2; row < dsData.length; row++) {
+            if (dsData[row][col].trim() === zip) {
+              if (isNoTech) {
+                return {
+                  found: false,
+                  status: 'NO_TECH',
+                  message: '❌ No Tech Available (Dealer No Tech Territory)'
+                };
+              } else {
+                const territoryName = dsData[0][col] || dsData[1][col] || 'Dealer Service';
+                return {
+                  found: true,
+                  status: 'DEALER',
+                  message: '✅ Dealer Service (' + territoryName.trim() + ')'
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      found: false,
+      status: 'NOT_FOUND',
+      message: '❌ No Tech Available'
+    };
+
+  } catch (err) {
+    console.error('Error in checkZipCode:', err);
+    return {
+      found: false,
+      status: 'ERROR',
+      message: 'Error searching zip footprint: ' + err.message
+    };
+  }
+}
+
+// ============================================================================
+// 9. FEEDBACK & CHANGE LOG
+// ============================================================================
+
+function submitFeedback(payload) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Feedback');
+    if (!sheet) {
+      return { success: false, message: 'Feedback sheet could not be found.' };
+    }
+
+    const timestamp = new Date();
+    const agentName = payload.name || 'Anonymous';
+    const extension = payload.extension || payload.phone || '-';
+    const dept = payload.dept || payload.department || '-';
+    const category = payload.category || 'General';
+    const form = payload.section || payload.form || payload.applicableForm || 'General';
+    const comments = payload.comments || payload.details || payload.message || '';
+
+    sheet.appendRow([
+      timestamp,
+      agentName,
+      extension,
+      dept,
+      category,
+      form,
+      comments
+    ]);
+
+    return { success: true, message: 'Feedback submitted successfully. Thank you!' };
+  } catch (err) {
+    console.error('Error in submitFeedback:', err);
+    return { success: false, message: 'Error submitting feedback: ' + err.message };
+  }
+}
+
+function getChangeLog() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Change Log');
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  const records = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const isVisible = row[5] === undefined || row[5] === true || String(row[5]).toUpperCase() === 'TRUE';
+    if (!isVisible) continue;
+
+    let dateFormatted = row[0];
+    if (row[0] instanceof Date) {
+      dateFormatted = Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'MM/dd/yyyy');
+    }
+
+    records.push({
+      date: dateFormatted,
+      version: row[1] || 'v1.x',
+      form: row[2] || 'General',
+      description: row[3] || '',
+      updatedBy: row[4] || 'Admin'
+    });
+  }
+
+  return records.reverse();
+}
+
+function validateAdminPasscode(enteredPasscode) {
+  const settings = getSettings();
+  const correctPasscode = String(settings['Admin Password'] || '8454').trim();
+  return String(enteredPasscode).trim() === correctPasscode;
 }
