@@ -146,7 +146,7 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-sm sm:text-base font-extrabold tracking-tight uppercase">Notes App</h1>
-            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0-CAMPAIGNREASON4</span>
+            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0</span>
           </div>
           <div class="text-xs text-blue-100 flex items-center gap-2">
             <span>Agent: <strong id="headerAgentDisplay" class="text-white">Loading...</strong></span>
@@ -310,7 +310,7 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
     </div>
 
   </main>
-<footer class="creator-credit">Created by Erick Dansby 08/13/2026 <span class="block text-[10px]">v2.0-CAMPAIGNREASON4</span></footer>
+<footer class="creator-credit">Created by Erick Dansby 08/13/2026 <span class="block text-[10px]">v2.0</span></footer>
 
   <!-- ======================================================== -->
   <!-- MODAL: NOTE PREVIEW (ON-DEMAND) -->
@@ -361,7 +361,9 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
           <button type="button" onclick="switchEmailTab('standard')" id="btnEmailTabStandard" class="px-3 py-1.5 rounded font-bold transition bg-white text-[#003b8f] shadow-sm">
             <i class="fa-solid fa-users mr-1"></i> Standard Team Guides
           </button>
-          <button type="button" onclick="switchEmailTab('special')" id="btnEmailTabSpecial" style="display:none;"></button>
+          <button type="button" onclick="switchEmailTab('special')" id="btnEmailTabSpecial" class="px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+  <i class="fa-solid fa-star text-amber-500"></i> Special Emails
+</button>
         </div>
 
         <!-- Dynamic Replacement Variables (Auto-Synced from Note) -->
