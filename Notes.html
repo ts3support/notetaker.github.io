@@ -310,7 +310,7 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
     </div>
 
   </main>
-<footer class="creator-credit">Created by Erick Dansby 08/13/2026</footer>
+<footer class="creator-credit">Created by Erick Dansby 08/13/2026 <span class="block text-[10px]">v2.0-CAMPAIGNREASON4</span></footer>
 
   <!-- ======================================================== -->
   <!-- MODAL: NOTE PREVIEW (ON-DEMAND) -->
@@ -927,7 +927,6 @@ function dependencyIsMatched(rule, values) {
         return;
       }
       formSchema = schema;
-      if (Array.isArray(schema.warnings)) schema.warnings.forEach(message => console.warn(message));
       schemaLoadState = 'ready';
       applySpecialEmailAccess();
       renderActiveForm();
@@ -1166,7 +1165,6 @@ function dependencyIsMatched(rule, values) {
 }
 
 
-// Autofill provenance is saved separately from note values.
 let campaignReasonTracking = {};
 let undoCampaignReasonTracking = {};
 function campaignFieldId(field) {
@@ -1179,7 +1177,7 @@ function updateCampaignReason(field, answer, fields, values, tracking) {
   const fieldId = campaignFieldId(field);
   if (!(field.isCampaign === true || !!field.campaignId || fieldId === 'campaign_toggle')) return false;
   const target = campaignReasonField(fields);
-  if (!target) return false;
+  if (!target) { console.warn('Campaign autofill: no supported Reason field ID in this schema.'); return false; }
   const reasonId = campaignFieldId(target);
   const previous = tracking[reasonId];
   const campaignId = String(field.campaignId || fieldId);
@@ -1195,6 +1193,7 @@ function updateCampaignReason(field, answer, fields, values, tracking) {
       changed = true;
     }
   }
+  if (yes && !autoText) console.warn('Campaign autofill: backend returned no Auto-Populate Reason for ' + campaignId);
   if (yes && autoText && !String(values[reasonId] ?? '').trim() &&
       shouldShowNoteField(target, getActiveSchemaKey(), values)) {
     values[reasonId] = autoText;
@@ -1208,7 +1207,6 @@ function handleFieldInput(fieldId, val) {
   if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
   const values = formValues[activeFormKey];
   const tracking = campaignReasonTracking[activeFormKey] || (campaignReasonTracking[activeFormKey] = {});
-  // A manual edit relinquishes ownership permanently until a new autofill.
   if (Object.prototype.hasOwnProperty.call(tracking,fieldId)) delete tracking[fieldId];
   values[fieldId] = val;
   const fields = getOrderedFields(getActiveSchemaKey());
