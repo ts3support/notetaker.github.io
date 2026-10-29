@@ -169,7 +169,7 @@
           </select>
         </div>
 
-        <button type="button" onclick="saveData()">SAVE &amp; CONTINUE</button>
+        <button type="button" id="loginButton" onclick="saveData()">SAVE &amp; CONTINUE</button>
         <div id="status"></div>
       </form>
     </section>
@@ -207,14 +207,19 @@
   </div>
 
   <script>
+    const APP_URL = <?!= JSON.stringify(appUrl).replace(/</g, '\\u003c') ?>;
     let globalAuthorizedExtensions = [];
+    let loginInProgress = false;
 
     function saveData() {
+      if (loginInProgress) return;
+
       const nameInput = document.getElementById('name');
       const phoneInput = document.getElementById('phone');
       const deptSelect = document.getElementById('dept');
       const roleTierSelect = document.getElementById('roleTier');
       const status = document.getElementById('status');
+      const loginButton = document.getElementById('loginButton');
 
       const name = nameInput.value.trim();
       const phone = phoneInput.value.trim();
@@ -252,46 +257,141 @@
         return;
       }
 
+      if (!(window.google && google.script && google.script.run)) {
+        status.textContent = 'Please open this page through the deployed Apps Script web app.';
+        return;
+      }
+
+      // Use the deployment URL supplied by Code.gs instead of a hard-coded deployment.
+      let notesUrl;
+      try {
+        notesUrl = new URL(APP_URL);
+        notesUrl.searchParams.set('page', 'notes');
+
+        // validateLogin records the event. Do not also trigger doGet's URL login logger.
+        notesUrl.searchParams.delete('agent');
+        notesUrl.searchParams.delete('name');
+        notesUrl.searchParams.delete('extension');
+        notesUrl.searchParams.delete('ext');
+        notesUrl.searchParams.delete('department');
+        notesUrl.searchParams.delete('dept');
+        notesUrl.searchParams.delete('role');
+        notesUrl.searchParams.delete('role_tier');
+      } catch (error) {
+        status.textContent = 'The web app deployment URL is unavailable.';
+        return;
+      }
+
       // Check authorization against dynamic extensions from Settings
-      const isAuth = globalAuthorizedExtensions.includes(phone);
+      const isAuth = globalAuthorizedExtensions.includes(phone) || globalAuthorizedExtensions.includes('ALL');
 
-      // Save to localStorage (storing under both legacy and standard keys)
-      localStorage.setItem('name', name);
-      localStorage.setItem('phone', phone);
-      localStorage.setItem('dept', dept);
-      localStorage.setItem('role_tier', roleTier);
-      localStorage.setItem('tier', roleTier);
+      // Save before validation so a storage failure does not record an unusable login.
+      try {
+        // Save to localStorage (storing under both legacy and standard keys)
+        localStorage.setItem('name', name);
+        localStorage.setItem('phone', phone);
+        localStorage.setItem('dept', dept);
+        localStorage.setItem('role_tier', roleTier);
+        localStorage.setItem('tier', roleTier);
 
-      // Also sync to sessionStorage
-      sessionStorage.setItem('agent_name', name);
-      sessionStorage.setItem('extension', phone);
-      sessionStorage.setItem('department', dept);
-      sessionStorage.setItem('role_tier', roleTier);
-      sessionStorage.setItem('tier', roleTier);
-      sessionStorage.setItem('is_authorized_2026', isAuth ? 'true' : 'false');
+        // Also sync to sessionStorage
+        sessionStorage.setItem('agent_name', name);
+        sessionStorage.setItem('extension', phone);
+        sessionStorage.setItem('department', dept);
+        sessionStorage.setItem('role_tier', roleTier);
+        sessionStorage.setItem('tier', roleTier);
+        sessionStorage.setItem('is_authorized_2026', isAuth ? 'true' : 'false');
+      } catch (error) {
+        status.textContent = 'Browser storage is unavailable. Agent information could not be saved. Please allow storage for this web app and try again.';
+        return;
+      }
 
-      // Clean redirect to notes.html without relying on server scriptlets
-      const notesUrl =
-        'https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxZrmHrx__1b4rfbzTXsnH0YonDsQvy-x1cvkiUazqZWyEcDcfj7u6wCwgJg3mipG01/exec?page=notes';
-      window.top.location.href = notesUrl;
+      loginInProgress = true;
+      loginButton.disabled = true;
+      loginButton.textContent = 'CHECKING...';
+      status.textContent = 'Validating agent information...';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (!result || result.success !== true) {
+            loginInProgress = false;
+            loginButton.disabled = false;
+            loginButton.textContent = 'SAVE & CONTINUE';
+            status.textContent = (result && result.message) || 'Login was not accepted.';
+            return;
+          }
+
+          // Keep the normalized department returned by the backend for Notes.
+          try {
+            localStorage.setItem('name', result.agentName || name);
+            localStorage.setItem('phone', result.extension || phone);
+            localStorage.setItem('dept', result.department || dept);
+            sessionStorage.setItem('agent_name', result.agentName || name);
+            sessionStorage.setItem('extension', result.extension || phone);
+            sessionStorage.setItem('department', result.department || dept);
+          } catch (error) {
+            console.warn('Could not update normalized agent information.', error);
+          }
+
+          // Keep a direct link available if the browser blocks automatic navigation.
+          status.textContent = 'Login accepted. If Notes does not open, ';
+          const continueLink = document.createElement('a');
+          continueLink.href = notesUrl.href;
+          continueLink.target = '_top';
+          continueLink.textContent = 'click here to continue';
+          status.appendChild(continueLink);
+
+          loginButton.textContent = 'LOGIN ACCEPTED';
+          try {
+            window.top.location.href = notesUrl.href;
+          } catch (error) {
+            console.warn('Automatic navigation blocked. Use the Continue link.', error);
+          }
+        })
+        .withFailureHandler(function(error) {
+          loginInProgress = false;
+          loginButton.disabled = false;
+          loginButton.textContent = 'SAVE & CONTINUE';
+          status.textContent = 'Login request failed: ' + String(error.message || error);
+        })
+        .validateLogin(name, phone, dept);
     }
 
     window.addEventListener('load', function () {
-      document.getElementById('name').value = localStorage.getItem('name') || sessionStorage.getItem('agent_name') || '';
-      document.getElementById('phone').value = localStorage.getItem('phone') || sessionStorage.getItem('extension') || '';
-      const savedDept = localStorage.getItem('dept') || sessionStorage.getItem('department') || '';
+      let savedDept = '';
+      let savedTier = '';
 
-      const savedTier = localStorage.getItem('role_tier') || localStorage.getItem('tier') || sessionStorage.getItem('role_tier') || sessionStorage.getItem('tier') || '';
+      try {
+        document.getElementById('name').value = localStorage.getItem('name') || sessionStorage.getItem('agent_name') || '';
+        document.getElementById('phone').value = localStorage.getItem('phone') || sessionStorage.getItem('extension') || '';
+        savedDept = localStorage.getItem('dept') || sessionStorage.getItem('department') || '';
+
+        savedTier = localStorage.getItem('role_tier') || localStorage.getItem('tier') || sessionStorage.getItem('role_tier') || sessionStorage.getItem('tier') || '';
+      } catch (error) {
+        document.getElementById('status').textContent = 'Browser storage is unavailable. Please allow storage for this web app.';
+      }
+
+      document.getElementById('dept').value = savedDept;
+      document.getElementById('roleTier').value = savedTier;
 
       if (window.google && google.script && google.script.run) {
-        google.script.run.withSuccessHandler(function(schema) {
-          if (!schema) return;
+        // Load project extensions separately from login field configuration.
+        google.script.run.withSuccessHandler(function(extensions) {
+          globalAuthorizedExtensions = (Array.isArray(extensions) ? extensions : []).map(function(e) { return String(e).trim(); });
+        }).withFailureHandler(function(error) {
+          console.warn('Could not load project extensions.', error);
+        }).getProjectExtensions();
 
-          // Store authorized extensions from Settings
-          globalAuthorizedExtensions = (schema.authorizedExtensions || []).map(function(e) { return String(e).trim(); });
+        google.script.run.withSuccessHandler(function(fields) {
+          if (!fields) return;
 
-          // Support both 'login' and 'index' tab naming conventions
-          const loginSchema = schema.login || schema.index || {};
+          // Preserve the separate field configuration blocks below.
+          // getLoginFields returns an array instead of the full application schema.
+          const loginSchema = {};
+          fields.forEach(function(field) {
+            const fieldId = field.id || field.internalId;
+            if (fieldId) loginSchema[fieldId] = field;
+          });
 
           // Dynamic Agent Name field config
           if (loginSchema.agent_name) {
@@ -318,15 +418,14 @@
               if (loginSchema.department.label) el.querySelector('label').textContent = loginSchema.department.label + ' *';
               if (String(loginSchema.department.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
 
-              if (loginSchema.department.options) {
+              if (loginSchema.department.options && loginSchema.department.options.length) {
                 const deptSelect = document.getElementById('dept');
-                const options = loginSchema.department.options.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-                let optionsHtml = '<option value="">Select Department...</option>';
+                const options = (Array.isArray(loginSchema.department.options) ? loginSchema.department.options : String(loginSchema.department.options).split(',')).map(function(s) { return String(s).trim(); }).filter(Boolean);
+                deptSelect.innerHTML = '<option value="">Select Department...</option>';
                 options.forEach(function(opt) {
-                  const selected = (opt === savedDept) ? ' selected' : '';
-                  optionsHtml += `<option value="${opt}"${selected}>${opt}</option>`;
+                  const selected = (opt === savedDept);
+                  deptSelect.add(new Option(opt, opt, selected, selected));
                 });
-                deptSelect.innerHTML = optionsHtml;
               }
             }
           }
@@ -338,19 +437,20 @@
               if (loginSchema.role_tier.label) el.querySelector('label').textContent = loginSchema.role_tier.label + ' *';
               if (String(loginSchema.role_tier.visible).toUpperCase() === 'FALSE') el.style.display = 'none';
 
-              if (loginSchema.role_tier.options) {
+              if (loginSchema.role_tier.options && loginSchema.role_tier.options.length) {
                 const roleTierSelect = document.getElementById('roleTier');
-                const options = loginSchema.role_tier.options.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-                let optionsHtml = '<option value="">Select Role / Tier...</option>';
+                const options = (Array.isArray(loginSchema.role_tier.options) ? loginSchema.role_tier.options : String(loginSchema.role_tier.options).split(',')).map(function(s) { return String(s).trim(); }).filter(Boolean);
+                roleTierSelect.innerHTML = '<option value="">Select Role / Tier...</option>';
                 options.forEach(function(opt) {
-                  const selected = (opt === savedTier) ? ' selected' : '';
-                  optionsHtml += `<option value="${opt}"${selected}>${opt}</option>`;
+                  const selected = (opt === savedTier);
+                  roleTierSelect.add(new Option(opt, opt, selected, selected));
                 });
-                roleTierSelect.innerHTML = optionsHtml;
               }
             }
           }
-        }).getFormSchema();
+        }).withFailureHandler(function(error) {
+          document.getElementById('status').textContent = 'Could not load login configuration: ' + String(error.message || error);
+        }).getLoginFields();
       }
     });
 
@@ -369,17 +469,18 @@
       const passcode = document.getElementById('adminPasscodeInput').value.trim();
       const errorDiv = document.getElementById('adminLoginError');
       const btn = document.getElementById('adminLoginBtn');
-      if (!passcode) return;
+      if (!passcode || btn.disabled) return;
 
       btn.textContent = "Checking...";
       btn.disabled = true;
       errorDiv.style.display = 'none';
 
       google.script.run
-        .withSuccessHandler(function(correctPasscode) {
+        .withSuccessHandler(function(isValid) {
           btn.textContent = "Unlock";
           btn.disabled = false;
-          if (passcode === String(correctPasscode).trim()) {
+          if (isValid === true) {
+            document.getElementById('adminPasscodeInput').value = '';
             document.getElementById('adminLoginModal').style.display = 'none';
             document.getElementById('adminTools').style.display = 'block';
             setTimeout(() => {
@@ -397,7 +498,7 @@
           btn.disabled = false;
           alert("Error connecting to server.");
         })
-        .getAdminPasscode();
+        .validateAdminPasscode(passcode);
     }
   </script>
 </body>
