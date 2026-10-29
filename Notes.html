@@ -146,7 +146,7 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-sm sm:text-base font-extrabold tracking-tight uppercase">Notes App</h1>
-            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0</span>
+            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0-SPECIALSYNC5</span>
           </div>
           <div class="text-xs text-blue-100 flex items-center gap-2">
             <span>Agent: <strong id="headerAgentDisplay" class="text-white">Loading...</strong></span>
@@ -574,6 +574,7 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
   <!-- JAVASCRIPT LOGIC -->
   <!-- ======================================================== -->
   <script>
+    const serverAgentContext = <?!= JSON.stringify({name:agent,extension:extension,department:department,tier:role}).replace(/</g, '\\u003c') ?>;
     let currentAgent = {
       name: 'Support Agent',
       extension: '1000',
@@ -620,6 +621,11 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
       activeFormKey = getDepartmentDefaultForm() || 'notes';
       if (savedTier) currentAgent.tier = savedTier;
 
+      if (serverAgentContext.name) currentAgent.name = String(serverAgentContext.name);
+      if (serverAgentContext.extension) currentAgent.extension = String(serverAgentContext.extension);
+      if (serverAgentContext.department) currentAgent.department = String(serverAgentContext.department);
+      if (serverAgentContext.tier) currentAgent.tier = String(serverAgentContext.tier);
+      activeFormKey = getDepartmentDefaultForm() || 'notes';
       updateAgentUI();
       applyRetentionAccess();
       applyMXAccess();
@@ -929,6 +935,7 @@ function dependencyIsMatched(rule, values) {
         return;
       }
       formSchema = schema;
+      if (Array.isArray(schema.warnings)) schema.warnings.forEach(message => console.warn(message));
       schemaLoadState = 'ready';
       applySpecialEmailAccess();
       renderActiveForm();
@@ -944,7 +951,8 @@ function dependencyIsMatched(rule, values) {
     }
 
     function noteSourceValues() {
-      const values = Object.assign({}, formValues.notes || {});
+      const sourceForm = isDepartmentNoteForm() ? activeFormKey : getDepartmentDefaultForm();
+      const values = Object.assign({}, formValues[sourceForm] || {});
       const first = ids => {
         for (const id of ids) {
           if (values[id] !== undefined && values[id] !== null && String(values[id]).trim() !== '') return values[id];
@@ -1163,6 +1171,7 @@ function dependencyIsMatched(rule, values) {
   }
   container.innerHTML = html || '<div class="col-span-full text-xs text-slate-400 py-4">No fields configured.</div>';
   placeCampaignControl();
+  syncSpecialEmailContext();
   updateUndoClearButtons();
 }
 
@@ -1356,6 +1365,13 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
     function switchEmailTab(tab) {
       if (tab === 'special' && !specialEmailAccessAllowed) tab = 'standard';
       activeEmailTab = tab;
+      const availableTemplates = tab === 'special' ? specialTemplatesList : parsedStandardTemplates;
+      if (!activeSelectedTemplate || activeSelectedTemplate.type !== (tab === 'special' ? 'special' : 'standard')) {
+        activeSelectedTemplate = availableTemplates[0] || null;
+        updateTemplatePreview();
+      }
+      if (tab === 'special') syncSpecialEmailContext();
+
       if (tab === 'standard') {
         document.getElementById('btnEmailTabStandard').className = 'px-3 py-1.5 rounded font-bold transition bg-white text-[#003b8f] shadow-sm';
         document.getElementById('btnEmailTabSpecial').className = 'px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900';
@@ -1451,11 +1467,11 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
       const allowed = (Array.isArray(raw) ? raw.flat(Infinity) : [raw])
         .filter(v => v != null).map(v => String(v).trim()).filter(Boolean);
       const ext = String(currentAgent.extension || '').trim();
-      specialEmailAccessAllowed = ext !== '' && allowed.includes(ext);
+      specialEmailAccessAllowed = ext !== '' && allowed.some(value => value === ext || value.toUpperCase() === 'ALL');
       const button = document.getElementById('btnEmailTabSpecial');
       if (button) {
       button.style.display = specialEmailAccessAllowed ? '' : 'none';
-      button.textContent = specialEmailAccessAllowed ? 'Special Emails (Project 2026)' : '';
+      button.textContent = specialEmailAccessAllowed ? 'Campaign Emails' : '';
       button.className = 'px-3 py-1.5 rounded font-bold transition text-slate-600 hover:text-slate-900';
       }
       const select = document.getElementById('feedbackSection');
@@ -1466,6 +1482,9 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
         }
       }
       if (!specialEmailAccessAllowed) {
+        specialEmailsRequest++;
+        specialEmailsContextKey='';
+        specialEmailsState='idle';
         specialTemplatesList=[];
         if(activeSelectedTemplate && activeSelectedTemplate.type === 'special') {
           activeSelectedTemplate=null;
@@ -1475,29 +1494,99 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
       }
     }
 
+
+    let specialEmailsRequest = 0;
+    let specialEmailsContextKey = '';
+    let specialEmailsState = 'idle';
+    let specialEmailsError = '';
+
+    function specialEmailContext() {
+      const key = getDepartmentKey();
+      const department = {tech:'Tech Support',retention:'Retention',mx:'Member Experience'}[key] || '';
+      let schemaKey = getActiveSchemaKey();
+      if (!isDepartmentNoteForm()) {
+        const base = getDepartmentDefaultForm();
+        schemaKey = base === 'notes' ? (callType === 'Outbound' ? 'outbound' : 'inbound') :
+          (callType === 'Outbound' ? base + '_outbound' : base);
+      }
+      const fields = Array.isArray(formSchema[schemaKey + '_order']) ? formSchema[schemaKey + '_order'] : [];
+      const campaign = fields.find(field => (field.isCampaign === true || field.id === 'campaign_toggle') && schemaFlag(field.visible,true));
+      return {extension:String(currentAgent.extension || '').trim(),department:department,
+        campaignId:campaign ? String(campaign.campaignId || '') : ''};
+    }
+
+    function specialEmailMatches(template, context) {
+      const rawDepartment = String(template.department || '').trim().toLowerCase();
+      const normalizeDepartment = value => {
+        if (['tech support','technical support'].includes(value)) return 'tech support';
+        if (['mx','member experience'].includes(value)) return 'member experience';
+        return value;
+      };
+      if (rawDepartment && !['all','global'].includes(rawDepartment) &&
+          normalizeDepartment(rawDepartment) !== normalizeDepartment(context.department.toLowerCase())) return false;
+      const campaign = String(template.campaignId || '').trim().toLowerCase();
+      // Backend skips filtering when campaignId is blank; enforce shared-only results here.
+      return !campaign || campaign === context.campaignId.toLowerCase();
+    }
+
+    function syncSpecialEmailContext(force = false) {
+      if (schemaLoadState !== 'ready' || !specialEmailAccessAllowed) return;
+      const context = specialEmailContext();
+      const key = JSON.stringify(context);
+      if (!force && key === specialEmailsContextKey) return;
+      specialEmailsContextKey = key;
+      specialTemplatesList = [];
+      specialEmailsState = 'loading';
+      specialEmailsError = '';
+      if (activeSelectedTemplate && activeSelectedTemplate.type === 'special') {
+        activeSelectedTemplate = null;
+        updateTemplatePreview();
+      }
+      const request = ++specialEmailsRequest;
+      if (activeEmailTab === 'special') renderTemplateCardsList();
+      google.script.run.withSuccessHandler(function(templates) {
+        if (request !== specialEmailsRequest || !specialEmailAccessAllowed || key !== JSON.stringify(specialEmailContext())) return;
+        const seen = new Set();
+        specialTemplatesList = (Array.isArray(templates) ? templates : [])
+          .filter(template => schemaFlag(template.active,true) && specialEmailMatches(template,context))
+          .map(function(template,index) {
+            const id = String(template.id || 'SPEC-' + (index+1));
+            const name = String(template.name || template.subject || template.brand || 'Campaign email') + ' [' + id + ']';
+            return {id:id,name:name,subject:String(template.subject || ''),body:String(template.body || ''),
+              department:template.department || '',campaignId:template.campaignId || '',brand:template.brand || '',type:'special'};
+          }).filter(template => {if (seen.has(template.id)) return false; seen.add(template.id); return true;});
+        specialEmailsState = 'ready';
+        if (activeEmailTab === 'special') {
+          activeSelectedTemplate = specialTemplatesList[0] || null;
+          updateTemplatePreview();
+          renderTemplateCardsList();
+        }
+      }).withFailureHandler(function(error) {
+        if (request !== specialEmailsRequest) return;
+        specialEmailsState = 'failed';
+        specialEmailsError = String(error.message || error);
+        specialTemplatesList = [];
+        if (activeEmailTab === 'special') { activeSelectedTemplate=null; updateTemplatePreview(); renderTemplateCardsList(); }
+      }).getSpecialEmailTemplates(context.extension,context.department,context.campaignId);
+    }
+
     function loadSpecialEmails() {
-      if (!specialEmailAccessAllowed) return;
-      google.script.run
-        .withSuccessHandler((templates) => {
-          if (!specialEmailAccessAllowed) return;
-          specialTemplatesList = (templates || []).map((t, idx) => ({
-            id: t.id || `SPEC-${idx + 1}`,
-            name: t.name || `🔒 Special Email - ${t.brand}`,
-            subject: t.subject || 'IMPORTANT NOTIFICATION',
-            body: t.body || '',
-            type: 'special'
-          }));
-          if (activeEmailTab === 'special') {
-            renderTemplateCardsList();
-          }
-        })
-        .getSpecialEmailTemplates(currentAgent.extension);
+      syncSpecialEmailContext(true);
     }
 
     function renderTemplateCardsList() {
       const container = document.getElementById('templatesListContainer');
       const isSpecial = activeEmailTab === 'special';
       const sourceList = isSpecial ? specialTemplatesList : parsedStandardTemplates;
+      if (isSpecial && specialEmailAccessAllowed && specialEmailsState !== 'ready') {
+        const message = document.createElement('div');
+        message.className = 'p-4 text-xs text-slate-500';
+        message.textContent = specialEmailsState === 'failed' ? 'Campaign emails could not be loaded: ' + specialEmailsError : 'Loading campaign emails...';
+        container.replaceChildren(message);
+        document.getElementById('templateCountBadge').textContent = '0 Templates';
+        return;
+      }
+
       const searchQ = (document.getElementById('searchTemplateInput')?.value || '').toLowerCase().trim();
 
       if (isSpecial && !specialEmailAccessAllowed) {
