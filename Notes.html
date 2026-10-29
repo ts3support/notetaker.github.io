@@ -146,7 +146,7 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-sm sm:text-base font-extrabold tracking-tight uppercase">Notes App</h1>
-            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0-SPECIALSYNC5</span>
+            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0</span>
           </div>
           <div class="text-xs text-blue-100 flex items-center gap-2">
             <span>Agent: <strong id="headerAgentDisplay" class="text-white">Loading...</strong></span>
@@ -968,28 +968,36 @@ function dependencyIsMatched(rule, values) {
       return values;
     }
 
-    function prefillTicketFromNotes(formKey) {
-      if (!['residential', 'dealer', 'addendum', 'parts'].includes(formKey)) return;
-      const source = noteSourceValues();
-      const destination = formValues[formKey] || (formValues[formKey] = {});
-      const aliases = {
-        member_name: 'caller_name', contact_name: 'caller_name', name: 'caller_name',
-        name_contact: 'caller_name', noteName: 'caller_name',
-        phone: 'phone_number', contact_phone: 'phone_number', obc_to: 'phone_number',
-        systemNumber: 'system_number', system_id: 'system_number', adc_id: 'system_number',
-        ar: 'ar_number', arNumber: 'ar_number', arNumberInput: 'ar_number', account_number: 'ar_number',
-        system_type: 'panel_type', systemType: 'panel_type'
-      };
-      getOrderedFields(formKey).forEach(function (field) {
-        const id = field.id || field['Internal ID'] || field.internalId;
-        if (!id) return;
-        // Existing destination values always take priority.
-        if (destination[id] !== undefined && destination[id] !== null && String(destination[id]).trim() !== '') return;
-        const value = source[id] !== undefined ? source[id] : source[aliases[id]];
-        if (value !== undefined && value !== null && String(value).trim() !== '') destination[id] = value;
-      });
-      saveFormDrafts();
+function prefillTicketFromNotes(formKey) {
+  if (!['residential', 'dealer', 'addendum', 'parts'].includes(formKey)) return;
+  const source = noteSourceValues();
+  const destination = formValues[formKey] || (formValues[formKey] = {});
+  const aliases = {
+    member_name: 'caller_name', contact_name: 'caller_name', name: 'caller_name',
+    noteName: 'caller_name',
+    phone: 'phone_number', contact_phone: 'phone_number', obc_to: 'phone_number',
+    systemNumber: 'system_number', system_id: 'system_number', adc_id: 'system_number',
+    ar: 'ar_number', arNumber: 'ar_number', arNumberInput: 'ar_number', account_number: 'ar_number',
+    system_type: 'panel_type', systemType: 'panel_type'
+  };
+  
+  getOrderedFields(formKey).forEach(function (field) {
+    const id = field.id || field['Internal ID'] || field.internalId;
+    if (!id) return;
+    if (destination[id] !== undefined && destination[id] !== null && String(destination[id]).trim() !== '') return;
+
+    // Special handling for combined NAME/CONTACT field
+    if (id === 'name_contact') {
+      const parts = [source.caller_name, source.phone_number].filter(Boolean);
+      if (parts.length) destination[id] = parts.join(' - '); // or parts.join(' / ')
+      return;
     }
+
+    const value = source[id] !== undefined ? source[id] : source[aliases[id]];
+    if (value !== undefined && value !== null && String(value).trim() !== '') destination[id] = value;
+  });
+  saveFormDrafts();
+}
 
     function switchForm(formKey) {
       if (!canAccessServiceForm(formKey)) {
@@ -1832,20 +1840,59 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
     }
 
     // HELPFUL LINKS & DEALER ZIP
-        function openZipModal() { document.getElementById('zipModal').classList.remove('hidden'); }
-    function closeZipModal() { document.getElementById('zipModal').classList.add('hidden'); }
+    function openZipModal() { 
+      const modal = document.getElementById('zipModal');
+      const input = document.getElementById('zipSearchInput');
+      const resDiv = document.getElementById('zipResultDisplay');
+      if (modal) modal.classList.remove('hidden'); 
+      if (resDiv) {
+        resDiv.classList.add('hidden');
+        resDiv.innerHTML = '';
+        resDiv.removeAttribute('style');
+      }
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 100);
+      }
+    }
+    
+    function closeZipModal() { 
+      document.getElementById('zipModal').classList.add('hidden'); 
+    }
+
     function executeZipSearch() {
-      const zip = document.getElementById('zipSearchInput').value.trim();
+      const input = document.getElementById('zipSearchInput');
+      const zip = (input ? input.value : '').trim();
       const resDiv = document.getElementById('zipResultDisplay');
       if (!zip) return;
+      
       resDiv.classList.remove('hidden');
-      resDiv.className = 'p-3 rounded border text-xs bg-slate-50 text-slate-600';
-      resDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Searching zip database...';
-
+      resDiv.removeAttribute('style');
+      resDiv.className = 'p-3 rounded-lg border text-xs bg-slate-50 text-slate-600';
+      resDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1 text-[#003b8f]"></i> Searching zip footprint database...';
+      
       google.script.run
         .withSuccessHandler(res => {
-          resDiv.className = `p-3 rounded border text-xs ${res.found ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`;
-          resDiv.innerHTML = `<strong>${res.message}</strong> for Zip <code>${zip}</code>`;
+          // 1. Use Tailwind classes matching the 3 statuses
+          let styleClasses = 'bg-rose-50 text-rose-800 border-rose-300'; // Default: No Tech / Not found (Red)
+          
+          if (res.status === 'PRO') {
+            styleClasses = 'bg-emerald-50 text-emerald-800 border-emerald-300'; // Pro Territory (Green)
+          } else if (res.status === 'DEALER') {
+            styleClasses = 'bg-sky-50 text-sky-800 border-sky-300'; // Dealer Service (Blue/Cyan)
+          }
+
+          resDiv.className = `p-3.5 rounded-lg border text-xs leading-relaxed font-semibold transition-all ${styleClasses}`;
+          
+          // 2. Format result display
+          resDiv.innerHTML = `
+            <div class="text-sm font-bold mb-1">${res.message}</div>
+            <div class="text-[11px] opacity-80 font-normal">Searched Zip: <code class="font-mono font-bold">${zip}</code></div>
+          `;
+        })
+        .withFailureHandler(err => {
+          resDiv.className = 'p-3 rounded-lg border text-xs bg-rose-50 text-rose-800 border-rose-300';
+          resDiv.innerHTML = `<strong>Error searching zip:</strong> ${err.message || err}`;
         })
         .checkZipCode(zip);
     }
