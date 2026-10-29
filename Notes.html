@@ -122,18 +122,9 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#52637c; }
 html[data-theme="dark"] #helpfulLinksMenu .border-slate-200,html[data-theme="dark"] #helpfulLinksMenu .border-slate-300{border-color:#41516a!important;}
 html[data-theme="dark"] #linksHubList a:hover{background-color:#253c5b!important;}
 </style>
-<style id="creator-credit-style">
-.creator-credit {
-  width: 100%;
-  margin-top: auto;
-  padding: 14px 16px;
-  color: #64748b;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 12px;
-  line-height: 1.5;
-  text-align: center;
-}
-html[data-theme="dark"] .creator-credit { color: #94a3b8; }
+<style>
+.creator-credit{width:100%;margin-top:auto;padding:14px 16px;color:#64748b;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;text-align:center;}
+html[data-theme="dark"] .creator-credit{color:#94a3b8;}
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
@@ -155,7 +146,7 @@ html[data-theme="dark"] .creator-credit { color: #94a3b8; }
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-sm sm:text-base font-extrabold tracking-tight uppercase">Notes App</h1>
-            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0-DEPTLINKS3</span>
+            <span class="text-[10px] font-bold bg-[#e2231a] text-white px-2 py-0.2 rounded-full">v2.0-CAMPAIGNREASON4</span>
           </div>
           <div class="text-xs text-blue-100 flex items-center gap-2">
             <span>Agent: <strong id="headerAgentDisplay" class="text-white">Loading...</strong></span>
@@ -319,10 +310,7 @@ html[data-theme="dark"] .creator-credit { color: #94a3b8; }
     </div>
 
   </main>
-
-  <footer class="creator-credit">
-    Created by Erick Dansby 08/13/2026
-  </footer>
+<footer class="creator-credit">Created by Erick Dansby 08/13/2026</footer>
 
   <!-- ======================================================== -->
   <!-- MODAL: NOTE PREVIEW (ON-DEMAND) -->
@@ -939,6 +927,7 @@ function dependencyIsMatched(rule, values) {
         return;
       }
       formSchema = schema;
+      if (Array.isArray(schema.warnings)) schema.warnings.forEach(message => console.warn(message));
       schemaLoadState = 'ready';
       applySpecialEmailAccess();
       renderActiveForm();
@@ -1100,7 +1089,7 @@ function dependencyIsMatched(rule, values) {
     container.innerHTML = '<div class="col-span-full py-4 text-sm text-slate-500" role="status">Loading form configuration from the spreadsheet…</div>';
     return;
   }
-  const targetKey = activeFormKey === 'notes' ? (callType.toLowerCase()) : activeFormKey;
+  const targetKey = getActiveSchemaKey();
   
   const fieldsList = getOrderedFields(targetKey);
   const currentVals = formValues[activeFormKey] || {};
@@ -1176,16 +1165,58 @@ function dependencyIsMatched(rule, values) {
   updateUndoClearButtons();
 }
 
+
+// Autofill provenance is saved separately from note values.
+let campaignReasonTracking = {};
+let undoCampaignReasonTracking = {};
+function campaignFieldId(field) {
+  return String(field.id || field.internalId || field['Internal ID'] || '');
+}
+function campaignReasonField(fields) {
+  return fields.find(f => ['reason','reason_for_call','reasonforcall'].includes(campaignFieldId(f).toLowerCase()));
+}
+function updateCampaignReason(field, answer, fields, values, tracking) {
+  const fieldId = campaignFieldId(field);
+  if (!(field.isCampaign === true || !!field.campaignId || fieldId === 'campaign_toggle')) return false;
+  const target = campaignReasonField(fields);
+  if (!target) return false;
+  const reasonId = campaignFieldId(target);
+  const previous = tracking[reasonId];
+  const campaignId = String(field.campaignId || fieldId);
+  const autoText = String(field.autoPopulateReason || '').trim();
+  const yes = String(answer || '').trim().toLowerCase() === 'yes';
+  let changed = false;
+  if (previous && previous.sourceFieldId === fieldId) {
+    if (String(values[reasonId] ?? '') !== previous.text) {
+      delete tracking[reasonId];
+    } else if (!yes || previous.campaignId !== campaignId || previous.text !== autoText) {
+      values[reasonId] = '';
+      delete tracking[reasonId];
+      changed = true;
+    }
+  }
+  if (yes && autoText && !String(values[reasonId] ?? '').trim() &&
+      shouldShowNoteField(target, getActiveSchemaKey(), values)) {
+    values[reasonId] = autoText;
+    tracking[reasonId] = {sourceFieldId:fieldId,campaignId:campaignId,text:autoText};
+    changed = true;
+  }
+  return changed;
+}
+
 function handleFieldInput(fieldId, val) {
   if (!formValues[activeFormKey]) formValues[activeFormKey] = {};
-  formValues[activeFormKey][fieldId] = val;
-
+  const values = formValues[activeFormKey];
+  const tracking = campaignReasonTracking[activeFormKey] || (campaignReasonTracking[activeFormKey] = {});
+  // A manual edit relinquishes ownership permanently until a new autofill.
+  if (Object.prototype.hasOwnProperty.call(tracking,fieldId)) delete tracking[fieldId];
+  values[fieldId] = val;
+  const fields = getOrderedFields(getActiveSchemaKey());
+  const field = fields.find(f => campaignFieldId(f) === fieldId);
+  const reasonChanged = field ? updateCampaignReason(field,val,fields,values,tracking) : false;
   saveFormDrafts();
-  const key = getActiveSchemaKey();
-  const field = getOrderedFields(key).find(f => (f.id || f['Internal ID'] || f.internalId) === fieldId);
-
   const type = String(field ? field.type || field.fieldType || field['Field Type'] || 'Text' : 'Text').trim().toLowerCase();
-  if (type === 'radio' || type === 'dropdown' || ['service_type','scheduled_service','warranty','fee_waived','call_answered','non_comm'].includes(fieldId)) renderActiveForm();
+  if (reasonChanged || type === 'radio' || type === 'dropdown') renderActiveForm();
 }
 
     document.addEventListener('change', function(event) {
@@ -1254,7 +1285,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
     let undoClearSnapshots = {};
     function formDraftStorageKey() { return 'noteTaker_v2_drafts_' + (String(currentAgent.extension || '').trim() || 'unassigned'); }
     function saveFormDrafts() {
-      try { localStorage.setItem(formDraftStorageKey(), JSON.stringify({version:1,values:formValues,undo:undoClearSnapshots,callType:callType,customerType:customerType})); }
+      try { localStorage.setItem(formDraftStorageKey(), JSON.stringify({version:1,values:formValues,undo:undoClearSnapshots,callType:callType,customerType:customerType,campaignReasonTracking:campaignReasonTracking,undoCampaignReasonTracking:undoCampaignReasonTracking})); }
       catch (e) { console.warn('Draft storage unavailable; entries remain in memory.',e); }
     }
     function restoreFormDrafts() {
@@ -1265,6 +1296,8 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
           if (saved.values[key] && typeof saved.values[key] === 'object' && !Array.isArray(saved.values[key])) formValues[key]=saved.values[key];
           if (saved.undo && saved.undo[key] && typeof saved.undo[key] === 'object' && !Array.isArray(saved.undo[key])) undoClearSnapshots[key]=saved.undo[key];
         });
+        campaignReasonTracking = saved.campaignReasonTracking && typeof saved.campaignReasonTracking === 'object' && !Array.isArray(saved.campaignReasonTracking) ? saved.campaignReasonTracking : {};
+        undoCampaignReasonTracking = saved.undoCampaignReasonTracking && typeof saved.undoCampaignReasonTracking === 'object' && !Array.isArray(saved.undoCampaignReasonTracking) ? saved.undoCampaignReasonTracking : {};
         setCallType(saved.callType === 'Outbound' ? 'Outbound' : 'Inbound');
         setCustomerType(saved.customerType === 'Commercial' ? 'Commercial' : 'Residential');
       } catch(e) { console.warn('Unable to restore drafts.',e); }
@@ -1274,13 +1307,21 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
     }
     function clearCurrentForm() {
       const values=formValues[activeFormKey] || {};
-      if(Object.values(values).some(v => v !== '' && v !== null && v !== undefined)) undoClearSnapshots[activeFormKey]=JSON.parse(JSON.stringify(values));
-      formValues[activeFormKey]={}; saveFormDrafts(); renderActiveForm();
+      if(Object.values(values).some(v => v !== '' && v !== null && v !== undefined)) {
+        undoClearSnapshots[activeFormKey]=JSON.parse(JSON.stringify(values));
+        undoCampaignReasonTracking[activeFormKey]=JSON.parse(JSON.stringify(campaignReasonTracking[activeFormKey] || {}));
+      }
+      formValues[activeFormKey]={};
+      campaignReasonTracking[activeFormKey]={};
+      saveFormDrafts(); renderActiveForm();
     }
     function undoClearCurrentForm() {
       if(!Object.prototype.hasOwnProperty.call(undoClearSnapshots,activeFormKey)) return;
       formValues[activeFormKey]=JSON.parse(JSON.stringify(undoClearSnapshots[activeFormKey]));
-      delete undoClearSnapshots[activeFormKey]; saveFormDrafts(); renderActiveForm();
+      campaignReasonTracking[activeFormKey]=JSON.parse(JSON.stringify(undoCampaignReasonTracking[activeFormKey] || {}));
+      delete undoClearSnapshots[activeFormKey];
+      delete undoCampaignReasonTracking[activeFormKey];
+      saveFormDrafts(); renderActiveForm();
     }
 
 
