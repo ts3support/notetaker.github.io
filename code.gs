@@ -64,7 +64,7 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   const page = text_(p.page).toLowerCase();
 
-  // Default to 'Notes' so the main application and your banners load immediately.
+  // Default to 'Notes' so the main application loads immediately
   let file = 'Notes';
   if (page === 'login') {
     file = 'Login';
@@ -89,6 +89,14 @@ function doGet(e) {
   t.extension = p.extension || p.ext || '';
   t.department = p.department || p.dept || '';
   t.role = p.role || p.role_tier || '';
+
+  // If parameters are pre-populated via URL query string, record login
+  if (t.agent && t.extension && t.department) {
+    const d = department_(t.department);
+    if (d) {
+      recordLogin_(t.agent, t.extension, d.name);
+    }
+  }
 
   return t
     .evaluate()
@@ -127,7 +135,6 @@ function getSettings() {
  */
 function getProjectExtensions() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
   // 1. Pull target extensions directly from Campaigns - Tech Support
   const campSheet = ss.getSheetByName('Campaigns - Tech Support');
   if (campSheet) {
@@ -176,13 +183,64 @@ function getLoginConfig() {
   return getLoginFields();
 }
 
+/**
+ * Records individual login events to the 'Login Log' sheet.
+ * Uses LockService to safely manage concurrent logons.
+ */
+function recordLogin_(agentName, extension, department) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Login Log');
+
+    if (!sheet) {
+      sheet = ss.insertSheet('Login Log');
+      sheet.appendRow(['Date', 'Timestamp', 'Agent Name', 'Extension', 'Department']);
+      sheet.setFrozenRows(1);
+      sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
+    }
+
+    const now = new Date();
+    const dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const safe = v => {
+      const t = text_(v);
+      return /^[=+@-]/.test(t) ? "'" + t : t;
+    };
+
+    const lock = LockService.getScriptLock();
+    if (lock.tryLock(5000)) {
+      try {
+        sheet.appendRow([
+          dateStr,
+          now,
+          safe(agentName),
+          safe(extension),
+          safe(department)
+        ]);
+      } finally {
+        lock.releaseLock();
+      }
+    }
+  } catch (err) {
+    console.error('recordLogin_ error: ' + err.message);
+  }
+}
+
+/**
+ * Validates agent login and records the activity event.
+ */
 function validateLogin(name, extension, department) {
-  const valid = !!text_(name) && !!text_(extension) && !!department_(department);
+  const d = department_(department);
+  const valid = !!text_(name) && !!text_(extension) && !!d;
+
+  if (valid) {
+    recordLogin_(name, extension, d.name);
+  }
+
   return {
     success: valid,
     agentName: text_(name),
     extension: text_(extension),
-    department: text_(department),
+    department: d ? d.name : text_(department),
     message: valid ? '' : 'Enter an agent name, extension, and recognized department.'
   };
 }
@@ -219,8 +277,8 @@ function getActiveDepartmentCampaigns(department, extension) {
   const ext = text_(extension);
 
   // Column J auto-populate reason header check
-  const reasonHeader = h.find(col => col.includes('auto') && col.includes('reason')) || 
-                       (h.includes('auto-populate reason') ? 'auto-populate reason' : 'auto populate reason');
+  const reasonHeader = h.find(col => col.includes('auto') && col.includes('reason')) ||
+                        (h.includes('auto-populate reason') ? 'auto populate reason' : 'auto-populate reason');
 
   data.slice(1).forEach(r => {
     if (!flag_(cell_(r, h, 'active'))) return;
@@ -231,9 +289,9 @@ function getActiveDepartmentCampaigns(department, extension) {
     const targets = list_(cell_(r, h, 'target extensions'));
 
     // Check scope targeting
-    if (!(['department-wide', 'global'].includes(scope) || 
-          targets.some(v => v.toUpperCase() === 'ALL') || 
-          (scope === 'extension-specific' && ext !== '' && targets.includes(ext)))) {
+    if (!(['department-wide', 'global'].includes(scope) ||
+           targets.some(v => v.toUpperCase() === 'ALL') ||
+           (scope === 'extension-specific' && ext !== '' && targets.includes(ext)))) {
       return;
     }
 
@@ -724,41 +782,139 @@ function readSpecialEmails_(department, campaignId, extension) {
  * 7. ZIP LOOKUP, FEEDBACK & CHANGELOG
  * ========================================================================== */
 
+/**
+ * Searches the ZIP code footprint database for Pro territory and Dealer Service.
+ * Robust to variations in sheet tab names, zero-padded strings, and range rows (e.g. 97001 - 97920).
+ * Returns semantic badge styling:
+ *   - PRO: Emerald text (#065f46), Mint bg (#ecfdf5), border (#6ee7b7)
+ *   - DEALER: Ocean blue text (#0369a1), Soft sky bg (#f0f9ff), border (#7dd3fc)
+ *   - NO TECH / NOT FOUND: Crimson text (#991b1b), Light red bg (#fef2f2), border (#f87171)
+ */
 function checkZipCode(input) {
-  const raw = text_(input);
-  if (!/^\d{1,5}$/.test(raw)) return { found: false, status: 'INVALID', message: 'Invalid ZIP format.' };
-  const zip = raw.padStart(5, '0');
+  const raw = text_(input).replace(/\D/g, ''); // strip any non-digit characters
+  if (!raw || raw.length > 5) {
+    return {
+      found: false,
+      status: 'INVALID',
+      message: 'Invalid ZIP format. Enter 5 digits.',
+      color: '#b91c1c',      // Dark Red
+      bgColor: '#fef2f2',    // Light Red background
+      borderColor: '#fca5a5' // Soft Red border
+    };
+  }
+
+  const zipPadded = raw.padStart(5, '0');
+  const zipNum = parseInt(raw, 10);
+  const zipNumStr = String(zipNum);
 
   try {
     const settings = getSettings();
-    const ss = SpreadsheetApp.openById(settings['Sheet ID - Zip Codes'] || '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw');
+    const docId = text_(settings['Sheet ID - Zip Codes']) || '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw';
+    const ss = SpreadsheetApp.openById(documentId_(docId));
+    const allSheets = ss.getSheets();
 
-    // 1. Check Official Pro Zips
-    const pro = ss.getSheetByName('Official Pro Zips');
-    if (pro && pro.getDataRange().getDisplayValues().some(r => r.some(v => v.trim() === zip))) {
-      return { found: true, status: 'PRO', message: '✅ In Footprint (Pro Territory)' };
-    }
+    // Helper: matches single zip or numeric range like "97001 - 97920"
+    const matchZip_ = cellValue => {
+      const v = text_(cellValue);
+      if (!v) return false;
 
-    // 2. Check Official DS (Upgrade & Service)
-    const ds = ss.getSheetByName('Official DS (Upgrade & Service)') || ss.getSheetByName('Official DS') || ss.getSheetByName('Dealer Service');
-    if (ds) {
-      const data = ds.getDataRange().getDisplayValues();
-      if (data.length > 2) {
-        for (let c = 0; c < data[0].length; c++) {
-          const noTech = /NO TECH/i.test(data[0][c] + ' ' + data[1][c]);
-          for (let r = 2; r < data.length; r++) {
-            if (data[r][c].trim() !== zip) continue;
-            if (noTech) return { found: false, status: 'NO_TECH', message: '❌ No Tech Available (Dealer No Tech Territory)' };
-            return { found: true, status: 'DEALER', message: '✅ Dealer Service (' + text_(data[0][c] || data[1][c] || 'Dealer Service') + ')' };
+      // 1. Check for range notation (e.g., "97001 - 97920")
+      const rangeMatch = v.match(/^(\d{5})\s*[-–]\s*(\d{5})$/);
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1], 10);
+        const end = parseInt(rangeMatch[2], 10);
+        return zipNum >= start && zipNum <= end;
+      }
+
+      // 2. Exact match (as padded string or raw digits)
+      const digits = v.replace(/\D/g, '');
+      return digits === zipPadded || digits === zipNumStr;
+    };
+
+    // 1. Check Pro Territory (Green) - matches tab names like 'Official Pro Zips (new installs)'
+    let proSheet = allSheets.find(s => {
+      const n = s.getName().toLowerCase();
+      return n.includes('pro') && n.includes('zip');
+    }) || ss.getSheetByName('Official Pro Zips');
+
+    if (proSheet) {
+      const proData = proSheet.getDataRange().getDisplayValues();
+      for (let r = 0; r < proData.length; r++) {
+        for (let c = 0; c < proData[r].length; c++) {
+          if (matchZip_(proData[r][c])) {
+            return {
+              found: true,
+              status: 'PRO',
+              message: '✅ In Footprint (Pro Territory)',
+              color: '#065f46',       // Emerald dark green
+              bgColor: '#ecfdf5',     // Mint light green
+              borderColor: '#6ee7b7'  // Accent green border
+            };
           }
         }
       }
     }
 
-    return { found: false, status: 'NOT_FOUND', message: '❌ No Tech Available' };
+    // 2. Check Dealer Service Territory (Blue/Cyan vs No-Tech)
+    let dsSheet = allSheets.find(s => {
+      const n = s.getName().toLowerCase();
+      return (n.includes('official ds') || n.includes('dealer service')) && (n.includes('upgrade') || n.includes('service'));
+    }) || ss.getSheetByName('Official DS (Upgrade & Service)');
+
+    if (dsSheet) {
+      const dsData = dsSheet.getDataRange().getDisplayValues();
+      if (dsData.length > 2) {
+        for (let c = 0; c < dsData[0].length; c++) {
+          const headerCombo = (text_(dsData[0][c]) + ' ' + (dsData[1] ? text_(dsData[1][c]) : '')).toUpperCase();
+          const isNoTech = headerCombo.includes('NO TECH');
+          const dealerLabel = text_(dsData[0][c]) || (dsData[1] ? text_(dsData[1][c]) : '') || 'Dealer Service';
+
+          for (let r = 2; r < dsData.length; r++) {
+            if (matchZip_(dsData[r][c])) {
+              if (isNoTech) {
+                return {
+                  found: false,
+                  status: 'NO_TECH',
+                  message: '❌ No Tech Available (Dealer No Tech Territory)',
+                  color: '#991b1b',      // Crimson red text
+                  bgColor: '#fef2f2',    // Light red background
+                  borderColor: '#f87171' // Red border
+                };
+              }
+              return {
+                found: true,
+                status: 'DEALER',
+                message: '✅ Dealer Service (' + dealerLabel + ')',
+                color: '#0369a1',       // Ocean blue text
+                bgColor: '#f0f9ff',     // Soft sky blue background
+                borderColor: '#7dd3fc'  // Sky blue border
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // Default: Not found (Red)
+    return {
+      found: false,
+      status: 'NOT_FOUND',
+      message: '❌ No Tech Available',
+      color: '#991b1b',
+      bgColor: '#fef2f2',
+      borderColor: '#f87171'
+    };
+
   } catch (e) {
-    console.error(e);
-    return { found: false, status: 'ERROR', message: 'Error searching zip footprint: ' + e.message };
+    console.error('checkZipCode error: ' + e.message, e.stack);
+    return {
+      found: false,
+      status: 'ERROR',
+      message: 'Error searching footprint: ' + e.message,
+      color: '#854d0e',
+      bgColor: '#fefce8',
+      borderColor: '#fde047'
+    };
   }
 }
 
