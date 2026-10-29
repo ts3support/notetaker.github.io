@@ -90,13 +90,6 @@ function doGet(e) {
   t.department = p.department || p.dept || '';
   t.role = p.role || p.role_tier || '';
 
-  // If parameters are pre-populated via URL query string, record login
-  if (t.agent && t.extension && t.department) {
-    const d = department_(t.department);
-    if (d) {
-      recordLogin_(t.agent, t.extension, d.name);
-    }
-  }
 
   return t
     .evaluate()
@@ -183,58 +176,18 @@ function getLoginConfig() {
   return getLoginFields();
 }
 
-/**
- * Records individual login events to the 'Login Log' sheet.
- * Uses LockService to safely manage concurrent logons.
- */
+/** Compatibility wrapper; agent names are intentionally not stored. */
 function recordLogin_(agentName, extension, department) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName('Login Log');
-
-    if (!sheet) {
-      sheet = ss.insertSheet('Login Log');
-      sheet.appendRow(['Date', 'Timestamp', 'Agent Name', 'Extension', 'Department']);
-      sheet.setFrozenRows(1);
-      sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
-    }
-
-    const now = new Date();
-    const dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    const safe = v => {
-      const t = text_(v);
-      return /^[=+@-]/.test(t) ? "'" + t : t;
-    };
-
-    const lock = LockService.getScriptLock();
-    if (lock.tryLock(5000)) {
-      try {
-        sheet.appendRow([
-          dateStr,
-          now,
-          safe(agentName),
-          safe(extension),
-          safe(department)
-        ]);
-      } finally {
-        lock.releaseLock();
-      }
-    }
-  } catch (err) {
-    console.error('recordLogin_ error: ' + err.message);
-  }
+  return recordAppUsage(extension, department);
 }
 
 /**
- * Validates agent login and records the activity event.
+ * Validates login fields. Usage is recorded only after a department form loads.
  */
 function validateLogin(name, extension, department) {
   const d = department_(department);
   const valid = !!text_(name) && !!text_(extension) && !!d;
 
-  if (valid) {
-    recordLogin_(name, extension, d.name);
-  }
 
   return {
     success: valid,
@@ -427,6 +380,20 @@ function getFormSchema(department, extension) {
       schema[key + '_order'].push(f);
     });
   });
+
+  // This runs for normal login and bookmarked returns that restore agent context.
+  // Never let analytics failure prevent the form schema from loading.
+  const primaryForm = d ? { tech: 'inbound', retention: 'retention', mx: 'mx' }[d.key] : '';
+  const loadedDepartmentForm = primaryForm && (
+    (schema[primaryForm + '_order'] || []).length > 0 ||
+    (schema[(d.key === 'tech' ? 'outbound' : primaryForm + '_outbound') + '_order'] || []).length > 0
+  );
+  schema.usageRecorded = false;
+  if (d && ext && loadedDepartmentForm) {
+    const usageResult = recordAppUsage(ext, d.name);
+    schema.usageRecorded = usageResult.success === true;
+    if (!usageResult.success) schema.warnings.push('Usage tracking was unavailable; the app remains usable.');
+  }
 
   return schema;
 }
@@ -968,4 +935,153 @@ function parseOptions(value) {
 
 function parseBoolean(value, fallback = false) {
   return flag_(value, fallback);
+}
+/* ============================================================================
+ * 8. UNIQUE USAGE TOTALS — EXTENSION AND DEPARTMENT ONLY
+ * ========================================================================== */
+
+/**
+ * One row per extension/department pair, not per login or refresh.
+ * No names, customer fields, note text, or event counts are stored here.
+ * Existing Login Log is read only for historical totals; never changed/deleted.
+ */
+function recordAppUsage(extension, department) {
+  const ext = text_(extension);
+  const dept = department_(department);
+  if (!/^\d+$/.test(ext) || !dept) {
+    return { success: false, message: 'A numeric extension and recognized department are required.' };
+  }
+
+  const lock = LockService.getScriptLock();
+  let locked = false;
+  try {
+    locked = lock.tryLock(5000);
+    if (!locked) return { success: false, message: 'Usage tracking is busy; try again later.' };
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Usage Users');
+    const requiredHeaders = ['Extension', 'Department', 'First Seen', 'Last Seen'];
+    if (!sheet) {
+      sheet = ss.insertSheet('Usage Users');
+      sheet.getRange(1, 1, 1, requiredHeaders.length).setValues([requiredHeaders]);
+      sheet.setFrozenRows(1);
+      sheet.getRange(1, 1, 1, requiredHeaders.length).setFontWeight('bold');
+    } else if (sheet.getLastRow() === 0) {
+      sheet.getRange(1, 1, 1, requiredHeaders.length).setValues([requiredHeaders]);
+      sheet.setFrozenRows(1);
+    }
+
+    const data = sheet.getDataRange().getValues();
+    const h = headers_(data[0]);
+    requireHeaders_(h, ['extension', 'department', 'first seen', 'last seen'], 'Usage Users');
+    const extensionIndex = h.indexOf('extension');
+    const departmentIndex = h.indexOf('department');
+    const firstSeenIndex = h.indexOf('first seen');
+    const lastSeenIndex = h.indexOf('last seen');
+    const now = new Date();
+    let existingRow = 0;
+
+    for (let i = 1; i < data.length; i++) {
+      const rowDept = department_(data[i][departmentIndex]);
+      if (text_(data[i][extensionIndex]) === ext && rowDept && rowDept.key === dept.key) {
+        existingRow = i + 1;
+        break;
+      }
+    }
+
+    if (existingRow) {
+      sheet.getRange(existingRow, lastSeenIndex + 1).setValue(now);
+      return { success: true, newDepartmentUser: false };
+    }
+
+    const row = new Array(h.length).fill('');
+    row[extensionIndex] = ext;
+    row[departmentIndex] = dept.name;
+    row[firstSeenIndex] = now;
+    row[lastSeenIndex] = now;
+    const destinationRow = sheet.getLastRow() + 1;
+    if (destinationRow > sheet.getMaxRows()) {
+      sheet.insertRowsAfter(sheet.getMaxRows(), destinationRow - sheet.getMaxRows());
+    }
+    // Store extensions as text so leading zeros are not discarded.
+    sheet.getRange(destinationRow, extensionIndex + 1).setNumberFormat('@');
+    sheet.getRange(destinationRow, 1, 1, row.length).setValues([row]);
+    return { success: true, newDepartmentUser: true };
+  } catch (err) {
+    console.error('recordAppUsage error: ' + err.message);
+    return { success: false, message: 'Usage could not be recorded.' };
+  } finally {
+    if (locked) lock.releaseLock();
+  }
+}
+
+/** Pure aggregation: overall extensions are distinct across all departments. */
+function summarizeUsagePairs_(pairs) {
+  const overall = new Set();
+  const departments = {
+    'Tech Support': new Set(),
+    'Retention': new Set(),
+    'Member Experience': new Set()
+  };
+  pairs.forEach(function(pair) {
+    const ext = text_(pair.extension);
+    const dept = department_(pair.department);
+    if (!/^\d+$/.test(ext) || !dept) return;
+    overall.add(ext);
+    departments[dept.name].add(ext);
+  });
+  const byDepartment = {};
+  Object.keys(departments).forEach(function(name) {
+    byDepartment[name] = departments[name].size;
+  });
+  return { totalUsers: overall.size, byDepartment: byDepartment };
+}
+
+/**
+ * Admin-only summary. Does not expose individual names or extensions.
+ * Pass the configured Settings > Admin Password on each call.
+ */
+function getUsageTotals(adminPasscode) {
+  if (!validateAdminPasscode(adminPasscode)) {
+    return { success: false, message: 'Admin authorization required.' };
+  }
+
+  const lock = LockService.getScriptLock();
+  let locked = false;
+  try {
+    locked = lock.tryLock(5000);
+    if (!locked) return { success: false, message: 'Usage totals are busy; try again.' };
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const pairs = [];
+    const sources = [];
+
+    // Include historical log entries, but deduplicate extensions across both sheets.
+    ['Usage Users', 'Login Log'].forEach(function(name) {
+      const sheet = ss.getSheetByName(name);
+      if (!sheet || sheet.getLastRow() < 2) return;
+      const data = sheet.getDataRange().getDisplayValues();
+      const h = headers_(data[0]);
+      requireHeaders_(h, ['extension', 'department'], name);
+      const extensionIndex = h.indexOf('extension');
+      const departmentIndex = h.indexOf('department');
+      sources.push(name);
+      data.slice(1).forEach(function(row) {
+        pairs.push({ extension: row[extensionIndex], department: row[departmentIndex] });
+      });
+    });
+
+    const totals = summarizeUsagePairs_(pairs);
+    return {
+      success: true,
+      totalUsers: totals.totalUsers,
+      byDepartment: totals.byDepartment,
+      sources: sources,
+      generatedAt: new Date().toISOString()
+    };
+  } catch (err) {
+    console.error('getUsageTotals error: ' + err.message);
+    return { success: false, message: 'Unable to load usage totals: ' + err.message };
+  } finally {
+    if (locked) lock.releaseLock();
+  }
 }
