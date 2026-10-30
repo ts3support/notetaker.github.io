@@ -32,4 +32,12 @@ https://docs.google.com/document/d/1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU/
 
 
 
-https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxJR0YrHGzFCekqDJIDoyXOIqO6KbC8Q-3uZAw3_70u6e-sjtgfk0w1o8ZfvYxO0gGI/exec?page=notes
+An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.
+userCodeAppPanel?cre…AuthDialog=true:193 Uncaught SyntaxError: Failed to execute 'write' on 'Document': Unexpected end of input
+    at cu (2767469550-mae_html_user_bin_i18n_mae_html_user.js:348:101)
+    at 2767469550-mae_html_user_bin_i18n_mae_html_user.js:59:133
+    at Po (2767469550-mae_html_user_bin_i18n_mae_html_user.js:196:105)
+    at c (2767469550-mae_html_user_bin_i18n_mae_html_user.js:270:536)
+    at a (2767469550-mae_html_user_bin_i18n_mae_html_user.js:193:52)
+2userCodeAppPanel?createOAuthDialog=true:1 Uncaught ReferenceError: saveData is not defined
+    at HTMLButtonElement.onclick (userCodeAppPanel?createOAuthDialog=true:1:7027)
