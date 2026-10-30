@@ -253,8 +253,8 @@ function getActiveDepartmentCampaigns(department, extension) {
 
     // Check scope targeting
     if (!(['department-wide', 'global'].includes(scope) ||
-           targets.some(v => v.toUpperCase() === 'ALL') ||
-           (scope === 'extension-specific' && ext !== '' && targets.includes(ext)))) {
+          targets.some(v => v.toUpperCase() === 'ALL') ||
+          (scope === 'extension-specific' && ext !== '' && targets.includes(ext)))) {
       return;
     }
 
@@ -637,7 +637,6 @@ function extractLinksFromSource_(sourceUrlOrId) {
   try {
     return extractDocLinks_(DocumentApp.openById(id).getBody());
   } catch (e) {
-    // Fallback to Sheet extraction if DocumentApp cannot open it
     return extractSheetLinks_(id);
   }
 }
@@ -762,23 +761,61 @@ function importDepartmentHelpfulLinks_(department) {
  * 6. EMAIL TEMPLATES (Standard & Special Emails)
  * ========================================================================== */
 
+/**
+ * Retrieves standard email templates HTML for the agent's department.
+ * Enforces strict departmental isolation: Retention and Member Experience
+ * will NOT roll over or fall back to Tech Support templates.
+ * 
+ * Safely handles placeholders (e.g., [PENDING_...]) or unconfigured states by
+ * returning an empty string without throwing errors.
+ */
 function getEmailTemplatesHtml(department) {
   const settings = getSettings();
   const d = department_(department);
-  if (text_(department) && !d) throw new Error('Unrecognized email department.');
+  if (text_(department) && !d) {
+    throw new Error('Unrecognized email department: ' + department);
+  }
 
-  const source = (d ? text_(settings['Doc ID - Standard Emails - ' + d.name]) : '') || text_(settings['Doc ID - Standard Emails']);
-  if (!source) throw new Error('No standard email document configured for ' + (d ? d.name : 'the shared library') + '.');
+  // 1. Strict isolated key matching per department
+  let source = '';
+  if (d) {
+    source = text_(settings['Doc ID - Standard Emails - ' + d.name]);
 
-  const response = UrlFetchApp.fetch('https://docs.google.com/document/d/' + encodeURIComponent(documentId_(source)) + '/export?format=html', {
-    method: 'get',
-    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-    muteHttpExceptions: true
-  });
+    // Backward compatibility: ONLY Tech Support may fall back to legacy 'Doc ID - Standard Emails'
+    if (!source && d.key === 'tech') {
+      source = text_(settings['Doc ID - Standard Emails']);
+    }
+  } else {
+    source = text_(settings['Doc ID - Standard Emails']);
+  }
 
-  const status = response.getResponseCode();
-  if (status < 200 || status >= 300) throw new Error('Email export failed (HTTP ' + status + '). Check document ID and permissions.');
-  return response.getContentText();
+  // 2. Strict isolation & placeholder safety:
+  // If no source is configured, or if it's a placeholder (like [PENDING_...]), return empty string.
+  // Never default Retention or Member Experience to Tech Support!
+  if (!source || source.startsWith('[') || source.toUpperCase().includes('PENDING')) {
+    console.warn('Standard email templates not yet configured for ' + (d ? d.name : 'the requested department') + '.');
+    return '';
+  }
+
+  try {
+    const docId = documentId_(source);
+    const response = UrlFetchApp.fetch('https://docs.google.com/document/d/' + encodeURIComponent(docId) + '/export?format=html', {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
+    });
+
+    const status = response.getResponseCode();
+    if (status < 200 || status >= 300) {
+      console.warn('Email export failed (HTTP ' + status + ') for doc ID ' + docId + '. Check permissions or link sharing.');
+      return '';
+    }
+
+    return response.getContentText();
+  } catch (err) {
+    console.error('getEmailTemplatesHtml error: ' + err.message);
+    return '';
+  }
 }
 
 /**
