@@ -210,6 +210,10 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
   <nav class="bg-white border-b border-slate-200 px-4 shadow-sm sticky top-[49px] z-30">
     <div class="max-w-7xl mx-auto flex items-center justify-between overflow-x-auto py-1 gap-2">
       <div class="flex items-center gap-1.5">
+        <!-- NEW CALL -->
+        <button type="button" id="newCallButton" onclick="openNewCallConfirmation()" class="px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100">
+          <i class="fa-solid fa-phone" aria-hidden="true"></i> New Call
+        </button>
         <button type="button" onclick="switchForm('notes')" id="tab-notes" class="form-tab px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-[#003b8f] border-b-2 border-[#003b8f]">
           <i class="fa-solid fa-phone"></i> Inbound / Outbound Notes
         </button>
@@ -573,6 +577,18 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
   <!-- ======================================================== -->
   <!-- JAVASCRIPT LOGIC -->
   <!-- ======================================================== -->
+  <!-- NEW CALL CONFIRMATION -->
+  <div id="newCallModal" role="dialog" aria-modal="true" aria-labelledby="newCallHeading" aria-describedby="newCallDescription" class="hidden fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full p-5 space-y-4">
+      <h3 id="newCallHeading" class="text-sm font-bold text-slate-900">Start a new call?</h3>
+      <p id="newCallDescription" class="text-sm text-slate-700">Clear all notes and ticket tabs, saved drafts, Undo Clear history, email customer details, ZIP lookup results, feedback entries, and the timer? Your login information will remain. This cannot be undone.</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" id="cancelNewCallButton" onclick="closeNewCallConfirmation()" class="px-3 py-2 text-xs font-semibold rounded border border-slate-300 text-slate-700">Cancel</button>
+        <button type="button" id="confirmNewCallButton" onclick="startNewCall()" class="px-3 py-2 text-xs font-bold rounded bg-rose-700 text-white hover:bg-rose-800">Clear &amp; Start New Call</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const serverAgentContext = <?!= JSON.stringify({name:agent,extension:extension,department:department,tier:role}).replace(/</g, '\\u003c') ?>;
     let currentAgent = {
@@ -1322,6 +1338,92 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
     function updateUndoClearButtons() {
       document.querySelectorAll('[data-undo-clear]').forEach(b => { b.disabled=!Object.prototype.hasOwnProperty.call(undoClearSnapshots,activeFormKey); });
     }
+    // NEW CALL: independent of current-tab Clear All Fields and Undo Clear.
+    let newCallGeneration = 0;
+    let newCallTrigger = null;
+
+    function openNewCallConfirmation() {
+      newCallTrigger = document.activeElement;
+      document.getElementById('newCallModal').classList.remove('hidden');
+      document.getElementById('cancelNewCallButton').focus();
+    }
+
+    function closeNewCallConfirmation() {
+      document.getElementById('newCallModal').classList.add('hidden');
+      if (newCallTrigger && newCallTrigger.isConnected) newCallTrigger.focus();
+    }
+
+    function startNewCall() {
+      if (document.getElementById('newCallModal').classList.contains('hidden')) return;
+      newCallGeneration++;
+
+      Object.keys(formValues).forEach(function(key) {
+        formValues[key] = {};
+      });
+      undoClearSnapshots = {};
+      campaignReasonTracking = {};
+      undoCampaignReasonTracking = {};
+
+      extraTemplateValues.clear();
+      extraTemplatePanelSignature = null;
+      activeSelectedTemplate = null;
+      ['emailVarName', 'emailVarSys', 'emailVarCase', 'searchTemplateInput',
+       'modalNoteOutput', 'zipSearchInput', 'feedbackDetails'].forEach(function(id) {
+        const input = document.getElementById(id);
+        if (input) input.value = '';
+      });
+      ['feedbackCategory', 'feedbackSection'].forEach(function(id) {
+        const select = document.getElementById(id);
+        if (select) select.selectedIndex = 0;
+      });
+      updateTemplatePreview();
+      document.getElementById('previewIdDisplay').textContent = '--';
+      document.getElementById('previewCategoryBadge').textContent = 'Standard Template';
+      switchEmailTab('standard');
+
+      const zipResult = document.getElementById('zipResultDisplay');
+      zipResult.replaceChildren();
+      zipResult.removeAttribute('style');
+      zipResult.className = 'hidden p-3 rounded border text-xs';
+      ['emailTemplatesModal', 'notePreviewModal', 'zipModal', 'feedbackModal',
+       'changeLogModal', 'helpfulLinksMenu'].forEach(function(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.add('hidden');
+      });
+      const privacyTip = document.getElementById('privacyScriptTooltip');
+      if (privacyTip) privacyTip.hidden = true;
+
+      resetTimer();
+      setCallType('Inbound');
+      setCustomerType('Residential');
+      const defaultForm = getDepartmentDefaultForm();
+      if (defaultForm) switchForm(defaultForm);
+      else renderActiveForm();
+      saveFormDrafts();
+      updateUndoClearButtons();
+      closeNewCallConfirmation();
+      document.getElementById('newCallButton').focus();
+    }
+
+    document.addEventListener('keydown', function(event) {
+      const modal = document.getElementById('newCallModal');
+      if (modal.classList.contains('hidden')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeNewCallConfirmation();
+      } else if (event.key === 'Tab') {
+        const first = document.getElementById('cancelNewCallButton');
+        const last = document.getElementById('confirmNewCallButton');
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    });
+
     function clearCurrentForm() {
       const values=formValues[activeFormKey] || {};
       if(Object.values(values).some(v => v !== '' && v !== null && v !== undefined)) {
@@ -1865,6 +1967,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
       const zip = (input ? input.value : '').trim();
       const resDiv = document.getElementById('zipResultDisplay');
       if (!zip) return;
+      const requestCallGeneration = newCallGeneration;
       
       resDiv.classList.remove('hidden');
       resDiv.removeAttribute('style');
@@ -1873,6 +1976,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
       
       google.script.run
         .withSuccessHandler(res => {
+          if (requestCallGeneration !== newCallGeneration) return;
           // 1. Use Tailwind classes matching the 3 statuses
           let styleClasses = 'bg-rose-50 text-rose-800 border-rose-300'; // Default: No Tech / Not found (Red)
           
@@ -1891,6 +1995,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
           `;
         })
         .withFailureHandler(err => {
+          if (requestCallGeneration !== newCallGeneration) return;
           resDiv.className = 'p-3 rounded-lg border text-xs bg-rose-50 text-rose-800 border-rose-300';
           resDiv.innerHTML = `<strong>Error searching zip:</strong> ${err.message || err}`;
         })
