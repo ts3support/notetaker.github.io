@@ -270,11 +270,10 @@
       sessionStorage.setItem('tier', roleTier);
       sessionStorage.setItem('is_authorized_2026', isAuth ? 'true' : 'false');
 
-      // Clean redirect to notes.html without relying on server scriptlets
+      // Redirect to Notes in the current deployment
       const notesUrl =
-        'https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxZrmHrx__1b4rfbzTXsnH0YonDsQvy-x1cvkiUazqZWyEcDcfj7u6wCwgJg3mipG01/exec?page=notes';
+        'https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxJR0YrHGzFCekqDJIDoyXOIqO6KbC8Q-3uZAw3_70u6e-sjtgfk0w1o8ZfvYxO0gGI/exec?page=notes';
       window.top.location.href = notesUrl;
-    }
 
     window.addEventListener('load', function () {
       document.getElementById('name').value = localStorage.getItem('name') || sessionStorage.getItem('agent_name') || '';
