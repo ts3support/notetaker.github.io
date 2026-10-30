@@ -274,6 +274,7 @@
       const notesUrl =
         'https://script.google.com/a/macros/a3smarthome.com/s/AKfycbxJR0YrHGzFCekqDJIDoyXOIqO6KbC8Q-3uZAw3_70u6e-sjtgfk0w1o8ZfvYxO0gGI/exec?page=notes';
       window.top.location.href = notesUrl;
+    }
 
     window.addEventListener('load', function () {
       document.getElementById('name').value = localStorage.getItem('name') || sessionStorage.getItem('agent_name') || '';
