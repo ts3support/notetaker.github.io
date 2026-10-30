@@ -56,6 +56,18 @@ function documentId_(v) {
   return id;
 }
 
+/**
+ * Custom Admin menu for one-click link syncing directly from Google Sheets
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('🛠️ Note Taker Admin')
+    .addItem('🔄 Sync Retention Links from SOP Index', 'importRetentionLinksFromGoogleDoc')
+    .addItem('🔄 Sync Tech Support Links from Doc', 'importTechSupportLinksFromGoogleDoc')
+    .addItem('🔄 Sync Member Experience Links from Doc', 'importMemberExperienceLinksFromGoogleDoc')
+    .addToUi();
+}
+
 /* ============================================================================
  * 2. WEB APP ROUTING (doGet & include)
  * ========================================================================== */
@@ -89,7 +101,6 @@ function doGet(e) {
   t.extension = p.extension || p.ext || '';
   t.department = p.department || p.dept || '';
   t.role = p.role || p.role_tier || '';
-
 
   return t
     .evaluate()
@@ -188,7 +199,6 @@ function validateLogin(name, extension, department) {
   const d = department_(department);
   const valid = !!text_(name) && !!text_(extension) && !!d;
 
-
   return {
     success: valid,
     agentName: text_(name),
@@ -231,7 +241,7 @@ function getActiveDepartmentCampaigns(department, extension) {
 
   // Column J auto-populate reason header check
   const reasonHeader = h.find(col => col.includes('auto') && col.includes('reason')) ||
-                        (h.includes('auto-populate reason') ? 'auto populate reason' : 'auto-populate reason');
+                       (h.includes('auto-populate reason') ? 'auto populate reason' : 'auto-populate reason');
 
   data.slice(1).forEach(r => {
     if (!flag_(cell_(r, h, 'active'))) return;
@@ -381,8 +391,7 @@ function getFormSchema(department, extension) {
     });
   });
 
-  // This runs for normal login and bookmarked returns that restore agent context.
-  // Never let analytics failure prevent the form schema from loading.
+  // Analytics failure should never block form schema
   const primaryForm = d ? { tech: 'inbound', retention: 'retention', mx: 'mx' }[d.key] : '';
   const loadedDepartmentForm = primaryForm && (
     (schema[primaryForm + '_order'] || []).length > 0 ||
@@ -399,7 +408,7 @@ function getFormSchema(department, extension) {
 }
 
 /* ============================================================================
- * 5. HELPFUL LINKS & DOC IMPORTS
+ * 5. HELPFUL LINKS & DOC/SHEET IMPORTS
  * ========================================================================== */
 
 function helpfulLinksSheet_(department) {
@@ -514,6 +523,9 @@ function getHelpfulLinksFromDoc(department) {
   }));
 }
 
+/**
+ * Extracts links from Google Docs
+ */
 function extractDocLinks_(body) {
   const out = [];
   function visit(e) {
@@ -552,41 +564,139 @@ function extractDocLinks_(body) {
   return out;
 }
 
+/**
+ * Extracts links from a Google Sheet across all columns and rich-text runs (Retention SOP Index)
+ */
+function extractSheetLinks_(sheetId) {
+  const ss = SpreadsheetApp.openById(sheetId);
+  const sheet = ss.getSheets()[0];
+  const range = sheet.getDataRange();
+  const richTextValues = range.getRichTextValues();
+  const formulas = range.getFormulas();
+  const out = [];
+  const seen = new Set();
+
+  for (let r = 0; r < richTextValues.length; r++) {
+    for (let c = 0; c < richTextValues[r].length; c++) {
+      const cell = richTextValues[r][c];
+      if (!cell) continue;
+
+      let title = cell.getText().trim();
+      let url = cell.getLinkUrl();
+
+      // Check =HYPERLINK() formulas
+      if (!url && formulas[r] && formulas[r][c]) {
+        const formula = formulas[r][c];
+        const match = formula.match(/HYPERLINK\("([^"]+)"(?:,\s*"([^"]+)")?\)/i);
+        if (match) {
+          url = match[1];
+          if (match[2]) title = match[2];
+        }
+      }
+
+      // Check rich-text runs inside the cell
+      if (!url) {
+        const runs = cell.getRuns();
+        for (let i = 0; i < runs.length; i++) {
+          const runUrl = runs[i].getLinkUrl();
+          if (runUrl) {
+            url = runUrl;
+            const runText = runs[i].getText().trim();
+            if (runText) title = runText;
+            break;
+          }
+        }
+      }
+
+      if (title) {
+        title = title.replace(/^[\s•\-\d\.\)]+/, '').trim();
+      }
+
+      // Skip internal spreadsheet URL and duplicate links
+      if (title && url && !seen.has(url) && !url.includes('/spreadsheets/d/' + sheetId)) {
+        seen.add(url);
+        out.push({ title: title, url: url });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Routes source parsing based on whether it is a Google Doc or Google Sheet
+ */
+function extractLinksFromSource_(sourceUrlOrId) {
+  const str = text_(sourceUrlOrId);
+  const id = documentId_(str);
+  const isSheet = str.includes('/spreadsheets/');
+
+  if (isSheet) {
+    return extractSheetLinks_(id);
+  }
+
+  try {
+    return extractDocLinks_(DocumentApp.openById(id).getBody());
+  } catch (e) {
+    // Fallback to Sheet extraction if DocumentApp cannot open it
+    return extractSheetLinks_(id);
+  }
+}
+
 function importLinksFromGoogleDoc() {
   return importDepartmentHelpfulLinks_('Tech Support');
 }
+
 function importTechSupportLinksFromGoogleDoc() {
   return importDepartmentHelpfulLinks_('Tech Support');
 }
+
 function importRetentionLinksFromGoogleDoc() {
   return importDepartmentHelpfulLinks_('Retention');
 }
+
 function importMemberExperienceLinksFromGoogleDoc() {
   return importDepartmentHelpfulLinks_('Member Experience');
 }
 
+/**
+ * Imports links from a Google Doc or Google Sheet and places them into the department links sheet
+ */
 function importDepartmentHelpfulLinks_(department) {
   const d = department_(department);
   if (!d) throw new Error('Unrecognized import department.');
 
   const settings = getSettings();
-  const setting = 'Doc ID - Helpful Links - ' + d.name;
-  const configured = text_(settings[setting]) || (d.key === 'tech' ? '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU' : '');
-  if (!configured) throw new Error('Missing Settings value: ' + setting);
+  let configured = text_(settings['Doc ID - Helpful Links - ' + d.name]) ||
+                   text_(settings['Sheet ID - Helpful Links - ' + d.name]) ||
+                   (d.key === 'tech' ? '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU' : '');
 
-  const id = documentId_(configured);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const s = helpfulLinksSheet_(d.name);
+  const width = s.getLastColumn();
+  if (!width) throw new Error(s.getName() + ' needs a header row.');
+
+  const h = headers_(s.getRange(1, 1, 1, width).getDisplayValues()[0]);
+  requireHeaders_(h, ['link title', 'url', 'active'], s.getName());
+
+  // If not configured in Settings, inspect rows 2-15 of the Links tab for a Doc or Sheet URL
+  if (!configured) {
+    const topData = s.getRange(2, 1, Math.min(15, Math.max(1, s.getLastRow() - 1)), width).getDisplayValues();
+    const urlCol = h.indexOf('url');
+    for (let i = 0; i < topData.length; i++) {
+      const u = urlCol >= 0 ? text_(topData[i][urlCol]) : '';
+      if (u.includes('/document/d/') || u.includes('/spreadsheets/d/')) {
+        configured = u;
+        break;
+      }
+    }
+  }
+
+  if (!configured) throw new Error('Missing source Doc/Sheet ID or URL for ' + d.name + '.');
+
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
 
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const s = helpfulLinksSheet_(d.name);
-    const width = s.getLastColumn();
-    if (!width) throw new Error(s.getName() + ' needs a header row.');
-
-    const h = headers_(s.getRange(1, 1, 1, width).getDisplayValues()[0]);
-    requireHeaders_(h, ['link title', 'url', 'active'], s.getName());
-
     const seen = new Set();
     const last = s.getLastRow();
     if (last > 1) {
@@ -595,9 +705,12 @@ function importDepartmentHelpfulLinks_(department) {
       });
     }
 
-    const extracted = extractDocLinks_(DocumentApp.openById(id).getBody());
+    const extracted = extractLinksFromSource_(configured);
     const rows = [];
     let duplicates = 0;
+
+    const defaultCategory = d.key === 'retention' ? 'Retention Policies' : 'Guides & Reference';
+    const notesLabel = 'Imported from ' + d.name + (configured.includes('/spreadsheets/') ? ' SOP Index' : ' Google Doc');
 
     extracted.forEach(link => {
       if (seen.has(link.url)) {
@@ -612,26 +725,27 @@ function importDepartmentHelpfulLinks_(department) {
         if (i >= 0) row[i] = value;
       };
 
-      put('link title', /^[=+@-]/.test(link.title) ? "'" + link.title : link.title);
+      put('link title', /^[-=@+]/.test(link.title) ? "'" + link.title : link.title);
       put('url', link.url);
-      put('category', 'Guides & Reference');
+      put('category', defaultCategory);
       put('popup mode', 'New Tab');
       put('active', true);
-      put('notes', 'Imported from ' + d.name + ' Google Doc');
+      put('notes', notesLabel);
       put('link id', Utilities.getUuid());
       rows.push(row);
     });
 
     if (rows.length) {
-      const first = s.getLastRow() + 1;
-      const needed = first + rows.length - 1;
+      // Start imports at row 101 to match Tech Support structure
+      const startRow = Math.max(101, s.getLastRow() + 1);
+      const needed = startRow + rows.length - 1;
       if (needed > s.getMaxRows()) s.insertRowsAfter(s.getMaxRows(), needed - s.getMaxRows());
-      s.getRange(first, 1, rows.length, width).setValues(rows);
+      s.getRange(startRow, 1, rows.length, width).setValues(rows);
     }
 
     const result = {
       department: d.name,
-      sourceDocumentId: id,
+      sourceDocumentId: configured,
       destination: s.getName(),
       imported: rows.length,
       duplicatesSkipped: duplicates
@@ -683,7 +797,7 @@ function getSpecialEmailTemplates(extension, department, campaignId) {
 }
 
 /**
- * Reads from the updated 7-column 'Special Emails' sheet:
+ * Reads from the 7-column 'Special Emails' sheet:
 
  * A: Template ID | B: Department | C: Campaign ID | D: Brand | E: Subject | F: Template Body | G: Active
  */
@@ -701,7 +815,6 @@ function readSpecialEmails_(department, campaignId, extension) {
   const targetCamp = campaignId ? text_(campaignId).toLowerCase() : '';
   const ext = text_(extension);
 
-  // If extension is passed, verify against targeted extensions if non-empty
   if (ext && !isProjectExtension(ext)) {
     return [];
   }
@@ -715,7 +828,7 @@ function readSpecialEmails_(department, campaignId, extension) {
       const isActive = flag_(cell_(r, h, 'active'), true);
       if (!isActive) return false;
 
-      // 2. Department check (Column B) — matches dept, 'global', 'all', or blank
+      // 2. Department check (Column B)
       if (targetDept) {
         const rowDept = text_(cell_(r, h, 'department')).toLowerCase();
         if (rowDept && !['all', 'global', targetDept].includes(rowDept)) {
@@ -734,13 +847,13 @@ function readSpecialEmails_(department, campaignId, extension) {
       return true;
     })
     .map(r => ({
-      id: text_(cell_(r, h, 'template id')),                         // Col A
-      department: text_(cell_(r, h, 'department')),                 // Col B
-      campaignId: text_(cell_(r, h, 'campaign id')),                 // Col C
-      brand: text_(cell_(r, h, 'brand')) || 'AAA Smart Home',       // Col D
-      subject: text_(cell_(r, h, 'subject')),                       // Col E
-      body: text_(cell_(r, h, 'template body')),                     // Col F
-      active: flag_(cell_(r, h, 'active'), true),                   // Col G
+      id: text_(cell_(r, h, 'template id')),
+      department: text_(cell_(r, h, 'department')),
+      campaignId: text_(cell_(r, h, 'campaign id')),
+      brand: text_(cell_(r, h, 'brand')) || 'AAA Smart Home',
+      subject: text_(cell_(r, h, 'subject')),
+      body: text_(cell_(r, h, 'template body')),
+      active: flag_(cell_(r, h, 'active'), true),
       type: 'special'
     }));
 }
@@ -749,24 +862,16 @@ function readSpecialEmails_(department, campaignId, extension) {
  * 7. ZIP LOOKUP, FEEDBACK & CHANGELOG
  * ========================================================================== */
 
-/**
- * Searches the ZIP code footprint database for Pro territory and Dealer Service.
- * Robust to variations in sheet tab names, zero-padded strings, and range rows (e.g. 97001 - 97920).
- * Returns semantic badge styling:
- *   - PRO: Emerald text (#065f46), Mint bg (#ecfdf5), border (#6ee7b7)
- *   - DEALER: Ocean blue text (#0369a1), Soft sky bg (#f0f9ff), border (#7dd3fc)
- *   - NO TECH / NOT FOUND: Crimson text (#991b1b), Light red bg (#fef2f2), border (#f87171)
- */
 function checkZipCode(input) {
-  const raw = text_(input).replace(/\D/g, ''); // strip any non-digit characters
+  const raw = text_(input).replace(/\D/g, '');
   if (!raw || raw.length > 5) {
     return {
       found: false,
       status: 'INVALID',
       message: 'Invalid ZIP format. Enter 5 digits.',
-      color: '#b91c1c',      // Dark Red
-      bgColor: '#fef2f2',    // Light Red background
-      borderColor: '#fca5a5' // Soft Red border
+      color: '#b91c1c',
+      bgColor: '#fef2f2',
+      borderColor: '#fca5a5'
     };
   }
 
@@ -780,12 +885,10 @@ function checkZipCode(input) {
     const ss = SpreadsheetApp.openById(documentId_(docId));
     const allSheets = ss.getSheets();
 
-    // Helper: matches single zip or numeric range like "97001 - 97920"
     const matchZip_ = cellValue => {
       const v = text_(cellValue);
       if (!v) return false;
 
-      // 1. Check for range notation (e.g., "97001 - 97920")
       const rangeMatch = v.match(/^(\d{5})\s*[-–]\s*(\d{5})$/);
       if (rangeMatch) {
         const start = parseInt(rangeMatch[1], 10);
@@ -793,12 +896,10 @@ function checkZipCode(input) {
         return zipNum >= start && zipNum <= end;
       }
 
-      // 2. Exact match (as padded string or raw digits)
       const digits = v.replace(/\D/g, '');
       return digits === zipPadded || digits === zipNumStr;
     };
 
-    // 1. Check Pro Territory (Green) - matches tab names like 'Official Pro Zips (new installs)'
     let proSheet = allSheets.find(s => {
       const n = s.getName().toLowerCase();
       return n.includes('pro') && n.includes('zip');
@@ -813,16 +914,15 @@ function checkZipCode(input) {
               found: true,
               status: 'PRO',
               message: '✅ In Footprint (Pro Territory)',
-              color: '#065f46',       // Emerald dark green
-              bgColor: '#ecfdf5',     // Mint light green
-              borderColor: '#6ee7b7'  // Accent green border
+              color: '#065f46',
+              bgColor: '#ecfdf5',
+              borderColor: '#6ee7b7'
             };
           }
         }
       }
     }
 
-    // 2. Check Dealer Service Territory (Blue/Cyan vs No-Tech)
     let dsSheet = allSheets.find(s => {
       const n = s.getName().toLowerCase();
       return (n.includes('official ds') || n.includes('dealer service')) && (n.includes('upgrade') || n.includes('service'));
@@ -843,18 +943,18 @@ function checkZipCode(input) {
                   found: false,
                   status: 'NO_TECH',
                   message: '❌ No Tech Available (Dealer No Tech Territory)',
-                  color: '#991b1b',      // Crimson red text
-                  bgColor: '#fef2f2',    // Light red background
-                  borderColor: '#f87171' // Red border
+                  color: '#991b1b',
+                  bgColor: '#fef2f2',
+                  borderColor: '#f87171'
                 };
               }
               return {
                 found: true,
                 status: 'DEALER',
                 message: '✅ Dealer Service (' + dealerLabel + ')',
-                color: '#0369a1',       // Ocean blue text
-                bgColor: '#f0f9ff',     // Soft sky blue background
-                borderColor: '#7dd3fc'  // Sky blue border
+                color: '#0369a1',
+                bgColor: '#f0f9ff',
+                borderColor: '#7dd3fc'
               };
             }
           }
@@ -862,7 +962,6 @@ function checkZipCode(input) {
       }
     }
 
-    // Default: Not found (Red)
     return {
       found: false,
       status: 'NOT_FOUND',
@@ -896,7 +995,7 @@ function submitFeedback(payload) {
 
     const safe = v => {
       const t = text_(v);
-      return /^[=+@-]/.test(t) ? "'" + t : t;
+      return /^[-=@+]/.test(t) ? "'" + t : t;
     };
 
     s.appendRow([
@@ -936,15 +1035,11 @@ function parseOptions(value) {
 function parseBoolean(value, fallback = false) {
   return flag_(value, fallback);
 }
+
 /* ============================================================================
  * 8. UNIQUE USAGE TOTALS — EXTENSION AND DEPARTMENT ONLY
  * ========================================================================== */
 
-/**
- * One row per extension/department pair, not per login or refresh.
- * No names, customer fields, note text, or event counts are stored here.
- * Existing Login Log is read only for historical totals; never changed/deleted.
- */
 function recordAppUsage(extension, department) {
   const ext = text_(extension);
   const dept = department_(department);
@@ -1003,7 +1098,6 @@ function recordAppUsage(extension, department) {
     if (destinationRow > sheet.getMaxRows()) {
       sheet.insertRowsAfter(sheet.getMaxRows(), destinationRow - sheet.getMaxRows());
     }
-    // Store extensions as text so leading zeros are not discarded.
     sheet.getRange(destinationRow, extensionIndex + 1).setNumberFormat('@');
     sheet.getRange(destinationRow, 1, 1, row.length).setValues([row]);
     return { success: true, newDepartmentUser: true };
@@ -1015,7 +1109,6 @@ function recordAppUsage(extension, department) {
   }
 }
 
-/** Pure aggregation: overall extensions are distinct across all departments. */
 function summarizeUsagePairs_(pairs) {
   const overall = new Set();
   const departments = {
@@ -1037,10 +1130,6 @@ function summarizeUsagePairs_(pairs) {
   return { totalUsers: overall.size, byDepartment: byDepartment };
 }
 
-/**
- * Admin-only summary. Does not expose individual names or extensions.
- * Pass the configured Settings > Admin Password on each call.
- */
 function getUsageTotals(adminPasscode) {
   if (!validateAdminPasscode(adminPasscode)) {
     return { success: false, message: 'Admin authorization required.' };
@@ -1055,7 +1144,6 @@ function getUsageTotals(adminPasscode) {
     const pairs = [];
     const sources = [];
 
-    // Include historical log entries, but deduplicate extensions across both sheets.
     ['Usage Users', 'Login Log'].forEach(function(name) {
       const sheet = ss.getSheetByName(name);
       if (!sheet || sheet.getLastRow() < 2) return;
