@@ -76,8 +76,8 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   const page = text_(p.page).toLowerCase();
 
-  // Default to 'Notes' so the main application loads immediately
-  let file = 'Notes';
+  // Default to 'Login' so the deployment opens the agent login page
+  let file = 'Login';
   if (page === 'login') {
     file = 'Login';
   } else if (['notes', 'main', 'app', 'index'].includes(page)) {
