@@ -1,1 +1,45 @@
-123
+I would like schematic design, PCB layout, and a quotation for assembled and tested prototypes of a compact automotive data-acquisition board for my custom RealDash digital instrument cluster.
+My current system uses an ESP32, eight optocoupler input channels, and two ADS1115 ADC modules connected with external wiring. I want to consolidate these functions onto one PCB to reduce size, wiring complexity, and connection failures.
+The board will acquire vehicle signals and provide data to my existing RealDash system. This request is for the interface electronics, not the display itself.
+1. Main hardware
+•	One ESP32, preferably using an appropriate ESP32 module mounted directly to the PCB rather than a separate development board.
+•	Eight independent optocoupler digital-input channels with the necessary input resistors, filtering, protection, and ESP32-compatible output circuitry.
+•	Two ADS1115 ADC ICs mounted directly to the PCB, providing up to eight single-ended analog inputs.
+•	Both ADS1115 devices connected to the ESP32 over I²C, using separate addresses.
+•	Programming/debug access for the ESP32.
+•	Clearly labeled connectors, mounting holes, and accessible test points.
+2. Compatibility with my current system
+I would like to preserve my existing firmware pin assignments, input polarity, I²C addresses, and communication method wherever practical. I will supply my current wiring diagram, firmware, and module details before the schematic is finalized.
+Current digital-input assignments include:
+•	GPIO 25: MIL/check-engine indicator.
+•	GPIO 27: left turn signal.
+•	GPIO 26: right turn signal.
+•	GPIO 32: high-beam indicator.
+•	The functions and pin assignments for the remaining four optocoupler channels will be confirmed.
+Please confirm the exact ESP32 module and pin compatibility before proceeding.
+3. Vehicle inputs and signal conditioning
+The board will interface with signals from a 1996 Chevrolet Caprice/Impala undergoing an LS engine swap.
+Each input must be designed for its actual vehicle signal type. I will provide a channel-by-channel table identifying whether each signal is switched positive voltage, ground-switched, an analog voltage, a resistive sender, or a pulse/frequency signal.
+Please include appropriate signal conditioning, filtering, and protection for each confirmed input. Do not assume that all vehicle signals can connect directly to the ESP32 or ADS1115 inputs.
+Analog measurements may include oil pressure, coolant temperature, fuel level, and battery voltage. The exact sender characteristics, voltage ranges, and any existing conditioning circuits will be provided before design approval.
+RPM and vehicle-speed signal processing must be reviewed separately. Please confirm the appropriate pulse-input circuitry and ESP32 processing method rather than automatically assigning these signals to ADC channels.
+The eight digital-input channels must operate independently without false triggering of adjacent channels. Please review the input return paths, thresholds, filtering, and layout to address this.
+Please also explain the proposed grounding arrangement and whether the optocouplers provide true galvanic isolation or input interfacing/protection with a shared ground.
+4. Power supply and operating environment
+The board will be installed inside the vehicle cabin behind the dashboard.
+My preferred goal is operation from the vehicle’s nominal 12 V electrical system, with onboard regulation for the ESP32 and ADCs. Please quote suitable reverse-polarity protection, input overcurrent protection, transient/overvoltage protection, and electrical-noise filtering.
+Please specify the proposed operating-voltage range, cranking behavior, temperature ratings, and protection limits. Identify any additional cost associated with automotive transient testing or qualification.
+5. Mechanical requirements
+My current electronics enclosure is approximately 7.87 × 4.72 × 2.2 inches externally. I would like the new board to be substantially smaller if practical.
+Final PCB dimensions, usable internal enclosure dimensions, mounting-hole locations, connector positions, and cable clearance will be confirmed before layout approval.
+I prefer secure, serviceable connectors and clear silkscreen labels showing connector pin numbers and signal names.
+6. Deliverables and quotation
+Please quote:
+•	Schematic development and review.
+•	Component selection and PCB layout.
+•	Fully assembled prototype boards, with minimum quantity and lead time.
+•	Functional testing of the power supply, all eight optocoupler inputs, both ADS1115 devices, and ESP32 programming/communication.
+•	Schematic PDF, BOM with manufacturer part numbers, Gerber and drill files, pick-and-place files, connector pinout, and test documentation.
+•	Editable native schematic and PCB source files, with their cost listed separately.
+•	Any firmware changes or test firmware as a separate line item.
+Please provide the schematic and proposed connector pinout for my approval before PCB layout, and the final layout for approval before manufacturing. Please list any missing specifications or assumptions before proceeding.
