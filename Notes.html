@@ -1009,6 +1009,18 @@ function prefillTicketFromNotes(formKey) {
       return;
     }
 
+    // Residential Scheduling: copy AR and System Number into the combined field.
+    const schedulingFieldName = String(id + ' ' + (field.label || field['Display Label'] || field.displayLabel || ''));
+    const normalizedSchedulingField = schedulingFieldName.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_/\-]+/g, ' ').toLowerCase();
+    const isCombinedArSystemField = /\bar\b/.test(normalizedSchedulingField) && /\bsystem\b/.test(normalizedSchedulingField);
+    if (formKey === 'residential' && isCombinedArSystemField) {
+      const arSystemParts = [source.ar_number, source.system_number].map(function(value) {
+        return value == null ? '' : String(value).trim();
+      }).filter(Boolean);
+      if (arSystemParts.length) destination[id] = arSystemParts.join(' - ');
+      return;
+    }
+
     const value = source[id] !== undefined ? source[id] : source[aliases[id]];
     if (value !== undefined && value !== null && String(value).trim() !== '') destination[id] = value;
   });
