@@ -472,7 +472,8 @@ html[data-theme="dark"] .creator-credit{color:#94a3b8;}
                 <span class="text-[10px] text-emerald-600 font-semibold"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Variables Replaced in Real-Time</span>
               </div>
               <div class="p-4 bg-slate-900 text-slate-100 rounded-lg border border-slate-800">
-                <textarea id="previewBodyTextarea" readonly rows="14" class="w-full bg-transparent font-mono text-xs text-indigo-300 focus:text-white leading-relaxed resize-none outline-none select-all"></textarea>
+                <textarea id="previewBodyTextarea" readonly rows="14" class="hidden w-full bg-transparent font-mono text-xs text-indigo-300 focus:text-white leading-relaxed resize-none outline-none select-all"></textarea>
+                <div id="previewBodyRich" class="bg-white text-slate-900 rounded p-4 text-sm leading-relaxed" style="font-family:Arial,Helvetica,sans-serif;overflow-wrap:anywhere;"></div>
               </div>
             </div>
 
@@ -1548,15 +1549,17 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
 
         let subject = '';
         let bodyParts = [];
+        let bodyHtmlParts = [];
         let curr = h.nextElementSibling;
 
         // Traverse elements until next heading or hr
         while (curr && !['H1','H2','H3','H4','HR'].includes(curr.tagName)) {
           const txt = (curr.textContent || '').trim();
-          if (txt.toLowerCase().startsWith('subject:')) {
-            subject = txt.substring(8).trim();
+          if (/^(?:email\s+)?subject\s*:/i.test(txt)) {
+            subject = txt.replace(/^(?:email\s+)?subject\s*:\s*/i, '').trim();
           } else if (txt) {
             bodyParts.push(txt);
+            bodyHtmlParts.push(cleanEmailHtml(curr.outerHTML));
           }
           curr = curr.nextElementSibling;
         }
@@ -1572,6 +1575,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
             name: title.replace(/^#+\s*/, ''),
             subject: subject || `AAA Smart Home Support: ${title}`,
             body: bodyParts.join('\n\n'),
+            bodyHtml: bodyHtmlParts.join(''),
             type: 'standard'
           });
         }
@@ -1860,11 +1864,150 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
       return values;
     }
 
+    // Preserve safe email formatting and actual hyperlink destinations from the source Doc.
+    function emailSafeLink(value) {
+      try {
+        let url = new URL(value);
+        if ((url.hostname === 'www.google.com' || url.hostname === 'google.com') && url.pathname === '/url') {
+          const destination = url.searchParams.get('q') || url.searchParams.get('url');
+          if (destination) url = new URL(destination);
+        }
+        return ['https:', 'http:', 'mailto:', 'tel:'].includes(url.protocol) ? url.href : '';
+      } catch (error) {
+        return '';
+      }
+    }
+
+    function cleanEmailHtml(html) {
+      const parsed = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      const allowed = new Set(['P', 'DIV', 'SPAN', 'BR', 'UL', 'OL', 'LI', 'A', 'STRONG', 'B', 'EM', 'I', 'U', 'BLOCKQUOTE', 'TABLE', 'TBODY', 'THEAD', 'TR', 'TD', 'TH']);
+      const output = document.createElement('div');
+      function append(source, destination) {
+        if (source.nodeType === 3) {
+          destination.appendChild(document.createTextNode(source.nodeValue));
+          return;
+        }
+        if (source.nodeType !== 1 || ['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'FORM', 'INPUT', 'BUTTON', 'IMG', 'SVG'].includes(source.tagName)) return;
+        if (!allowed.has(source.tagName)) {
+          Array.from(source.childNodes).forEach(child => append(child, destination));
+          return;
+        }
+        const element = document.createElement(source.tagName.toLowerCase());
+        if (source.tagName === 'A') {
+          const href = emailSafeLink(source.getAttribute('href'));
+          if (href) {
+            element.setAttribute('href', href);
+            element.setAttribute('target', '_blank');
+            element.setAttribute('rel', 'noopener noreferrer');
+            element.style.color = '#1155cc';
+            element.style.textDecoration = 'underline';
+          }
+        }
+        if (['P', 'DIV'].includes(source.tagName)) element.style.margin = '0 0 12px';
+        if (['UL', 'OL'].includes(source.tagName)) element.style.paddingLeft = '24px';
+        if (['TD', 'TH'].includes(source.tagName)) {
+          ['colspan', 'rowspan'].forEach(name => {
+            const value = source.getAttribute(name);
+            if (/^[1-9][0-9]?$/.test(value || '')) element.setAttribute(name, value);
+          });
+        }
+        Array.from(source.childNodes).forEach(child => append(child, element));
+        destination.appendChild(element);
+      }
+      Array.from(parsed.body.childNodes).forEach(node => append(node, output));
+      return output.innerHTML;
+    }
+
+    function renderEmailBodyHtml(template, knownValues, customValues) {
+      const container = document.createElement('div');
+      if (template.bodyHtml) {
+        container.innerHTML = cleanEmailHtml(template.bodyHtml);
+      } else {
+        const paragraph = document.createElement('div');
+        paragraph.style.whiteSpace = 'pre-wrap';
+        paragraph.textContent = template.body || '';
+        container.appendChild(paragraph);
+      }
+      // Replace text nodes only: entered values cannot introduce markup or change URLs.
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(node => {
+        node.nodeValue = replaceTemplateVariables(node.nodeValue, knownValues, customValues);
+      });
+      return container.innerHTML;
+    }
+
+    function copyRichEmailToClipboard(html, text, btnId, successMsg) {
+      const button = document.getElementById(btnId);
+      function success() {
+        if (!button) return;
+        const original = button.innerHTML;
+        button.textContent = successMsg;
+        setTimeout(function() { button.innerHTML = original; }, 2200);
+      }
+      function failure(error) {
+        console.error('Rich email copy failed.', error);
+        alert('The formatted email could not be copied. Please try again. Hyperlinks were not copied.');
+      }
+      // Synchronous copy event works in more embedded editors and preserves both formats.
+      let wroteRichData = false;
+      const previousFocus = document.activeElement;
+      const selection = window.getSelection();
+      const ranges = [];
+      if (selection) {
+        for (let index = 0; index < selection.rangeCount; index++) ranges.push(selection.getRangeAt(index).cloneRange());
+      }
+      const holder = document.createElement('div');
+      holder.contentEditable = 'true';
+      holder.style.cssText = 'position:fixed;left:-10000px;top:0;background:white;color:black;';
+      holder.innerHTML = html;
+      document.body.appendChild(holder);
+      function onCopy(event) {
+        if (!event.clipboardData) return;
+        event.clipboardData.setData('text/html', html);
+        event.clipboardData.setData('text/plain', text);
+        event.preventDefault();
+        wroteRichData = true;
+      }
+      document.addEventListener('copy', onCopy, true);
+      let copied = false;
+      try {
+        holder.focus();
+        const range = document.createRange();
+        range.selectNodeContents(holder);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        copied = document.execCommand('copy') && wroteRichData;
+      } catch (error) {
+        console.warn('Trying the asynchronous rich clipboard API.', error);
+      } finally {
+        document.removeEventListener('copy', onCopy, true);
+        holder.remove();
+        if (previousFocus && previousFocus.isConnected) previousFocus.focus();
+        if (selection) {
+          selection.removeAllRanges();
+          ranges.forEach(range => { try { selection.addRange(range); } catch (error) {} });
+        }
+      }
+      if (copied) {
+        success();
+      } else if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html], {type: 'text/html'}),
+          'text/plain': new Blob([text], {type: 'text/plain'})
+        })]).then(success).catch(failure);
+      } else {
+        failure(new Error('Rich clipboard access is unavailable.'));
+      }
+    }
+
     function updateTemplatePreview() {
       if (!activeSelectedTemplate) {
         document.getElementById('previewTitleDisplay').innerText = 'Select a template on the left';
         document.getElementById('previewSubjectText').innerText = '--';
         document.getElementById('previewBodyTextarea').value = '';
+        document.getElementById('previewBodyRich').replaceChildren();
         renderAdditionalTemplateFields({});
         return;
       }
@@ -1909,6 +2052,7 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
 
       document.getElementById('previewSubjectText').innerText = renderedSubject;
       document.getElementById('previewBodyTextarea').value = renderedBody;
+      document.getElementById('previewBodyRich').innerHTML = renderEmailBodyHtml(activeSelectedTemplate, knownValues, customValues);
     }
 
     // ONE-CLICK COPY UTILITIES
@@ -1918,15 +2062,24 @@ lines.push('AGENT: ' + (currentAgent.name || ''), 'EXT: ' + (currentAgent.extens
     }
 
     function copyEmailBody() {
+      if (!activeSelectedTemplate) return;
+      updateTemplatePreview();
       const body = document.getElementById('previewBodyTextarea').value;
-      copyStringToClipboard(body, 'copyBodyBtn', 'Copied Body!');
+      const html = document.getElementById('previewBodyRich').innerHTML;
+      copyRichEmailToClipboard(html, body, 'copyBodyBtn', 'Copied Body!');
     }
 
     function copyEntireEmail() {
+      if (!activeSelectedTemplate) return;
+      updateTemplatePreview();
       const subj = document.getElementById('previewSubjectText').innerText;
       const body = document.getElementById('previewBodyTextarea').value;
       const fullText = `SUBJECT: ${subj}\n\n${body}`;
-      copyStringToClipboard(fullText, 'copyFullEmailBtn', 'Copied Full Message!');
+      const heading = document.createElement('p');
+      heading.style.fontWeight = 'bold';
+      heading.textContent = 'SUBJECT: ' + subj;
+      const html = heading.outerHTML + document.getElementById('previewBodyRich').innerHTML;
+      copyRichEmailToClipboard(html, fullText, 'copyFullEmailBtn', 'Copied Full Message!');
     }
 
     function copyStringToClipboard(str, btnId, successMsg) {
@@ -2146,5 +2299,4 @@ document.addEventListener('click',function(e){if(e.target===document.getElementB
 
 </body>
 </html>
-
 
