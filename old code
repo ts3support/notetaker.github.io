@@ -1,0 +1,438 @@
+// ==========================================
+// WEB APP ROUTING LOGIC
+// ==========================================
+function doGet(e) {
+  const pageName = (e.parameter.page || '').toLowerCase();
+  const pages = {
+    notes: 'Notes',
+    residential: 'Residential',
+    dealer: 'Dealer',
+    addendum: 'Addendum',
+    parts: 'Parts'
+  };
+  const page = pages[pageName] || 'Index';
+  const template = HtmlService.createTemplateFromFile(page);
+  template.appUrl = ScriptApp.getService().getUrl();
+  return template
+    .evaluate()
+    .setTitle('Note Taker')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+
+// ==========================================
+// EMAIL TEMPLATES LOGIC
+// ==========================================
+function getEmailTemplatesHtml() {
+  const docId = '1CJtJskbXT-fY2qNfna9W-i-x3rlJl404W4bgMoKFm0c';
+  DriveApp.getFileById(docId);
+  const url = "https://docs.google.com/feeds/download/documents/export/Export?id=" + docId + "&exportFormat=html";
+  const options = {
+    headers: {
+      Authorization: "Bearer " + ScriptApp.getOAuthToken()
+    },
+    muteHttpExceptions: true
+  };
+  const response = UrlFetchApp.fetch(url, options);
+  return response.getContentText();
+}
+
+
+// ==========================================
+// DYNAMIC HELPFUL LINKS LOGIC
+// ==========================================
+function getHelpfulLinksFromDoc() {
+  const docId = '1R0ThNGCFYMvl28rJ-PwuCaFHsLV6chOeSSpgAFvVuzU';
+  const doc = DocumentApp.openById(docId);
+  const top10Names = [
+    "Tech Support Opportunities",
+    "Chatbot",
+    "Common Parts List",
+    "Test Mode SOP",
+    "DS Zip Codes",
+    "Tech Support Tier I Guide ",
+    "Known Issues Tracker",
+    "Waived Fee Guideline",
+    "Call Routing Guide",
+    "Actual/Incident Form"
+  ];
+  const extractedLinks = {};
+  function extractLink(textObj) {
+    const textStr = textObj.getText().trim();
+    if (!textStr) return;
+    for (let i = 0; i < textStr.length; i++) {
+      const url = textObj.getLinkUrl(i);
+      if (url) {
+        extractedLinks[textStr] = url;
+        break;
+      }
+    }
+  }
+  doc.getBody().getParagraphs().forEach(p => extractLink(p.editAsText()));
+  doc.getBody().getTables().forEach(table => {
+    for (let r = 0; r < table.getNumRows(); r++) {
+      const row = table.getRow(r);
+      for (let c = 0; c < row.getNumCells(); c++) {
+        extractLink(row.getCell(c).editAsText());
+      }
+    }
+  });
+  const finalLinks = [];
+  top10Names.forEach(name => {
+    let foundUrl = null;
+    for (let key in extractedLinks) {
+      if (key.toLowerCase().includes(name.toLowerCase())) {
+        foundUrl = extractedLinks[key];
+        break;
+      }
+    }
+    if (foundUrl) {
+      finalLinks.push({
+        name: name,
+        url: foundUrl,
+        popup: name.toLowerCase() === 'chatbot' ? 'chatbot' : ''
+      });
+    }
+  });
+  finalLinks.push({
+    name: "📄 VIEW ALL LINKS",
+    url: "https://docs.google.com/document/d/" + docId + "/edit",
+    popup: ""
+  });
+  return finalLinks;
+}
+
+
+// ==========================================
+// ZIP CODE SEARCH LOGIC
+// ==========================================
+function checkZipCode(zip) {
+  if (!zip) return { found: false, message: "No zip code provided." };
+  const ssId = '1O7L6NVy7N4vS47IMqlGZmExdOD13l8e8kmAuXw2AAKw';
+  try {
+    const ss = SpreadsheetApp.openById(ssId);
+    const cleanZip = zip.trim();
+    let textFinder = ss.createTextFinder(cleanZip).matchEntireCell(true);
+    let results = textFinder.findAll();
+    if (results.length === 0) {
+      textFinder = ss.createTextFinder(cleanZip);
+      results = textFinder.findAll().filter(r => r.getValue().toString().trim() === cleanZip);
+    }
+    if (results.length > 0) {
+      let isProZip = false;
+      let isDSZip = false;
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        const sheet = r.getSheet();
+        const tabName = sheet.getName();
+        const col = r.getColumn();
+        if (tabName.includes("Official Pro Zips")) {
+          isProZip = true;
+        } else if (tabName.includes("Official DS (Upgrade & Service)")) {
+          const header1 = sheet.getRange(1, col).getValue().toString().toUpperCase();
+          if (!header1.includes("NO TECH")) {
+            isDSZip = true;
+          }
+        }
+      }
+      if (isProZip) {
+        return { found: true, message: "✅ In Footprint" };
+      } else if (isDSZip) {
+        return { found: true, message: "✅ Dealer Service" };
+      } else {
+        return { found: false, message: "❌ No Tech Available" };
+      }
+    } else {
+      return { found: false, message: "❌ No Tech Available" };
+    }
+  } catch (e) {
+    return { found: false, message: "Error searching zip codes. Please try again." };
+  }
+}
+
+
+// ==========================================
+// DYNAMIC FORM SCHEMA LOGIC
+// ==========================================
+function getFormSchema() {
+  const sheetId = '1UdgMgfNU82pXRnC2MP_UsAD-HGxIf2A1h5EFf3-aIWY';
+  const ss = SpreadsheetApp.openById(sheetId);
+  const tabNames = ['Inbound', 'Outbound', 'Residential', 'Dealer', 'Addendum', 'Parts', 'Index'];
+  const schema = {};
+
+
+  tabNames.forEach(tabName => {
+    const sheet = ss.getSheetByName(tabName);
+    const key = tabName.toLowerCase();
+    schema[key] = {};
+    if (sheet) {
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0]) {
+          schema[key][data[i][0].toString().trim()] = {
+            label: data[i][1].toString().trim(),
+            type: data[i][2].toString().trim(),
+            options: data[i][3].toString().trim(),
+            visible: data[i][4].toString().trim()
+          };
+        }
+      }
+    }
+  });
+
+
+  // Dynamically read authorized extensions from Settings tab (Cell B2)
+  try {
+    const settingsSheet = ss.getSheetByName('Settings');
+    if (settingsSheet) {
+      const rawExts = settingsSheet.getRange('B2').getValue().toString();
+      schema.authorizedExtensions = rawExts.split(',').map(s => s.trim()).filter(Boolean);
+    } else {
+      schema.authorizedExtensions = [];
+    }
+  } catch (err) {
+    schema.authorizedExtensions = [];
+  }
+
+
+  return schema;
+}
+
+
+// ==========================================
+// SECURE PASSCODE LOGIC
+// ==========================================
+function getAdminPasscode() {
+  const sheetId = '1UdgMgfNU82pXRnC2MP_UsAD-HGxIf2A1h5EFf3-aIWY';
+  try {
+    const ss = SpreadsheetApp.openById(sheetId);
+    const settingsSheet = ss.getSheetByName('Settings');
+    if (settingsSheet) {
+      const passcode = settingsSheet.getRange('B1').getValue().toString().trim();
+      return passcode;
+    }
+  } catch(e) {}
+  return "Admin8454";
+}
+
+
+// ==========================================
+// FEEDBACK SUBMISSION LOGIC
+// ==========================================
+function submitFeedback(data) {
+  const sheetId = '1UdgMgfNU82pXRnC2MP_UsAD-HGxIf2A1h5EFf3-aIWY';
+  try {
+    const ss = SpreadsheetApp.openById(sheetId);
+    let feedbackSheet = ss.getSheetByName('Feedback');
+    if (!feedbackSheet) {
+      feedbackSheet = ss.insertSheet('Feedback');
+      feedbackSheet.appendRow([
+        'Timestamp',
+        'Agent Name',
+        'Extension',
+        'Department',
+        'Category',
+        'Applicable Form',
+        'Details / Comments'
+      ]);
+      feedbackSheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#f3f3f3');
+      feedbackSheet.setFrozenRows(1);
+    }
+    feedbackSheet.appendRow([
+      new Date(),
+      data.name || '',
+      data.phone || '',
+      data.dept || '',
+      data.category || '',
+      data.section || '',
+      data.details || ''
+    ]);
+    return { success: true, message: 'Thank you! Your feedback has been submitted.' };
+  } catch (err) {
+    return { success: false, message: 'Failed to submit feedback: ' + err.toString() };
+  }
+}
+
+
+// ==========================================
+// CHANGE LOG LOGIC (Only returns visible rows)
+// ==========================================
+function getChangeLog() {
+  const sheetId = '1UdgMgfNU82pXRnC2MP_UsAD-HGxIf2A1h5EFf3-aIWY';
+  try {
+    const ss = SpreadsheetApp.openById(sheetId);
+    const sheet = ss.getSheetByName('Change Log');
+    if (!sheet) return [];
+
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
+
+
+    const tz = ss.getSpreadsheetTimeZone();
+
+
+    // Skip header row and only include rows where Column F (Visible) is TRUE
+    const visibleRows = data.slice(1).filter(r => {
+      const isVisible = r[5] === true || String(r[5]).toUpperCase() === 'TRUE';
+      const hasContent = r[0] || r[3];
+      return isVisible && hasContent;
+    });
+
+
+    return visibleRows.map(r => ({
+      date: r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd') : String(r[0]).trim(),
+      version: r[1] ? String(r[1]).trim() : '',
+      form: r[2] ? String(r[2]).trim() : '',
+      description: r[3] ? String(r[3]).trim() : '',
+      updatedBy: r[4] ? String(r[4]).trim() : ''
+    }));
+  } catch (err) {
+    return [];
+  }
+}
+
+
+// ==========================================
+// DYNAMIC SPECIAL EMAIL TEMPLATES LOGIC
+// ==========================================
+function getSpecialEmailTemplates(userExtension) {
+  const sheetId = '1UdgMgfNU82pXRnC2MP_UsAD-HGxIf2A1h5EFf3-aIWY';
+  try {
+    const ss = SpreadsheetApp.openById(sheetId);
+
+
+    // 1. Validate authorization server-side
+    const settingsSheet = ss.getSheetByName('Settings');
+    let authorizedExts = [];
+    if (settingsSheet) {
+      const rawExts = settingsSheet.getRange('B2').getValue().toString();
+      authorizedExts = rawExts.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+
+    const cleanUserExt = (userExtension || '').toString().trim();
+    // If user's extension is not authorized, return empty list
+    if (!authorizedExts.includes(cleanUserExt)) {
+      return [];
+    }
+
+
+    // 2. Read templates from 'Special Emails' tab
+    const sheet = ss.getSheetByName('Special Emails');
+    if (!sheet) return [];
+
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
+
+
+    const templates = [];
+    for (let i = 1; i < data.length; i++) {
+      const templateId = data[i][0] ? data[i][0].toString().trim() : '';
+      const brand = data[i][1] ? data[i][1].toString().trim() : '';
+      const subject = data[i][2] ? data[i][2].toString().trim() : '';
+      const body = data[i][3] ? data[i][3].toString().trim() : '';
+
+
+      if (templateId || brand) {
+        const displayName = `🔒 Project 2026 - ${brand}`;
+
+
+        // Convert double newlines into clean paragraph spacing
+        const formattedBody = body
+          .split('\n\n')
+          .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+          .join('<br>');
+
+
+        const fullHtml = `
+          <div>
+            <p><strong>SUBJECT: ${subject}</strong></p>
+            <br>
+            ${formattedBody}
+          </div>
+        `;
+
+
+        templates.push({
+          name: displayName,
+          html: fullHtml
+        });
+      }
+    }
+    return templates;
+  } catch (err) {
+    return [];
+  }
+}
+
+
+// ==========================================
+// AUTOMATIC CHANGE LOG TRIGGER
+// ==========================================
+function onEdit(e) {
+  if (!e || !e.range) return;
+
+
+  const sheet = e.range.getSheet();
+  const sheetName = sheet.getName();
+
+
+  // Tabs to exclude from auto-logging
+  const excludedTabs = ['Change Log', 'Feedback', 'Special Emails'];
+  if (excludedTabs.includes(sheetName)) return;
+
+
+  // Don't log edits to the header row (Row 1)
+  if (e.range.getRow() === 1) return;
+
+
+  const ss = e.source;
+  const logSheet = ss.getSheetByName('Change Log');
+  if (!logSheet) return;
+
+
+  const timestamp = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  const user = Session.getActiveUser().getEmail() || 'Admin';
+  const cellNotation = e.range.getA1Notation();
+
+
+  // Get field context from Column A (Internal ID) or Column B (Display Label)
+  let fieldIdentifier = '';
+  try {
+    const row = e.range.getRow();
+    const idVal = sheet.getRange(row, 1).getValue().toString().trim();
+    const labelVal = sheet.getRange(row, 2).getValue().toString().trim();
+    fieldIdentifier = labelVal || idVal || `Row ${row}`;
+  } catch (err) {
+    fieldIdentifier = `Row ${e.range.getRow()}`;
+  }
+
+
+  // Construct description of what changed
+  const oldValue = e.oldValue !== undefined ? `"${e.oldValue}"` : '(blank)';
+  const newValue = e.value !== undefined ? `"${e.value}"` : '(blank)';
+  const description = `Updated [${fieldIdentifier}] in ${cellNotation}: changed from ${oldValue} to ${newValue}`;
+
+
+  // Insert a new row directly under the header row (Row 2)
+  logSheet.insertRowBefore(2);
+
+
+  // Set the logged data across columns A through F
+  const newRowRange = logSheet.getRange(2, 1, 1, 6);
+  newRowRange.setValues([[
+    timestamp,        // Col A: Date
+    'v1.x',            // Col B: Version placeholder
+    sheetName,         // Col C: Applicable Form
+    description,       // Col D: Change Description
+    user,              // Col E: Updated By
+    true               // Col F: Visible (Checked by default)
+  ]]);
+
+
+  // Ensure Column F has an interactive checkbox
+  logSheet.getRange(2, 6).insertCheckboxes();
+}
+
